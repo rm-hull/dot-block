@@ -2,63 +2,91 @@ package main
 
 import (
 	"crypto/tls"
+	"fmt"
 	"log"
+	"os"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/godx"
+	"github.com/spf13/cobra"
 	"golang.org/x/crypto/acme/autocert"
 )
 
-// Upstream resolver for forwarding
-const upstream = "1.1.1.1:53" // Cloudflare DNS
+const host = "dot.destructuring-bind.org"
+
+var upstream string
 
 func main() {
+	var (
+		cacheDir string
+		devMode  bool
+	)
+
+	envDevMode := os.Getenv("DEV_MODE") == "true"
+
+	rootCmd := &cobra.Command{
+		Use:   "dotserver",
+		Short: "DNS-over-TLS server",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runServer(host, cacheDir, devMode)
+		},
+	}
+
+	rootCmd.Flags().StringVar(&cacheDir, "cache-dir", "./dev/certdata", "Directory for TLS certificate cache")
+	rootCmd.Flags().BoolVar(&devMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
+	rootCmd.Flags().StringVar(&upstream, "upstream", "1.1.1.1:53", "Upstream DNS resolver to forward queries to")
+
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Failed to execute command: %v", err)
+	}
+}
+
+func runServer(host, cacheDir string, devMode bool) error {
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
 
-	host := "dot.destructuring-bind.org"
-	cacheDir := "/data/certcache"
-
-	// Set up automatic TLS certificate management
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(host),
 	}
-
 	r := gin.Default()
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
-	r.GET("/", func(c *gin.Context) {
-		c.String(200, "DNS-over-TLS server running")
-	})
 
 	go func() {
-		log.Println("Starting HTTP server on port 80 for ACME challenge...")
-		if err := r.Run(":80"); err != nil {
+		port := ":80"
+		if devMode {
+			port = ":8080"
+		}
+		log.Printf("Starting HTTP server on port %s for ACME challenge...", port)
+		if err := r.Run(port); err != nil {
 			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 
-	// Create TLS config for DoT
-	tlsConfig := &tls.Config{
-		MinVersion: tls.VersionTLS12,
-		NextProtos: []string{"dot"}, // important for DNS-over-TLS
-		GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
-			log.Printf("Initiating client hello: %v", clientHello)
-			cert, err := manager.GetCertificate(clientHello)
-			if err != nil {
-				log.Printf("Failed to get certificate for %s: %v", clientHello.ServerName, err)
-			} else {
-				log.Printf("Certificate obtained for %s", clientHello.ServerName)
-			}
-			return cert, err
-		},
+	if devMode {
+		dnsServer := &dns.Server{
+			Addr:    ":8053",
+			Net:     "tcp",
+			Handler: dns.HandlerFunc(handleDNSRequest),
+		}
+
+		log.Println("Starting DNS server in DEV mode on port 8053 (no TLS)...")
+		if err := dnsServer.ListenAndServe(); err != nil {
+			return fmt.Errorf("failed to start DNS server in dev mode: %w", err)
+		}
+		return nil
 	}
 
-	// Set up DNS server over TCP/TLS
+	tlsConfig := &tls.Config{
+		MinVersion:     tls.VersionTLS12,
+		NextProtos:     []string{"dot"}, // important for DNS-over-TLS
+		GetCertificate: manager.GetCertificate,
+	}
+
 	dnsServer := &dns.Server{
 		Addr:      ":853",
 		Net:       "tcp-tls",
@@ -68,22 +96,20 @@ func main() {
 
 	log.Println("Starting DNS-over-TLS server on port 853...")
 	if err := dnsServer.ListenAndServe(); err != nil {
-		log.Fatalf("Failed to start DoT server: %v", err)
+		return fmt.Errorf("failed to start DoT server: %v", err)
 	}
+	return nil
 }
 
-// handleDNSRequest processes each incoming DNS query.
 func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	m := new(dns.Msg)
 	m.SetReply(r)
 	m.Authoritative = true
 
 	for _, q := range r.Question {
-		// TODO: add blocklist check here later
 		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
 	}
 
-	// Forward to upstream resolver
 	resp, err := forwardQuery(r)
 	if err != nil {
 		log.Printf("Upstream error: %v", err)
@@ -93,7 +119,6 @@ func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	w.WriteMsg(resp)
 }
 
-// forwardQuery sends the DNS query to an upstream resolver.
 func forwardQuery(r *dns.Msg) (*dns.Msg, error) {
 	c := new(dns.Client)
 	c.Timeout = 3 * time.Second
