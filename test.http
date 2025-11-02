@@ -1,1 +1,9 @@
-GET http://dot.destructuring-bind.org/.well-known/acme-challenge/abc123XYZ HTTP/1.1
+###
+GET http://dot.destructuring-bind.org/.well-known/acme-challenge/abc123XYZ
+
+###
+GET http://dot.destructuring-bind.org/
+
+###
+GET http://whoami.destructuring-bind.org/
+
