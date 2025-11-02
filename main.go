@@ -47,6 +47,7 @@ func main() {
 		MinVersion: tls.VersionTLS12,
 		NextProtos: []string{"dot"}, // important for DNS-over-TLS
 		GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
+			log.Printf("Initiating client hello: %v", clientHello)
 			cert, err := manager.GetCertificate(clientHello)
 			if err != nil {
 				log.Printf("Failed to get certificate for %s: %v", clientHello.ServerName, err)
