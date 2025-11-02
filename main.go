@@ -2,10 +2,10 @@ package main
 
 import (
 	"crypto/tls"
+	"dot-block/internal"
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
@@ -16,10 +16,9 @@ import (
 
 const host = "dot.destructuring-bind.org"
 
-var upstream string
-
 func main() {
 	var (
+		upstream string
 		cacheDir string
 		devMode  bool
 	)
@@ -30,7 +29,7 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(host, cacheDir, devMode)
+			return runServer(host, cacheDir, upstream, devMode)
 		},
 	}
 
@@ -43,10 +42,12 @@ func main() {
 	}
 }
 
-func runServer(host, cacheDir string, devMode bool) error {
+func runServer(host, cacheDir, upstream string, devMode bool) error {
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
+
+	dispatcher := internal.NewDNSDispatcher(upstream, 1_000_000)
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
@@ -71,7 +72,7 @@ func runServer(host, cacheDir string, devMode bool) error {
 		dnsServer := &dns.Server{
 			Addr:    ":8053",
 			Net:     "tcp",
-			Handler: dns.HandlerFunc(handleDNSRequest),
+			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
 		}
 
 		log.Println("Starting DNS server in DEV mode on port 8053 (no TLS)...")
@@ -91,7 +92,7 @@ func runServer(host, cacheDir string, devMode bool) error {
 		Addr:      ":853",
 		Net:       "tcp-tls",
 		TLSConfig: tlsConfig,
-		Handler:   dns.HandlerFunc(handleDNSRequest),
+		Handler:   dns.HandlerFunc(dispatcher.HandleDNSRequest),
 	}
 
 	log.Println("Starting DNS-over-TLS server on port 853...")
@@ -99,29 +100,4 @@ func runServer(host, cacheDir string, devMode bool) error {
 		return fmt.Errorf("failed to start DoT server: %v", err)
 	}
 	return nil
-}
-
-func handleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.Authoritative = true
-
-	for _, q := range r.Question {
-		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
-	}
-
-	resp, err := forwardQuery(r)
-	if err != nil {
-		log.Printf("Upstream error: %v", err)
-		dns.HandleFailed(w, r)
-		return
-	}
-	w.WriteMsg(resp)
-}
-
-func forwardQuery(r *dns.Msg) (*dns.Msg, error) {
-	c := new(dns.Client)
-	c.Timeout = 3 * time.Second
-	in, _, err := c.Exchange(r, upstream)
-	return in, err
 }
