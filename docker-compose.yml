@@ -1,0 +1,27 @@
+name: dot-block
+
+networks:
+  homelab-net:
+    external: true
+
+services:
+  dot-block:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ghcr.io/rm-hull/dot-block:latest
+
+    restart: unless-stopped
+    container_name: dns-server
+    volumes:
+      - ./data:/data
+    labels:
+      - "dockflare.enable=true"
+      - "dockflare.0.hostname=dot.destructuring-bind.org"
+      - "dockflare.0.service=http://dot-block:80"
+      - "dockflare.1.hostname=dot.destructuring-bind.org"
+      - "dockflare.1.service=tcp://dot-block:853"
+      - "dockflare.1.originsrvname=dot.destructuring-bind.org"
+      - "dockflare.1.no_tls_verify=true"
+    networks:
+      - homelab-net
