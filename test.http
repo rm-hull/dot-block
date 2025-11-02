@@ -1,0 +1,1 @@
+GET http://dot.destructuring-bind.org/.well-known/acme-challenge/abc123XYZ HTTP/1.1

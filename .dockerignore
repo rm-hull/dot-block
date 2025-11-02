@@ -1,0 +1,10 @@
+.github
+.vscode
+init/
+data/
+LICENSE.md
+README.md
+ATTRIBUTION.md
+GEMINI.md
+.env*
+docker-compose.yml
