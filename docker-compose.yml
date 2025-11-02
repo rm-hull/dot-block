@@ -18,9 +18,9 @@ services:
     labels:
       - "dockflare.enable=true"
       - "dockflare.0.hostname=dot.destructuring-bind.org"
-      - "dockflare.0.service=http://dot-block:80"
+      - "dockflare.0.service=http://dns-server:80"
       - "dockflare.1.hostname=dot.destructuring-bind.org"
-      - "dockflare.1.service=tcp://dot-block:853"
+      - "dockflare.1.service=tcp://dns-server:853"
       - "dockflare.1.originsrvname=dot.destructuring-bind.org"
       - "dockflare.1.no_tls_verify=true"
     networks:
