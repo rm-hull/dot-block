@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/Depado/ginprom"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/godx"
@@ -47,14 +48,25 @@ func runServer(host, cacheDir, upstream string, devMode bool) error {
 	godx.EnvironmentVars()
 	godx.UserInfo()
 
-	dispatcher := internal.NewDNSDispatcher(upstream, 1_000_000)
-
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(host),
 	}
-	r := gin.Default()
+
+	r := gin.New()
+	prometheus := ginprom.New(
+		ginprom.Engine(r),
+		ginprom.Path("/metrics"),
+		ginprom.Ignore("/healthz"),
+	)
+
+	r.Use(
+		gin.Recovery(),
+		gin.LoggerWithWriter(gin.DefaultWriter, "/metrics"),
+		prometheus.Instrument(),
+	)
+
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
 
 	go func() {
@@ -67,6 +79,8 @@ func runServer(host, cacheDir, upstream string, devMode bool) error {
 			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
+
+	dispatcher := internal.NewDNSDispatcher(upstream, 1_000_000)
 
 	if devMode {
 		dnsServer := &dns.Server{

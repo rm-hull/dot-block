@@ -7,3 +7,6 @@ GET http://dot.destructuring-bind.org/
 ###
 GET http://whoami.destructuring-bind.org/
 
+
+###
+GET http://localhost:8080/metrics
