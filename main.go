@@ -51,10 +51,12 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 	godx.EnvironmentVars()
 	godx.UserInfo()
 
-	_, err := internal.DownloadBlocklist(blockListUrl)
+	blockList, err := internal.DownloadBlocklist(blockListUrl)
 	if err != nil {
 		return fmt.Errorf("failed to download blocklist: %w", err)
 	}
+
+	_ = internal.NewBloomFilter(blockList, 0.0001)
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
