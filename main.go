@@ -122,7 +122,10 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 	}
 
 	r := gin.New()
-	prometheus := ginprom.New()
+	prometheus := ginprom.New(
+		ginprom.Path("/metrics"),
+		ginprom.Ignore("/healthz", "/metrics"),
+	)
 
 	r.Use(
 		gin.Recovery(),
@@ -133,7 +136,7 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 	if app.metricsAuth == "" {
 		log.Println("WARN: /metrics endpoint is not protected")
 		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-
+		
 	} else {
 		parts := strings.SplitN(app.metricsAuth, ":", 2)
 		if len(parts) == 2 {
