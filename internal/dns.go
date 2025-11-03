@@ -107,10 +107,6 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 	}
 
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.Authoritative = true
-
 	resp, err := d.forwardQuery(r)
 	if err != nil {
 		log.Printf("Upstream error: %v", err)
