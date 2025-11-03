@@ -34,7 +34,7 @@ func main() {
 		},
 	}
 
-	rootCmd.Flags().StringVar(&cacheDir, "cache-dir", "./dev/certdata", "Directory for TLS certificate cache")
+	rootCmd.Flags().StringVar(&cacheDir, "cache-dir", "./data/certcache", "Directory for TLS certificate cache")
 	rootCmd.Flags().BoolVar(&devMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().StringVar(&upstream, "upstream", "1.1.1.1:53", "Upstream DNS resolver to forward queries to")
 
