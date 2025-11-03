@@ -17,6 +17,7 @@ import (
 
 const host = "dot.destructuring-bind.org"
 const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
+const CACHE_SIZE = 1_000_000
 
 func main() {
 	var (
@@ -90,7 +91,7 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 		}
 	}()
 
-	dispatcher := internal.NewDNSDispatcher(upstream, 1_000_000)
+	dispatcher := internal.NewDNSDispatcher(upstream, CACHE_SIZE)
 
 	if devMode {
 		dnsServer := &dns.Server{
