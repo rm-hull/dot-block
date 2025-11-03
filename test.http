@@ -1,12 +1,12 @@
-###
-GET http://dot.destructuring-bind.org/.well-known/acme-challenge/abc123XYZ
-
-###
-GET http://dot.destructuring-bind.org/
-
-###
-GET http://whoami.destructuring-bind.org/
+### ACME challenge
+GET http://localhost:8080/.well-known/acme-challenge/abc123XYZ
 
 
-###
+### Metrics
 GET http://localhost:8080/metrics
+Authorization: Basic aGFuazptYXJ2aW4=
+
+
+### Metrics (wrong auth)
+GET http://localhost:8080/metrics
+Authorization: Basic YmFycnk6ZnVuZ3Vz
