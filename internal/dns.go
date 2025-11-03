@@ -59,7 +59,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 	}
 }
 
-func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
+func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg) {
 	startTime := time.Now()
 	defer func() {
 		duration := time.Since(startTime).Seconds()
@@ -75,50 +75,50 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	}()
 
 	// FIXME: what happens if there is more than one question here?
-	for _, q := range r.Question {
+	for _, q := range req.Question {
 		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
 
 		isBlocked, err := d.blockList.IsBlocked(q.Name)
 		if err != nil {
-			d.handleError(fmt.Errorf("blocklist error: %w", err), w, r)
+			d.handleError(fmt.Errorf("blocklist error: %w", err), writer, req)
 			return
 		}
 
 		if isBlocked {
 			d.requestCounts.WithLabelValues("blocked").Inc()
 			log.Printf("Domain %s is BLOCKED", q.Name)
-			if err := d.sendNXDOMAIN(w, r); err != nil {
-				d.handleError(fmt.Errorf("send NXDOMAIN failed: %w", err), w, r)
+			if err := d.sendNXDOMAIN(writer, req); err != nil {
+				d.handleError(fmt.Errorf("send NXDOMAIN failed: %w", err), writer, req)
 			}
 			return
 		}
 
 		d.requestCounts.WithLabelValues("allowed").Inc()
 		if msg, ok := d.cache.Get(getCacheKey(&q)); ok {
-			msg.Id = r.Id
-			if err := w.WriteMsg(msg); err != nil {
-				d.handleError(fmt.Errorf("failed to send cached response: %w", err), w, r)
+			msg.Id = req.Id
+			if err := writer.WriteMsg(msg); err != nil {
+				d.handleError(fmt.Errorf("failed to send cached response: %w", err), writer, req)
 			}
 			return
 		}
 	}
 
-	resp, err := d.forwardQuery(r)
+	resp, err := d.forwardQuery(req)
 	if err != nil {
-		d.handleError(fmt.Errorf("upstream error: %w", err), w, r)
+		d.handleError(fmt.Errorf("upstream error: %w", err), writer, req)
 		return
 	}
 
-	for index, q := range r.Question {
-		ttl := d.defaultTTL
+	for index, q := range req.Question {
+		cacheTTL := d.defaultTTL
 		if index < len(resp.Answer) {
-			ttl = float64(resp.Answer[index].Header().Ttl)
+			cacheTTL = math.Max(cacheTTL, float64(resp.Answer[index].Header().Ttl))
 		}
-		d.cache.Set(getCacheKey(&q), resp, time.Duration(ttl)*time.Second)
+		d.cache.Set(getCacheKey(&q), resp, time.Duration(cacheTTL)*time.Second)
 	}
 
-	if err := w.WriteMsg(resp); err != nil {
-		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), w, r)
+	if err := writer.WriteMsg(resp); err != nil {
+		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), writer, req)
 	}
 }
 

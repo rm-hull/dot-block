@@ -1,6 +1,7 @@
 # dot-block
 
-https://chatgpt.com/share/6906b46b-4674-8010-9320-6869e887505d
+* https://chatgpt.com/share/6906b46b-4674-8010-9320-6869e887505d
+* https://github.com/hagezi/dns-blocklists
 
 ```bash
 $ openssl s_client -connect dot.destructuring-bind.org:853 -alpn dot -servername dot.destructuring-bind.org
