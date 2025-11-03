@@ -80,9 +80,7 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 
 		isBlocked, err := d.blockList.IsBlocked(q.Name)
 		if err != nil {
-			log.Printf("Blocklist error: %v", err)
-			dns.HandleFailed(w, r)
-			d.errorCounts.WithLabelValues(err.Error()).Inc()
+			d.handleError(fmt.Errorf("blocklist error: %w", err), w, r)
 			return
 		}
 
@@ -90,9 +88,7 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 			d.requestCounts.WithLabelValues("blocked").Inc()
 			log.Printf("Domain %s is BLOCKED", q.Name)
 			if err := d.sendNXDOMAIN(w, r); err != nil {
-				log.Printf("Send NXDOMAIN failed: %v", err)
-				dns.HandleFailed(w, r)
-				d.errorCounts.WithLabelValues(err.Error()).Inc()
+				d.handleError(fmt.Errorf("send NXDOMAIN failed: %w", err), w, r)
 			}
 			return
 		}
@@ -102,16 +98,16 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		if msg, ok := d.cache.Get(cacheKey); ok {
 			log.Printf("Serving from cache: %s", q.Name)
 			msg.Id = r.Id
-			w.WriteMsg(msg)
+			if err := w.WriteMsg(msg); err != nil {
+				d.handleError(fmt.Errorf("failed to send cached response: %w", err), w, r)
+			}
 			return
 		}
 	}
 
 	resp, err := d.forwardQuery(r)
 	if err != nil {
-		log.Printf("Upstream error: %v", err)
-		dns.HandleFailed(w, r)
-		d.errorCounts.WithLabelValues(err.Error()).Inc()
+		d.handleError(fmt.Errorf("upstream error: %w", err), w, r)
 		return
 	}
 
@@ -124,7 +120,15 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		d.cache.Set(cacheKey, resp, time.Duration(ttl)*time.Second)
 	}
 
-	w.WriteMsg(resp)
+	if err := w.WriteMsg(resp); err != nil {
+		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), w, r)
+	}
+}
+
+func (d *DNSDispatcher) handleError(err error, w dns.ResponseWriter, r *dns.Msg) {
+	log.Println(err.Error())
+	dns.HandleFailed(w, r)
+	d.errorCounts.WithLabelValues(err.Error()).Inc()
 }
 
 func (d *DNSDispatcher) forwardQuery(r *dns.Msg) (*dns.Msg, error) {
