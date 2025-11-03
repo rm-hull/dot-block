@@ -14,40 +14,47 @@ type DNSDispatcher struct {
 	upstream         string
 	defaultTTL       float64
 	cache            cache.Cache[string, *dns.Msg]
+	blockList        *BlockList
 	latencyHistogram prometheus.Histogram
 	upstreamErrors   *prometheus.CounterVec
 	cacheStats       *prometheus.GaugeVec
+	requestCounts    *prometheus.CounterVec
 }
 
-func NewDNSDispatcher(upstream string, maxSize int) *DNSDispatcher {
+func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDispatcher {
 	latencyHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "dns_request_latency",
 			Help:    "Duration of DNS requests",
 			Buckets: []float64{0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1)},
-		},
-	)
+		})
 
 	upstreamErrors := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_upstream_errors",
 		Help: "DNS upstream errors",
-	}, []string{"error"},
-	)
+	}, []string{"error"})
 
 	cacheStats := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "dns_cache_stats",
 		Help: "DNS cache stats",
 	}, []string{"type"})
 
-	prometheus.MustRegister(latencyHistogram, upstreamErrors, cacheStats)
+	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_blocked_requests",
+		Help: "DNS blocked requests",
+	}, []string{"type"})
+
+	prometheus.MustRegister(latencyHistogram, upstreamErrors, cacheStats, requestCounts)
 
 	return &DNSDispatcher{
 		upstream:         upstream,
 		defaultTTL:       300, // TODO: pass in
 		cache:            cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU(),
+		blockList:        blockList,
 		latencyHistogram: latencyHistogram,
 		upstreamErrors:   upstreamErrors,
 		cacheStats:       cacheStats,
+		requestCounts:    requestCounts,
 	}
 }
 
@@ -62,10 +69,22 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		d.cacheStats.WithLabelValues("evicted").Set(float64(stats.Evicted))
 		d.cacheStats.WithLabelValues("hits").Set(float64(stats.Hits))
 		d.cacheStats.WithLabelValues("misses").Set(float64(stats.Misses))
+
+		d.requestCounts.WithLabelValues("total").Inc()
 	}()
 
+	// FIXME: what happens if there is more than one question here?
 	for _, q := range r.Question {
 		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
+
+		if d.blockList.IsBlocked(q.Name) {
+			d.requestCounts.WithLabelValues("blocked").Inc()
+			log.Printf("Domain %s is BLOCKED", q.Name)
+			// TODO: Return NXDOMAIN response
+		} else {
+			d.requestCounts.WithLabelValues("allowed").Inc()
+		}
+
 		cacheKey := q.Name + ":" + dns.TypeToString[q.Qtype]
 		if msg, ok := d.cache.Get(cacheKey); ok {
 			log.Printf("Serving from cache: %s", q.Name)
