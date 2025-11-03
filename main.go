@@ -3,13 +3,16 @@ package main
 import (
 	"crypto/tls"
 	"dot-block/internal"
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/Depado/ginprom"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/godx"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/acme/autocert"
@@ -27,6 +30,7 @@ func main() {
 		devMode      bool
 		httpPort     int
 		allowedHosts []string
+		metricsAuth  string
 	)
 
 	envDevMode := os.Getenv("DEV_MODE") == "true"
@@ -35,7 +39,7 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(allowedHosts, cacheDir, upstream, blockListUrl, devMode, httpPort)
+			return runServer(allowedHosts, cacheDir, upstream, blockListUrl, devMode, httpPort, metricsAuth)
 		},
 	}
 
@@ -45,13 +49,14 @@ func main() {
 	rootCmd.Flags().StringVar(&upstream, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolver to forward queries to")
 	rootCmd.Flags().IntVar(&httpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&allowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
+	rootCmd.Flags().StringVar(&metricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: user:pass)")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute command: %v", err)
 	}
 }
 
-func runServer(allowedHosts []string, cacheDir, upstream, blockListUrl string, devMode bool, httpPort int) error {
+func runServer(allowedHosts []string, cacheDir, upstream, blockListUrl string, devMode bool, httpPort int, metricsAuth string) error {
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
@@ -69,7 +74,9 @@ func runServer(allowedHosts []string, cacheDir, upstream, blockListUrl string, d
 		HostPolicy: autocert.HostWhitelist(allowedHosts...),
 	}
 
-	startHttpServer(devMode, httpPort, manager)
+	if _, err := startHttpServer(devMode, httpPort, manager, metricsAuth); err != nil {
+		return fmt.Errorf("failed to start HTTP server: %w", err)
+	}
 
 	dispatcher := internal.NewDNSDispatcher(upstream, blockList, CACHE_SIZE)
 
@@ -107,7 +114,7 @@ func runServer(allowedHosts []string, cacheDir, upstream, blockListUrl string, d
 	return nil
 }
 
-func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager) *gin.Engine {
+func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager, metricsAuth string) (*gin.Engine, error) {
 
 	if !devMode {
 		gin.SetMode(gin.ReleaseMode)
@@ -115,7 +122,7 @@ func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager) *gin
 
 	r := gin.New()
 	prometheus := ginprom.New(
-		ginprom.Engine(r),
+		// ginprom.Engine(r),
 		ginprom.Path("/metrics"),
 		ginprom.Ignore("/healthz"),
 	)
@@ -125,6 +132,22 @@ func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager) *gin
 		gin.LoggerWithWriter(gin.DefaultWriter, "/metrics"),
 		prometheus.Instrument(),
 	)
+
+	if metricsAuth != "" {
+		parts := strings.SplitN(metricsAuth, ":", 2)
+		if len(parts) == 2 {
+			log.Println("Protecting /metrics endpoint with basic auth")
+			user := parts[0]
+			pass := parts[1]
+			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
+				user: pass,
+			}))
+			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+		} else {
+			return nil, errors.New("invalid metrics-auth value")
+		}
+	}
 
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
 
@@ -136,5 +159,5 @@ func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager) *gin
 		}
 	}()
 
-	return r
+	return r, nil
 }
