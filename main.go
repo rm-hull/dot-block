@@ -52,12 +52,12 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 	godx.EnvironmentVars()
 	godx.UserInfo()
 
-	blockList, err := internal.DownloadBlocklist(blockListUrl)
+	hosts, err := internal.DownloadBlocklist(blockListUrl)
 	if err != nil {
 		return fmt.Errorf("failed to download blocklist: %w", err)
 	}
 
-	_ = internal.NewBloomFilter(blockList, 0.0001)
+	blockList := internal.NewBlockList(hosts, 0.0001)
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
@@ -91,7 +91,7 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 		}
 	}()
 
-	dispatcher := internal.NewDNSDispatcher(upstream, CACHE_SIZE)
+	dispatcher := internal.NewDNSDispatcher(upstream, blockList, CACHE_SIZE)
 
 	if devMode {
 		dnsServer := &dns.Server{
