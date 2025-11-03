@@ -15,8 +15,8 @@ import (
 	"golang.org/x/crypto/acme/autocert"
 )
 
-const host = "dot.destructuring-bind.org"
 const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
+const DEFAULT_UPSTREAM_DNS = "1.1.1.1:53"
 const CACHE_SIZE = 1_000_000
 
 func main() {
@@ -25,6 +25,8 @@ func main() {
 		cacheDir     string
 		blockListUrl string
 		devMode      bool
+		httpPort     int
+		allowedHosts []string
 	)
 
 	envDevMode := os.Getenv("DEV_MODE") == "true"
@@ -33,21 +35,23 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(host, cacheDir, upstream, blockListUrl, devMode)
+			return runServer(allowedHosts, cacheDir, upstream, blockListUrl, devMode, httpPort)
 		},
 	}
 
 	rootCmd.Flags().StringVar(&blockListUrl, "blocklist-url", HAGEZI_PRO_BLOCKLIST, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&cacheDir, "cache-dir", "./data/certcache", "Directory for TLS certificate cache")
 	rootCmd.Flags().BoolVar(&devMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
-	rootCmd.Flags().StringVar(&upstream, "upstream", "1.1.1.1:53", "Upstream DNS resolver to forward queries to")
+	rootCmd.Flags().StringVar(&upstream, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolver to forward queries to")
+	rootCmd.Flags().IntVar(&httpPort, "http-port", 80, "The port to run HTTP server on")
+	rootCmd.Flags().StringArrayVar(&allowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
 
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute command: %v", err)
 	}
 }
 
-func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) error {
+func runServer(allowedHosts []string, cacheDir, upstream, blockListUrl string, devMode bool, httpPort int) error {
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
@@ -62,34 +66,10 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
 		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(host),
+		HostPolicy: autocert.HostWhitelist(allowedHosts...),
 	}
 
-	r := gin.New()
-	prometheus := ginprom.New(
-		ginprom.Engine(r),
-		ginprom.Path("/metrics"),
-		ginprom.Ignore("/healthz"),
-	)
-
-	r.Use(
-		gin.Recovery(),
-		gin.LoggerWithWriter(gin.DefaultWriter, "/metrics"),
-		prometheus.Instrument(),
-	)
-
-	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
-
-	go func() {
-		port := ":80"
-		if devMode {
-			port = ":8080"
-		}
-		log.Printf("Starting HTTP server on port %s for ACME challenge...", port)
-		if err := r.Run(port); err != nil {
-			log.Fatalf("HTTP server error: %v", err)
-		}
-	}()
+	startHttpServer(devMode, httpPort, manager)
 
 	dispatcher := internal.NewDNSDispatcher(upstream, blockList, CACHE_SIZE)
 
@@ -125,4 +105,36 @@ func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) erro
 		return fmt.Errorf("failed to start DoT server: %v", err)
 	}
 	return nil
+}
+
+func startHttpServer(devMode bool, httpPort int, manager *autocert.Manager) *gin.Engine {
+
+	if !devMode {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	r := gin.New()
+	prometheus := ginprom.New(
+		ginprom.Engine(r),
+		ginprom.Path("/metrics"),
+		ginprom.Ignore("/healthz"),
+	)
+
+	r.Use(
+		gin.Recovery(),
+		gin.LoggerWithWriter(gin.DefaultWriter, "/metrics"),
+		prometheus.Instrument(),
+	)
+
+	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
+
+	go func() {
+		port := fmt.Sprintf(":%d", httpPort)
+		log.Printf("Starting HTTP server on port %s for ACME challenge & metrics...", port)
+		if err := r.Run(port); err != nil {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
+	return r
 }
