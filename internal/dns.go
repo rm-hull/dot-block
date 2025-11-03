@@ -94,9 +94,7 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 		}
 
 		d.requestCounts.WithLabelValues("allowed").Inc()
-		cacheKey := q.Name + ":" + dns.TypeToString[q.Qtype]
-		if msg, ok := d.cache.Get(cacheKey); ok {
-			log.Printf("Serving from cache: %s", q.Name)
+		if msg, ok := d.cache.Get(getCacheKey(&q)); ok {
 			msg.Id = r.Id
 			if err := w.WriteMsg(msg); err != nil {
 				d.handleError(fmt.Errorf("failed to send cached response: %w", err), w, r)
@@ -112,17 +110,20 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	for index, q := range r.Question {
-		cacheKey := q.Name + ":" + dns.TypeToString[q.Qtype]
 		ttl := d.defaultTTL
 		if index < len(resp.Answer) {
 			ttl = float64(resp.Answer[index].Header().Ttl)
 		}
-		d.cache.Set(cacheKey, resp, time.Duration(ttl)*time.Second)
+		d.cache.Set(getCacheKey(&q), resp, time.Duration(ttl)*time.Second)
 	}
 
 	if err := w.WriteMsg(resp); err != nil {
 		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), w, r)
 	}
+}
+
+func getCacheKey(q *dns.Question) string {
+	return q.Name + ":" + dns.TypeToString[q.Qtype]
 }
 
 func (d *DNSDispatcher) handleError(err error, w dns.ResponseWriter, r *dns.Msg) {
