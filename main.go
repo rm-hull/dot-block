@@ -16,12 +16,14 @@ import (
 )
 
 const host = "dot.destructuring-bind.org"
+const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
 
 func main() {
 	var (
-		upstream string
-		cacheDir string
-		devMode  bool
+		upstream     string
+		cacheDir     string
+		blockListUrl string
+		devMode      bool
 	)
 
 	envDevMode := os.Getenv("DEV_MODE") == "true"
@@ -30,10 +32,11 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runServer(host, cacheDir, upstream, devMode)
+			return runServer(host, cacheDir, upstream, blockListUrl, devMode)
 		},
 	}
 
+	rootCmd.Flags().StringVar(&blockListUrl, "blocklist-url", HAGEZI_PRO_BLOCKLIST, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&cacheDir, "cache-dir", "./data/certcache", "Directory for TLS certificate cache")
 	rootCmd.Flags().BoolVar(&devMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().StringVar(&upstream, "upstream", "1.1.1.1:53", "Upstream DNS resolver to forward queries to")
@@ -43,10 +46,15 @@ func main() {
 	}
 }
 
-func runServer(host, cacheDir, upstream string, devMode bool) error {
+func runServer(host, cacheDir, upstream, blockListUrl string, devMode bool) error {
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
+
+	_, err := internal.DownloadBlocklist(blockListUrl)
+	if err != nil {
+		return fmt.Errorf("failed to download blocklist: %w", err)
+	}
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(cacheDir),
