@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "main.go",
-      "args": ["--dev-mode"]
+      "args": ["--dev-mode", "--http-port=8080"]
     }
   ]
 }
