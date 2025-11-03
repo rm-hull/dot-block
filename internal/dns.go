@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"time"
@@ -16,7 +17,7 @@ type DNSDispatcher struct {
 	cache            cache.Cache[string, *dns.Msg]
 	blockList        *BlockList
 	latencyHistogram prometheus.Histogram
-	upstreamErrors   *prometheus.CounterVec
+	errorCounts      *prometheus.CounterVec
 	cacheStats       *prometheus.GaugeVec
 	requestCounts    *prometheus.CounterVec
 }
@@ -29,9 +30,9 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 			Buckets: []float64{0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1)},
 		})
 
-	upstreamErrors := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "dns_upstream_errors",
-		Help: "DNS upstream errors",
+	errorCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_error_count",
+		Help: "DNS error count",
 	}, []string{"error"})
 
 	cacheStats := prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -40,11 +41,11 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 	}, []string{"type"})
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "dns_blocked_requests",
-		Help: "DNS blocked requests",
+		Name: "dns_request_count",
+		Help: "DNS request count",
 	}, []string{"type"})
 
-	prometheus.MustRegister(latencyHistogram, upstreamErrors, cacheStats, requestCounts)
+	prometheus.MustRegister(latencyHistogram, errorCounts, cacheStats, requestCounts)
 
 	return &DNSDispatcher{
 		upstream:         upstream,
@@ -52,7 +53,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 		cache:            cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU(),
 		blockList:        blockList,
 		latencyHistogram: latencyHistogram,
-		upstreamErrors:   upstreamErrors,
+		errorCounts:      errorCounts,
 		cacheStats:       cacheStats,
 		requestCounts:    requestCounts,
 	}
@@ -77,14 +78,26 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	for _, q := range r.Question {
 		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
 
-		if d.blockList.IsBlocked(q.Name) {
-			d.requestCounts.WithLabelValues("blocked").Inc()
-			log.Printf("Domain %s is BLOCKED", q.Name)
-			// TODO: Return NXDOMAIN response
-		} else {
-			d.requestCounts.WithLabelValues("allowed").Inc()
+		isBlocked, err := d.blockList.IsBlocked(q.Name)
+		if err != nil {
+			log.Printf("Blocklist error: %v", err)
+			dns.HandleFailed(w, r)
+			d.errorCounts.WithLabelValues(err.Error()).Inc()
+			return
 		}
 
+		if isBlocked {
+			d.requestCounts.WithLabelValues("blocked").Inc()
+			log.Printf("Domain %s is BLOCKED", q.Name)
+			if err := d.sendNXDOMAIN(w, r); err != nil {
+				log.Printf("Send NXDOMAIN failed: %v", err)
+				dns.HandleFailed(w, r)
+				d.errorCounts.WithLabelValues(err.Error()).Inc()
+			}
+			return
+		}
+
+		d.requestCounts.WithLabelValues("allowed").Inc()
 		cacheKey := q.Name + ":" + dns.TypeToString[q.Qtype]
 		if msg, ok := d.cache.Get(cacheKey); ok {
 			log.Printf("Serving from cache: %s", q.Name)
@@ -102,7 +115,7 @@ func (d *DNSDispatcher) HandleDNSRequest(w dns.ResponseWriter, r *dns.Msg) {
 	if err != nil {
 		log.Printf("Upstream error: %v", err)
 		dns.HandleFailed(w, r)
-		d.upstreamErrors.WithLabelValues(err.Error()).Inc()
+		d.errorCounts.WithLabelValues(err.Error()).Inc()
 		return
 	}
 
@@ -123,4 +136,34 @@ func (d *DNSDispatcher) forwardQuery(r *dns.Msg) (*dns.Msg, error) {
 	c.Timeout = 3 * time.Second
 	in, _, err := c.Exchange(r, d.upstream)
 	return in, err
+}
+
+func (d *DNSDispatcher) sendNXDOMAIN(w dns.ResponseWriter, r *dns.Msg) error {
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.Authoritative = true
+	m.Rcode = dns.RcodeNameError // NXDOMAIN
+
+	soa := &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   r.Question[0].Name,
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    60,
+		},
+		Ns:      "ns.blocked.local.", // fake authoritative name server
+		Mbox:    "hostmaster.blocked.local.",
+		Serial:  1,
+		Refresh: 3600,
+		Retry:   600,
+		Expire:  86400,
+		Minttl:  60,
+	}
+	m.Ns = []dns.RR{soa}
+
+	if err := w.WriteMsg(m); err != nil {
+		return fmt.Errorf("failed to send NXDOMAIN: %w", err)
+	}
+
+	return nil
 }
