@@ -20,12 +20,28 @@ type DNSDispatcher struct {
 	blockList        *BlockList
 	latencyHistogram prometheus.Histogram
 	errorCounts      *prometheus.CounterVec
-	cacheStats       *prometheus.GaugeVec
 	requestCounts    *prometheus.CounterVec
 	uniqueClientsHLL *hyperloglog.Sketch
 }
 
 func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDispatcher {
+
+	cache := cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU()
+	sketch := hyperloglog.New14()
+
+	cacheStats := NewStatsCollector("dns_cache_stats",
+		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
+		func() map[string]int {
+			stats := cache.Stat()
+			return map[string]int{
+				"added":   stats.Added,
+				"evicted": stats.Evicted,
+				"hits":    stats.Hits,
+				"misses":  stats.Misses,
+				"size":    cache.Len(),
+			}
+		})
+
 	latencyHistogram := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "dns_request_latency",
@@ -35,20 +51,14 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 
 	errorCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_error_count",
-		Help: "DNS error count",
+		Help: "Counts the number of errors broken down by type",
 	}, []string{"error"})
-
-	cacheStats := prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "dns_cache_stats",
-		Help: "DNS cache stats",
-	}, []string{"type"})
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
 		Help: "Counts the number of DNS requests, broken down by type: total, allowed, blocked, errored",
 	}, []string{"type"})
 
-	sketch := hyperloglog.New14()
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
 		Help: "Estimates the number of unique clients (relative error ≈ 1.04%)",
@@ -61,11 +71,10 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 	return &DNSDispatcher{
 		upstream:         upstream,
 		defaultTTL:       300, // TODO: pass in
-		cache:            cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU(),
+		cache:            cache,
 		blockList:        blockList,
 		latencyHistogram: latencyHistogram,
 		errorCounts:      errorCounts,
-		cacheStats:       cacheStats,
 		requestCounts:    requestCounts,
 		uniqueClientsHLL: sketch,
 	}
@@ -76,13 +85,6 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	defer func() {
 		duration := time.Since(startTime).Seconds()
 		d.latencyHistogram.Observe(duration)
-
-		stats := d.cache.Stat()
-		d.cacheStats.WithLabelValues("added").Set(float64(stats.Added))
-		d.cacheStats.WithLabelValues("evicted").Set(float64(stats.Evicted))
-		d.cacheStats.WithLabelValues("hits").Set(float64(stats.Hits))
-		d.cacheStats.WithLabelValues("misses").Set(float64(stats.Misses))
-
 		d.requestCounts.WithLabelValues("total").Inc()
 	}()
 
