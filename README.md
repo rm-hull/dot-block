@@ -75,7 +75,7 @@ openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your
 To build the binary from source:
 
 ```bash
-go build -tags=jsoniter -ldflags="-w -s" -o dot-block .
+go build -ldflags="-w -s" -o dot-block .
 ```
 
 ## Testing

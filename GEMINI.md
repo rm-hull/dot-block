@@ -46,7 +46,7 @@ The `docker-compose.yml` file is configured to use `dockflare` to automatically 
 To build the binary directly:
 
 ```bash
-go build -tags=jsoniter -ldflags="-w -s" -o dot-block .
+go build -ldflags="-w -s" -o dot-block .
 ```
 
 ### Testing
