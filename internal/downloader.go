@@ -53,7 +53,7 @@ func DownloadBlocklist(url string) ([]string, error) {
 		line := scanner.Text()
 		if strings.HasPrefix(line, "#") {
 			log.Println(" ", line)
-		} else if len(strings.Trim(line, " ")) == 0 {
+		} else if len(strings.TrimSpace(line)) == 0 {
 			continue
 		} else {
 			blocklist = append(blocklist, line)
