@@ -3,19 +3,21 @@ package internal
 import (
 	"log"
 	"strings"
+	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/publicsuffix"
 )
 
 type BlockList struct {
 	bloomFilter *bloom.BloomFilter
+	updated     time.Time
 }
 
 func NewBlockList(items []string, fpRate float64) *BlockList {
 	n := uint(len(items))
 	bf := bloom.NewWithEstimates(n, fpRate)
-
 	for _, item := range items {
 		bf.AddString(item)
 	}
@@ -23,9 +25,27 @@ func NewBlockList(items []string, fpRate float64) *BlockList {
 	m, k := bloom.EstimateParameters(n, fpRate)
 	log.Printf("Bloom filter created: actual FP rate = %f, approx size = %d", bloom.EstimateFalsePositiveRate(m, k, n), bf.ApproximatedSize())
 
-	return &BlockList{
+	blocklist := BlockList{
 		bloomFilter: bf,
+		updated:     time.Now(),
 	}
+
+	count := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "blocklist_size",
+		Help: "The number of entries in the blocklist",
+	})
+	count.Set(float64(n))
+
+	age := prometheus.NewCounterFunc(prometheus.CounterOpts{
+		Name: "blocklist_age",
+		Help: "The age (in seconds) since the blocklist was loaded",
+	}, func() float64 {
+		return time.Since(blocklist.updated).Seconds()
+	})
+
+	prometheus.MustRegister(count, age)
+
+	return &blocklist
 }
 
 // Returns whether the URL (or part of the URL) is on a block list.
