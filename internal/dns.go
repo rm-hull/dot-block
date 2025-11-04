@@ -17,7 +17,7 @@ type DNSDispatcher struct {
 	dnsClient        *dns.Client
 	upstream         string
 	defaultTTL       float64
-	cache            cache.Cache[string, *dns.Msg]
+	cache            cache.Cache[string, []dns.RR]
 	blockList        *BlockList
 	latencyHistogram prometheus.Histogram
 	errorCounts      *prometheus.CounterVec
@@ -27,7 +27,7 @@ type DNSDispatcher struct {
 
 func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDispatcher {
 
-	cache := cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU()
+	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	sketch := hyperloglog.New14()
 	dnsClient := dns.Client{
 		Timeout: 3 * time.Second,
@@ -97,48 +97,73 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		log.Println(err)
 	}
 
-	// FIXME: what happens if there is more than one question here?
+	resp := new(dns.Msg)
+	resp.SetReply(req)
+
+	unansweredQuestions := make([]dns.Question, 0, len(req.Question))
+	allBlocked := true
+
 	for _, q := range req.Question {
 		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
 
 		isBlocked, err := d.blockList.IsBlocked(q.Name)
 		if err != nil {
-			d.handleError("blocklist", err, writer, req)
+			d.handleError("blocklist", err)
+			resp.Rcode = dns.RcodeServerFailure
+			d.sendResponse(writer, resp)
 			return
 		}
 
 		if isBlocked {
 			log.Printf("Domain %s is BLOCKED", q.Name)
-			if err := d.sendNXDOMAIN(writer, req); err != nil {
-				d.handleError("response", err, writer, req)
-				return
-			}
 			d.requestCounts.WithLabelValues("blocked").Inc()
+			continue
+		}
+
+		allBlocked = false
+
+		if cachedRRs, ok := d.cache.Get(getCacheKey(&q)); ok {
+			resp.Answer = append(resp.Answer, cachedRRs...)
+		} else {
+			unansweredQuestions = append(unansweredQuestions, q)
+		}
+	}
+
+	if allBlocked {
+		resp.Rcode = dns.RcodeNameError
+	} else if len(unansweredQuestions) > 0 {
+		upstreamReq := new(dns.Msg)
+		upstreamReq.SetQuestion(dns.Fqdn(unansweredQuestions[0].Name), unansweredQuestions[0].Qtype)
+		upstreamResp, err := d.forwardQuery(upstreamReq)
+		if err != nil {
+			d.handleError("upstream", err)
+			resp.Rcode = dns.RcodeServerFailure
+			d.sendResponse(writer, resp)
 			return
 		}
 
-		if cachedResp, ok := d.cache.Get(getCacheKey(&q)); ok {
-			cachedResp.Id = req.Id
-			d.sendResponse(writer, cachedResp, req)
-			return
+		resp.Answer = append(resp.Answer, upstreamResp.Answer...)
+
+		for _, q := range unansweredQuestions {
+			// Find answers for this specific question in the upstream response
+			var answersForQuestion []dns.RR
+			for _, ans := range upstreamResp.Answer {
+				if ans.Header().Name == dns.Fqdn(q.Name) && ans.Header().Rrtype == q.Qtype {
+					answersForQuestion = append(answersForQuestion, ans)
+				}
+			}
+
+			if len(answersForQuestion) > 0 {
+				cacheTTL := d.defaultTTL
+				if answersForQuestion[0].Header().Ttl > 0 {
+					cacheTTL = math.Max(cacheTTL, float64(answersForQuestion[0].Header().Ttl))
+				}
+				d.cache.Set(getCacheKey(&q), answersForQuestion, time.Duration(cacheTTL)*time.Second)
+			}
 		}
 	}
 
-	resp, err := d.forwardQuery(req)
-	if err != nil {
-		d.handleError("upstream", err, writer, req)
-		return
-	}
-
-	for index, q := range req.Question {
-		cacheTTL := d.defaultTTL
-		if index < len(resp.Answer) {
-			cacheTTL = math.Max(cacheTTL, float64(resp.Answer[index].Header().Ttl))
-		}
-		d.cache.Set(getCacheKey(&q), resp, time.Duration(cacheTTL)*time.Second)
-	}
-
-	d.sendResponse(writer, resp, req)
+	d.sendResponse(writer, resp)
 }
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
@@ -156,9 +181,8 @@ func getCacheKey(q *dns.Question) string {
 	return q.Name + ":" + dns.TypeToString[q.Qtype]
 }
 
-func (d *DNSDispatcher) handleError(errorCategory string, err error, w dns.ResponseWriter, r *dns.Msg) {
+func (d *DNSDispatcher) handleError(errorCategory string, err error) {
 	log.Printf("%s error: %v", errorCategory, err)
-	dns.HandleFailed(w, r)
 	d.errorCounts.WithLabelValues(errorCategory).Inc()
 	d.requestCounts.WithLabelValues("errored").Inc()
 }
@@ -168,39 +192,9 @@ func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 	return in, err
 }
 
-func (d *DNSDispatcher) sendNXDOMAIN(w dns.ResponseWriter, r *dns.Msg) error {
-	m := new(dns.Msg)
-	m.SetReply(r)
-	m.Authoritative = true
-	m.Rcode = dns.RcodeNameError // NXDOMAIN
-
-	soa := &dns.SOA{
-		Hdr: dns.RR_Header{
-			Name:   r.Question[0].Name,
-			Rrtype: dns.TypeSOA,
-			Class:  dns.ClassINET,
-			Ttl:    60,
-		},
-		Ns:      "ns.blocked.local.", // fake authoritative name server
-		Mbox:    "hostmaster.blocked.local.",
-		Serial:  1,
-		Refresh: 3600,
-		Retry:   600,
-		Expire:  86400,
-		Minttl:  60,
-	}
-	m.Ns = []dns.RR{soa}
-
-	if err := w.WriteMsg(m); err != nil {
-		return fmt.Errorf("failed to send NXDOMAIN: %w", err)
-	}
-
-	return nil
-}
-
-func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg, req *dns.Msg) {
+func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
 	if err := writer.WriteMsg(msg); err != nil {
-		d.handleError("response", err, writer, req)
+		d.handleError("response", err)
 		return
 	}
 	d.requestCounts.WithLabelValues("allowed").Inc()
