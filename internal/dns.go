@@ -45,7 +45,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
-		Help: "DNS request count",
+		Help: "Counts the number of DNS requests, broken down by type: total, allowed, blocked, errored",
 	}, []string{"type"})
 
 	sketch := hyperloglog.New14()
@@ -101,20 +101,18 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		}
 
 		if isBlocked {
-			d.requestCounts.WithLabelValues("blocked").Inc()
 			log.Printf("Domain %s is BLOCKED", q.Name)
 			if err := d.sendNXDOMAIN(writer, req); err != nil {
 				d.handleError(fmt.Errorf("send NXDOMAIN failed: %w", err), writer, req)
+				return
 			}
+			d.requestCounts.WithLabelValues("blocked").Inc()
 			return
 		}
 
-		d.requestCounts.WithLabelValues("allowed").Inc()
-		if msg, ok := d.cache.Get(getCacheKey(&q)); ok {
-			msg.Id = req.Id
-			if err := writer.WriteMsg(msg); err != nil {
-				d.handleError(fmt.Errorf("failed to send cached response: %w", err), writer, req)
-			}
+		if cachedResp, ok := d.cache.Get(getCacheKey(&q)); ok {
+			cachedResp.Id = req.Id
+			d.sendResponse(writer, cachedResp, req)
 			return
 		}
 	}
@@ -133,9 +131,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		d.cache.Set(getCacheKey(&q), resp, time.Duration(cacheTTL)*time.Second)
 	}
 
-	if err := writer.WriteMsg(resp); err != nil {
-		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), writer, req)
-	}
+	d.sendResponse(writer, resp, req)
 }
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
@@ -157,6 +153,7 @@ func (d *DNSDispatcher) handleError(err error, w dns.ResponseWriter, r *dns.Msg)
 	log.Println(err.Error())
 	dns.HandleFailed(w, r)
 	d.errorCounts.WithLabelValues(err.Error()).Inc()
+	d.requestCounts.WithLabelValues("errored").Inc()
 }
 
 func (d *DNSDispatcher) forwardQuery(r *dns.Msg) (*dns.Msg, error) {
@@ -194,4 +191,12 @@ func (d *DNSDispatcher) sendNXDOMAIN(w dns.ResponseWriter, r *dns.Msg) error {
 	}
 
 	return nil
+}
+
+func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg, req *dns.Msg) {
+	if err := writer.WriteMsg(msg); err != nil {
+		d.handleError(fmt.Errorf("failed to send response: %w", err), writer, req)
+		return
+	}
+	d.requestCounts.WithLabelValues("allowed").Inc()
 }
