@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net"
 	"time"
 
+	"github.com/axiomhq/hyperloglog"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,6 +22,7 @@ type DNSDispatcher struct {
 	errorCounts      *prometheus.CounterVec
 	cacheStats       *prometheus.GaugeVec
 	requestCounts    *prometheus.CounterVec
+	uniqueClientsHLL *hyperloglog.Sketch
 }
 
 func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDispatcher {
@@ -45,7 +48,15 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 		Help: "DNS request count",
 	}, []string{"type"})
 
-	prometheus.MustRegister(latencyHistogram, errorCounts, cacheStats, requestCounts)
+	sketch := hyperloglog.New14()
+	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
+		Name: "dns_unique_clients",
+		Help: "Estimates the number of unique clients (relative error ≈ 1.04%)",
+	}, func() float64 {
+		return float64(sketch.Estimate())
+	})
+
+	prometheus.MustRegister(latencyHistogram, errorCounts, cacheStats, requestCounts, uniqueClientsCount)
 
 	return &DNSDispatcher{
 		upstream:         upstream,
@@ -56,6 +67,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 		errorCounts:      errorCounts,
 		cacheStats:       cacheStats,
 		requestCounts:    requestCounts,
+		uniqueClientsHLL: sketch,
 	}
 }
 
@@ -73,6 +85,10 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 		d.requestCounts.WithLabelValues("total").Inc()
 	}()
+
+	if err := d.updateClientCount(writer); err != nil {
+		log.Println(err)
+	}
 
 	// FIXME: what happens if there is more than one question here?
 	for _, q := range req.Question {
@@ -120,6 +136,17 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	if err := writer.WriteMsg(resp); err != nil {
 		d.handleError(fmt.Errorf("failed to send upstream response: %w", err), writer, req)
 	}
+}
+
+func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
+	remoteAddr := writer.RemoteAddr().String()
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return fmt.Errorf("failed to parse host:port from %s: %w", remoteAddr, err)
+	}
+
+	d.uniqueClientsHLL.Insert([]byte(host))
+	return nil
 }
 
 func getCacheKey(q *dns.Question) string {
