@@ -67,7 +67,3 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 
 	return blockList.bloomFilter.TestString(apexDomain), nil
 }
-
-func getApexDomain(domain string) (string, error) {
-	return publicsuffix.EffectiveTLDPlusOne(domain)
-}
