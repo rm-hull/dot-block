@@ -51,6 +51,7 @@ require (
 	github.com/cloudwego/base64x v0.1.6 // indirect
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
+	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache/v3 v3.1.0
 	github.com/go-playground/locales v0.14.1 // indirect

@@ -2,12 +2,12 @@ package internal
 
 import (
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
 
 	"github.com/Depado/ginprom"
+	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -89,12 +89,17 @@ func (app *App) RunServer() error {
 }
 
 func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) {
-
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	r := gin.New()
+
+	if app.DevMode {
+		log.Println("WARNING: pprof endpoints are enabled and exposed. Do not run with this flag in production.")
+		pprof.Register(r)
+	}
+
 	prometheus := ginprom.New(
 		ginprom.Path("/metrics"),
 		ginprom.Ignore("/healthz", "/metrics"),
@@ -111,7 +116,7 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 	}
 
 	if app.MetricsAuth == "" {
-		log.Println("WARN: /metrics endpoint is not protected")
+		log.Println("WARNING: metrics endpoint is not protected by basic auth")
 		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	} else {
@@ -126,7 +131,7 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 		} else {
-			return nil, errors.New("invalid metrics-auth value")
+			return nil, fmt.Errorf("invalid metrics-auth value: %s", app.MetricsAuth)
 		}
 	}
 
@@ -134,7 +139,7 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 
 	go func() {
 		port := fmt.Sprintf(":%d", app.HttpPort)
-		log.Printf("Starting HTTP server on port %s for ACME challenge & metrics...", port)
+		log.Printf("Starting HTTP server on port %s for ACME challenge, metrics & healthcheck...", port)
 		if err := r.Run(port); err != nil {
 			log.Fatalf("HTTP server error: %v", err)
 		}
