@@ -4,9 +4,3 @@ GET http://localhost:8080/.well-known/acme-challenge/abc123XYZ
 
 ### Metrics
 GET http://localhost:8080/metrics
-Authorization: Basic aGFuazptYXJ2aW4=
-
-
-### Metrics (wrong auth)
-GET http://localhost:8080/metrics
-Authorization: Basic YmFycnk6ZnVuZ3Vz
