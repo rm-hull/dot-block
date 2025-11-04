@@ -4,3 +4,7 @@ GET http://localhost:8080/.well-known/acme-challenge/abc123XYZ
 
 ### Metrics
 GET http://localhost:8080/metrics
+
+
+### Healthcheck
+GET http://localhost:8080/healthz

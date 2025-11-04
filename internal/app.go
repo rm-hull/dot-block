@@ -12,6 +12,9 @@ import (
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/godx"
+	healthcheck "github.com/tavsec/gin-healthcheck"
+	"github.com/tavsec/gin-healthcheck/checks"
+	hc_config "github.com/tavsec/gin-healthcheck/config"
 	"golang.org/x/crypto/acme/autocert"
 )
 
@@ -99,9 +102,13 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 
 	r.Use(
 		gin.Recovery(),
-		gin.LoggerWithWriter(gin.DefaultWriter, "/metrics"),
+		gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "/metrics"),
 		prometheus.Instrument(),
 	)
+
+	if err := healthcheck.New(r, hc_config.DefaultConfig(), []checks.Check{}); err != nil {
+		return nil, fmt.Errorf("failed to initialize healthcheck: %w", err)
+	}
 
 	if app.MetricsAuth == "" {
 		log.Println("WARN: /metrics endpoint is not protected")

@@ -10,18 +10,25 @@ services:
       context: .
       dockerfile: Dockerfile
     image: ghcr.io/rm-hull/dot-block:latest
+    command:
+      - "--cache-dir=/data/certcache"
+      - "--http-port=80"
+      - "--allowed-host=dot-block.destructuring-bind.org"
+      - "--metrics-auth=${METRICS_AUTH}"
 
     restart: unless-stopped
     container_name: dns-server
+    cap_add:
+      - NET_BIND_SERVICE
     volumes:
       - ./data:/data
     labels:
       - "dockflare.enable=true"
-      - "dockflare.0.hostname=dot.destructuring-bind.org"
+      - "dockflare.0.hostname=dot-block.destructuring-bind.org"
       - "dockflare.0.service=http://dns-server:80"
-      - "dockflare.1.hostname=dot.destructuring-bind.org"
+      - "dockflare.1.hostname=dot-block.destructuring-bind.org"
       - "dockflare.1.service=tcp://dns-server:853"
-      - "dockflare.1.originsrvname=dot.destructuring-bind.org"
+      - "dockflare.1.originsrvname=dot-block.destructuring-bind.org"
       - "dockflare.1.no_tls_verify=true"
     networks:
       - homelab-net

@@ -35,7 +35,7 @@ USER appuser
 EXPOSE 80/tcp
 EXPOSE 853/tcp
 
-# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-#     CMD curl -f http://localhost:8080/healthz || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/healthz || exit 1
 
 ENTRYPOINT ["./dot-block"]
