@@ -14,6 +14,7 @@ import (
 )
 
 type DNSDispatcher struct {
+	dnsClient        *dns.Client
 	upstream         string
 	defaultTTL       float64
 	cache            cache.Cache[string, *dns.Msg]
@@ -28,6 +29,9 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 
 	cache := cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU()
 	sketch := hyperloglog.New14()
+	dnsClient := dns.Client{
+		Timeout: 3 * time.Second,
+	}
 
 	cacheStats := NewStatsCollector("dns_cache_stats",
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
@@ -69,6 +73,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 	prometheus.MustRegister(latencyHistogram, errorCounts, cacheStats, requestCounts, uniqueClientsCount)
 
 	return &DNSDispatcher{
+		dnsClient:        &dnsClient,
 		upstream:         upstream,
 		defaultTTL:       300, // TODO: pass in
 		cache:            cache,
@@ -140,7 +145,7 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	remoteAddr := writer.RemoteAddr().String()
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		return fmt.Errorf("failed to parse host:port from %s: %w", remoteAddr, err)
+		return fmt.Errorf("failed to parse `host:port` from %s: %w", remoteAddr, err)
 	}
 
 	d.uniqueClientsHLL.Insert([]byte(host))
@@ -158,10 +163,8 @@ func (d *DNSDispatcher) handleError(err error, w dns.ResponseWriter, r *dns.Msg)
 	d.requestCounts.WithLabelValues("errored").Inc()
 }
 
-func (d *DNSDispatcher) forwardQuery(r *dns.Msg) (*dns.Msg, error) {
-	c := new(dns.Client)
-	c.Timeout = 3 * time.Second
-	in, _, err := c.Exchange(r, d.upstream)
+func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
+	in, _, err := d.dnsClient.Exchange(req, d.upstream)
 	return in, err
 }
 
