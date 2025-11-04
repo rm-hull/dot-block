@@ -103,14 +103,14 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 		isBlocked, err := d.blockList.IsBlocked(q.Name)
 		if err != nil {
-			d.handleError(fmt.Errorf("blocklist error: %w", err), writer, req)
+			d.handleError("blocklist", err, writer, req)
 			return
 		}
 
 		if isBlocked {
 			log.Printf("Domain %s is BLOCKED", q.Name)
 			if err := d.sendNXDOMAIN(writer, req); err != nil {
-				d.handleError(fmt.Errorf("send NXDOMAIN failed: %w", err), writer, req)
+				d.handleError("response", err, writer, req)
 				return
 			}
 			d.requestCounts.WithLabelValues("blocked").Inc()
@@ -126,7 +126,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 	resp, err := d.forwardQuery(req)
 	if err != nil {
-		d.handleError(fmt.Errorf("upstream error: %w", err), writer, req)
+		d.handleError("upstream", err, writer, req)
 		return
 	}
 
@@ -156,10 +156,10 @@ func getCacheKey(q *dns.Question) string {
 	return q.Name + ":" + dns.TypeToString[q.Qtype]
 }
 
-func (d *DNSDispatcher) handleError(err error, w dns.ResponseWriter, r *dns.Msg) {
-	log.Println(err.Error())
+func (d *DNSDispatcher) handleError(errorCategory string, err error, w dns.ResponseWriter, r *dns.Msg) {
+	log.Printf("%s error: %v", errorCategory, err)
 	dns.HandleFailed(w, r)
-	d.errorCounts.WithLabelValues(err.Error()).Inc()
+	d.errorCounts.WithLabelValues(errorCategory).Inc()
 	d.requestCounts.WithLabelValues("errored").Inc()
 }
 
@@ -200,7 +200,7 @@ func (d *DNSDispatcher) sendNXDOMAIN(w dns.ResponseWriter, r *dns.Msg) error {
 
 func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg, req *dns.Msg) {
 	if err := writer.WriteMsg(msg); err != nil {
-		d.handleError(fmt.Errorf("failed to send response: %w", err), writer, req)
+		d.handleError("response", err, writer, req)
 		return
 	}
 	d.requestCounts.WithLabelValues("allowed").Inc()
