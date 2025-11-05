@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -290,16 +289,4 @@ func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
 
 func getCacheKey(q *dns.Question) string {
 	return dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
-}
-
-func shouldRegister(cs ...prometheus.Collector) error {
-	var are prometheus.AlreadyRegisteredError
-	for _, coll := range cs {
-		if err := prometheus.Register(coll); err != nil {
-			if !errors.As(err, &are) {
-				return err
-			}
-		}
-	}
-	return nil
 }

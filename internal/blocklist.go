@@ -43,7 +43,7 @@ func NewBlockList(items []string, fpRate float64) *BlockList {
 		return time.Since(blocklist.updated).Seconds()
 	})
 
-	prometheus.MustRegister(count, age)
+	_ = shouldRegister(count, age)
 
 	return &blocklist
 }
@@ -62,6 +62,10 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 	// Try the apex domain
 	apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
 	if err != nil {
+		// ignore: the domain effectively /is/ the apex domain - see https://publicsuffix.org/learn/
+		if strings.HasPrefix(err.Error(), "publicsuffix: cannot derive eTLD+1") {
+			return false, nil
+		}
 		return false, err
 	}
 
