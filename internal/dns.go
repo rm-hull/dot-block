@@ -148,7 +148,11 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		resp.Rcode = dns.RcodeNameError
 	} else if len(unansweredQuestions) > 0 {
 		upstreamReq := new(dns.Msg)
-		upstreamReq.SetQuestion(dns.Fqdn(unansweredQuestions[0].Name), unansweredQuestions[0].Qtype)
+		upstreamReq.Question = make([]dns.Question, len(unansweredQuestions))
+		for i, q := range unansweredQuestions {
+			upstreamReq.Question[i] = dns.Question{Name: dns.Fqdn(q.Name), Qtype: q.Qtype, Qclass: q.Qclass}
+		}
+
 		upstreamResp, err := d.forwardQuery(upstreamReq)
 		if err != nil {
 			d.handleError("upstream", err)
@@ -159,21 +163,22 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 		resp.Answer = append(resp.Answer, upstreamResp.Answer...)
 
-		for _, q := range unansweredQuestions {
-			// Find answers for this specific question in the upstream response
-			var answersForQuestion []dns.RR
-			for _, ans := range upstreamResp.Answer {
-				if ans.Header().Name == dns.Fqdn(q.Name) && ans.Header().Rrtype == q.Qtype {
-					answersForQuestion = append(answersForQuestion, ans)
-				}
-			}
+		// Group answers by question for efficient lookup
+		answerMap := make(map[string][]dns.RR)
+		for _, ans := range upstreamResp.Answer {
+			key := ans.Header().Name + ":" + dns.TypeToString[ans.Header().Rrtype]
+			answerMap[key] = append(answerMap[key], ans)
+		}
 
-			if len(answersForQuestion) > 0 {
+		// Process unanswered questions and cache the results
+		for _, q := range unansweredQuestions {
+			key := getCacheKey(&q)
+			if answersForQuestion, ok := answerMap[key]; ok {
 				cacheTTL := d.defaultTTL
-				if answersForQuestion[0].Header().Ttl > 0 {
+				if len(answersForQuestion) > 0 && answersForQuestion[0].Header().Ttl > 0 {
 					cacheTTL = math.Max(cacheTTL, float64(answersForQuestion[0].Header().Ttl))
 				}
-				d.cache.Set(getCacheKey(&q), answersForQuestion, time.Duration(cacheTTL)*time.Second)
+				d.cache.Set(key, answersForQuestion, time.Duration(cacheTTL)*time.Second)
 			}
 		}
 	}
@@ -193,7 +198,7 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 }
 
 func getCacheKey(q *dns.Question) string {
-	return q.Name + ":" + dns.TypeToString[q.Qtype]
+	return dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
 }
 
 func (d *DNSDispatcher) handleError(errorCategory string, err error) {
