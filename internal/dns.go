@@ -14,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const TOP_K = 20
+
 type DNSDispatcher struct {
 	dnsClient        *dns.Client
 	upstream         string
@@ -25,17 +27,19 @@ type DNSDispatcher struct {
 	requestCounts    *prometheus.CounterVec
 	queryCounts      *prometheus.CounterVec
 	uniqueClientsHLL *hyperloglog.Sketch
+	topClients       *SpaceSaver
+	topDomains       *SpaceSaver
 }
 
 func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	sketch := hyperloglog.New14()
-	dnsClient := dns.Client{
-		Timeout: 3 * time.Second,
-	}
+	dnsClient := dns.Client{Timeout: 3 * time.Second}
+	topClients := NewSpaceSaver(TOP_K)
+	topDomains := NewSpaceSaver(TOP_K)
 
-	cacheStats := NewStatsCollector("dns_cache_stats",
+	cacheStats := NewStatsCollector("dns_cache_stats", "type",
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
 		func() map[string]int {
 			stats := cache.Stat()
@@ -46,6 +50,26 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 				"misses":  stats.Misses,
 				"size":    cache.Len(),
 			}
+		})
+
+	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
+		fmt.Sprintf("Shows the top %d most requested domains", TOP_K),
+		func() map[string]int {
+			results := make(map[string]int)
+			for _, entry := range topDomains.TopN(TOP_K) {
+				results[entry.Key] = entry.Count
+			}
+			return results
+		})
+
+	topClientsStats := NewStatsCollector("dns_top_clients", "ip_addr",
+		fmt.Sprintf("Shows the top %d most active clients", TOP_K),
+		func() map[string]int {
+			results := make(map[string]int)
+			for _, entry := range topClients.TopN(TOP_K) {
+				results[entry.Key] = entry.Count
+			}
+			return results
 		})
 
 	latencyHistogram := prometheus.NewHistogram(
@@ -84,6 +108,8 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		requestCounts,
 		queryCounts,
 		uniqueClientsCount,
+		topClientsStats,
+		topDomainsStats,
 	); err != nil {
 		return nil, fmt.Errorf("failed to register: %w", err)
 	}
@@ -99,6 +125,8 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		requestCounts:    requestCounts,
 		queryCounts:      queryCounts,
 		uniqueClientsHLL: sketch,
+		topClients:       topClients,
+		topDomains:       topDomains,
 	}, nil
 }
 
@@ -157,6 +185,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
 	queryType := dns.TypeToString[q.Qtype]
 	log.Printf("Query for %s %s", q.Name, queryType)
+	d.topDomains.Add(q.Name)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
@@ -235,6 +264,7 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 		return fmt.Errorf("failed to parse `host:port` from %s: %w", remoteAddr, err)
 	}
 
+	d.topClients.Add(host)
 	d.uniqueClientsHLL.Insert([]byte(host))
 	return nil
 }
