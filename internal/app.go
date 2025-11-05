@@ -52,7 +52,10 @@ func (app *App) RunServer() error {
 		return fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	dispatcher := NewDNSDispatcher(app.Upstream, blockList, CACHE_SIZE)
+	dispatcher, err := NewDNSDispatcher(app.Upstream, blockList, CACHE_SIZE)
+	if err != nil {
+		return fmt.Errorf("failed to create dispatcher: %w", err)
+	}
 
 	if app.DevMode {
 		dnsServer := &dns.Server{
