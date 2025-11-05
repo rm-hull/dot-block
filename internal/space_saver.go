@@ -63,7 +63,7 @@ func (s *SpaceSaver) Add(key string) {
 	if len(s.entries) < s.k {
 		s.entries[key] = &SpaceSaverEntry{Key: key, Count: 1}
 		// update cached min
-		if s.minKey == "" || s.entries[s.minKey] == nil || s.entries[key].Count < s.entries[s.minKey].Count {
+		if minEntry, ok := s.entries[s.minKey]; !ok || minEntry.Count > 1 {
 			s.minKey = key
 		}
 		return
