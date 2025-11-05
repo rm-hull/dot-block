@@ -212,7 +212,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	// Group answers by question for efficient lookup
 	answerMap := make(map[string][]dns.RR)
 	for _, ans := range upstreamResp.Answer {
-		key := ans.Header().Name + ":" + dns.TypeToString[ans.Header().Rrtype]
+		key := dns.Fqdn(ans.Header().Name) + ":" + dns.TypeToString[ans.Header().Rrtype]
 		answerMap[key] = append(answerMap[key], ans)
 	}
 
@@ -220,10 +220,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	for _, q := range unansweredQuestions {
 		key := getCacheKey(&q)
 		if answersForQuestion, ok := answerMap[key]; ok {
-			cacheTTL := d.defaultTTL
-			if len(answersForQuestion) > 0 && answersForQuestion[0].Header().Ttl > 0 {
-				cacheTTL = math.Max(cacheTTL, float64(answersForQuestion[0].Header().Ttl))
-			}
+			cacheTTL := answersForQuestion[0].Header().Ttl
 			d.cache.Set(key, answersForQuestion, time.Duration(cacheTTL)*time.Second)
 		}
 	}

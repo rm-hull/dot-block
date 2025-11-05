@@ -242,7 +242,7 @@ func dnsRecord(addr string, rrtype uint16, ip []byte) dns.HandlerFunc {
 
 		aRecord := &dns.A{
 			Hdr: dns.RR_Header{
-				Name:   addr,
+				Name:   dns.Fqdn(addr),
 				Rrtype: rrtype,
 				Class:  dns.ClassINET,
 				Ttl:    3600,
