@@ -151,10 +151,9 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 	if len(unansweredQuestions) > 0 {
 		upstreamReq := new(dns.Msg)
-		upstreamReq.Question = make([]dns.Question, len(unansweredQuestions))
-		for i, q := range unansweredQuestions {
-			upstreamReq.Question[i] = dns.Question{Name: dns.Fqdn(q.Name), Qtype: q.Qtype, Qclass: q.Qclass}
-		}
+		upstreamReq.Id = dns.Id()
+		upstreamReq.RecursionDesired = req.RecursionDesired
+		upstreamReq.Question = unansweredQuestions
 
 		upstreamResp, err := d.forwardQuery(upstreamReq)
 		if err != nil {
