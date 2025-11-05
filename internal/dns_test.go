@@ -57,8 +57,8 @@ var blockList = NewBlockList([]string{"ads.0xbt.net"}, 0.0001)
 var upstream = "8.8.8.8:53"
 
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
-
-	dispatcher := NewDNSDispatcher(upstream, blockList, 100)
+	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	assert.NoError(t, err)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -75,8 +75,8 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
-
-	dispatcher := NewDNSDispatcher(upstream, blockList, 100)
+	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	assert.NoError(t, err)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -93,7 +93,8 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
-	dispatcher := NewDNSDispatcher(upstream, blockList, 100)
+	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	assert.NoError(t, err)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -115,7 +116,8 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
-	dispatcher := NewDNSDispatcher(upstream, blockList, 100) // Cache size 100
+	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	assert.NoError(t, err)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -128,6 +130,11 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
+	// Assert cache stats
+	stats := dispatcher.cache.Stat()
+	assert.Equal(t, 0, stats.Hits, "Expected 0 cache hit")
+	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+
 	// Reset mock for the second request
 	writer = new(MockResponseWriter)
 	writer.On("WriteMsg", mock.Anything).Return(nil)
@@ -138,7 +145,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
 	// Assert cache stats
-	stats := dispatcher.cache.Stat()
+	stats = dispatcher.cache.Stat()
 	assert.Equal(t, 1, stats.Hits, "Expected 1 cache hit")
 	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
 }
