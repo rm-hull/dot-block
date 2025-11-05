@@ -92,6 +92,47 @@ func TestSpaceSaverAdd(t *testing.T) {
 	}
 	// The sum of counts should be >= totalAdds, as errors add to counts.
 	assert.GreaterOrEqual(sumCounts, totalAdds, "Sum of counts should be greater or equal to total adds")
+
+	// --- Additional tests for Case 3 (replacement when full) ---
+	t.Run("Case3_ReplacementDetails", func(t *testing.T) {
+
+		ss := NewSpaceSaver(2) // k = 2
+		ss.Add("a")            // a:1
+		ss.Add("b")            // a:1, b:1
+
+		// Add "c", which should replace one of "a" or "b"
+		ss.Add("c") // e.g., b replaced. a:1, c: (b.Count + 1), Error: b.Count
+
+		assert.Len(ss.entries, 2, "Expected 2 entries after replacement")
+		_, foundA := ss.entries["a"]
+		_, foundB := ss.entries["b"]
+		_, foundC := ss.entries["c"]
+
+		assert.True(foundC, "New key 'c' should be present")
+		assert.True(foundA || foundB, "Either 'a' or 'b' should still be present")
+		assert.False(foundA && foundB, "Only one of 'a' or 'b' should be present")
+
+		// Check the replaced entry's error and count
+		if entryC, ok := ss.entries["c"]; ok {
+			// The replaced entry had count 1. So new entry 'c' should have Count 2, Error 1.
+			assert.Equal(2, entryC.Count, "Expected count for 'c' to be 2")
+			assert.Equal(1, entryC.Error, "Expected error for 'c' to be 1")
+		}
+
+		// Add another item, ensuring minKey recomputation works
+		ss.Add("d") // e.g., a replaced. c:2, d: (a.Count + 1), Error: a.Count
+
+		assert.Len(ss.entries, 2, "Expected 2 entries after second replacement")
+		_, foundD := ss.entries["d"]
+		assert.True(foundD, "New key 'd' should be present")
+
+		// Check counts and errors again
+		if entryD, ok := ss.entries["d"]; ok {
+			// The replaced entry (either 'a' or 'b') had count 1. So new entry 'd' should have Count 2, Error 1.
+			assert.Equal(2, entryD.Count, "Expected count for 'd' to be 2")
+			assert.Equal(1, entryD.Error, "Expected error for 'd' to be 1")
+		}
+	})
 }
 
 func TestSpaceSaverTopN(t *testing.T) {
@@ -148,6 +189,62 @@ func TestSpaceSaverTopN(t *testing.T) {
 	emptySS := NewSpaceSaver(2)
 	emptyTopN := emptySS.TopN(1)
 	assert.Empty(emptyTopN, "Expected empty TopN for empty SpaceSaver")
+
+	// --- Additional tests for TopN ---
+	t.Run("TopN_WithReplacements", func(t *testing.T) {
+
+		ss := NewSpaceSaver(2) // k = 2
+		ss.Add("a")            // a:1
+		ss.Add("b")            // a:1, b:1
+		ss.Add("c")            // c:2, (a or b replaced), Error: 1
+		ss.Add("a")            // a:1 (if b was replaced) or a:2 (if a was kept and incremented)
+		// This scenario is tricky due to non-deterministic replacement.
+		// Let's ensure the top item is correct and the list is sorted.
+
+		// To make it deterministic for testing, let's add more items to ensure a clear top.
+		ss = NewSpaceSaver(2)
+		ss.Add("item1")
+		ss.Add("item2")
+		ss.Add("item1") // item1:2, item2:1
+		ss.Add("item3") // item1:2, item3: (item2.Count+1)=2, Error:1 (item2 replaced)
+		ss.Add("item1") // item1:3, item3:2
+
+		topN := ss.TopN(1)
+		assert.Len(topN, 1)
+		assert.Equal("item1", topN[0].Key)
+		assert.Equal(3, topN[0].Count)
+
+		topN = ss.TopN(2)
+		assert.Len(topN, 2)
+		assert.Equal("item1", topN[0].Key)
+		assert.Equal(3, topN[0].Count)
+		assert.Equal("item3", topN[1].Key)
+		assert.Equal(2, topN[1].Count)
+
+		// Test with all items having same count (after some additions)
+		ss = NewSpaceSaver(3)
+		ss.Add("x")
+		ss.Add("y")
+		ss.Add("z")
+		ss.Add("x")
+		ss.Add("y")
+		ss.Add("z") // x:2, y:2, z:2
+
+		topN = ss.TopN(3)
+		assert.Len(topN, 3)
+		// Order might vary for equal counts, but all should have count 2
+		for _, entry := range topN {
+			assert.Equal(2, entry.Count)
+		}
+		// Check keys presence
+		keysFound := make(map[string]bool)
+		for _, entry := range topN {
+			keysFound[entry.Key] = true
+		}
+		assert.True(keysFound["x"])
+		assert.True(keysFound["y"])
+		assert.True(keysFound["z"])
+	})
 }
 
 func TestSpaceSaverConcurrency(t *testing.T) {
