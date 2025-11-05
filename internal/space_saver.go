@@ -71,7 +71,7 @@ func (s *SpaceSaver) Add(key string) {
 
 	// Case 3: full – replace smallest
 	// Ensure minKey is valid
-	if s.minKey == "" {
+	if _, ok := s.entries[s.minKey]; !ok {
 		s.recomputeMinLocked()
 	}
 	minEntry := s.entries[s.minKey]
