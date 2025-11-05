@@ -80,10 +80,10 @@ go build -ldflags="-w -s" -o dot-block .
 
 ## Testing
 
-To run the benchmark tests:
+To run the tests:
 
 ```bash
-go test -bench=.
+go test ./...
 ```
 
 ## Configuration

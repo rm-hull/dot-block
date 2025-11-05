@@ -51,10 +51,10 @@ go build -ldflags="-w -s" -o dot-block .
 
 ### Testing
 
-The repository includes benchmark tests. To run them:
+The repository includes tests. To run them:
 
 ```bash
-go test -bench=.
+go test -v ./...
 ```
 
 You can also test the deployed DoT server using `openssl` or `dig` as described in the `README.md`.
