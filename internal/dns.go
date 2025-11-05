@@ -145,8 +145,11 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	}
 
 	if allBlocked {
-		resp.Rcode = dns.RcodeNameError
-	} else if len(unansweredQuestions) > 0 {
+		d.sendNXDOMAIN(writer, req)
+		return
+	}
+
+	if len(unansweredQuestions) > 0 {
 		upstreamReq := new(dns.Msg)
 		upstreamReq.Question = make([]dns.Question, len(unansweredQuestions))
 		for i, q := range unansweredQuestions {
@@ -210,6 +213,33 @@ func (d *DNSDispatcher) handleError(errorCategory string, err error) {
 func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 	in, _, err := d.dnsClient.Exchange(req, d.upstream)
 	return in, err
+}
+
+func (d *DNSDispatcher) sendNXDOMAIN(writer dns.ResponseWriter, req *dns.Msg) {
+	resp := new(dns.Msg)
+	resp.SetReply(req)
+	resp.Rcode = dns.RcodeNameError
+
+	soa := &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   req.Question[0].Name,
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    uint32(d.defaultTTL),
+		},
+		Ns:      "ns.blocked.local.", // fake authoritative name server
+		Mbox:    "hostmaster.blocked.local.",
+		Serial:  1,
+		Refresh: 3600,
+		Retry:   900,
+		Expire:  604800,
+		Minttl:  uint32(d.defaultTTL),
+	}
+	resp.Ns = []dns.RR{soa}
+
+	if err := writer.WriteMsg(resp); err != nil {
+		d.handleError("response", err)
+	}
 }
 
 func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
