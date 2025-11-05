@@ -108,20 +108,10 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	// Call the method under test
 	dispatcher.HandleDNSRequest(writer, req)
 
-	// FIXME: this is the correct/expected behaviour .. to be fixed in #3
-	// ==================================================================
 	// Assert that the response writer was called with a non-nil message
-	// assert.NotNil(t, writer.WrittenMsg)
-	// assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	// assert.Len(t, writer.WrittenMsg.Answer, 1)
-	// assert.Len(t, writer.WrittenMsg.Question, 2)
-
-	// FIXME: current behaviour (to be removed)
-	// ================================================
-	// Assert that the response has an NXDOMAIN Rcode because one of the questions is blocked
 	assert.NotNil(t, writer.WrittenMsg)
-	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode)
-	assert.Len(t, writer.WrittenMsg.Answer, 0)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	assert.Len(t, writer.WrittenMsg.Answer, 6)
 	assert.Len(t, writer.WrittenMsg.Question, 1)
 }
 
