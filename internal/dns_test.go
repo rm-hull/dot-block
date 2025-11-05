@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -57,9 +58,15 @@ func (m *MockResponseWriter) Hijack() {
 }
 
 var blockList = NewBlockList([]string{"ads.0xbt.net"}, 0.0001)
-var upstream = "8.8.8.8:53"
 
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
 	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
 	assert.NoError(t, err)
 
@@ -78,6 +85,17 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
+	server, upstream := startLocalDNS(t,
+		func(w dns.ResponseWriter, m *dns.Msg) {
+			// shouldn't call upstream
+			t.Fail()
+		},
+	)
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
 	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
 	assert.NoError(t, err)
 
@@ -102,6 +120,13 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
 	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
 	assert.NoError(t, err)
 
@@ -120,7 +145,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	// Assert that the response writer was called with a non-nil message
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	assert.Len(t, writer.WrittenMsg.Answer, 7)
+	assert.Len(t, writer.WrittenMsg.Answer, 2)
 	assert.Len(t, writer.WrittenMsg.Question, 2)
 
 	// Verify that the blocked domain has a SOA record in the answer section
@@ -138,6 +163,13 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("example.com.", dns.TypeA, []byte{93, 184, 216, 34}))
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
 	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
 	assert.NoError(t, err)
 
@@ -173,61 +205,12 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
-	// Create a local DNS server that returns a BADSIG Rcode
-	server := &dns.Server{
-		Addr:    "127.0.0.1:0", // Use dynamic port
-		Net:     "udp",
-		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
-			m := new(dns.Msg)
-			m.SetReply(r) // Set reply based on the request
-
-			// Check if it's the probe query from waitForPort
-			if len(r.Question) > 0 && r.Question[0].Name == "example.com." && r.Question[0].Qtype == dns.TypeA {
-				m.SetRcode(r, dns.RcodeSuccess) // Respond with success for the probe
-			} else {
-				m.SetRcode(r, dns.RcodeBadSig) // Respond with BADSIG for other queries
-			}
-			_ = w.WriteMsg(m)
-		}),
-	}
-
-	serverReady := make(chan struct{})
-	var upstream string
-
-	go func() {
-		// ListenAndServe will block, so we need to signal readiness before it
-		// The PacketConn will be available after ListenAndServe successfully binds
-		// but before it starts processing requests.
-		err := server.ListenAndServe()
-		if err != nil {
-			t.Logf("Mock DNS server ListenAndServe error: %v", err)
-		}
-		require.NoError(t, err)
-	}()
-
-	// Wait for the server's PacketConn to be initialized and get its address
-	// This loop is necessary because ListenAndServe blocks, but PacketConn
-	// is populated once the listener is active.
-	for i := 0; i < 10; i++ { // Try up to 10 times with a small delay (1 second total)
-		if server.PacketConn != nil {
-			upstream = server.PacketConn.LocalAddr().String()
-			t.Logf("Mock DNS server listening on: %s", upstream)
-			close(serverReady)
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	select {
-	case <-serverReady:
-		// Server is ready, continue
-	case <-time.After(5 * time.Second): // Increased timeout
-		t.Fatal("Timed out waiting for mock DNS server to become ready")
-	}
-
-	// Wait for the server to be ready by probing it with a DNS query
-	err := waitForPort(upstream, 5*time.Second)
-	require.NoError(t, err, "server did not start in time")
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)                   // Set reply based on the request
+		m.SetRcode(r, dns.RcodeRefused) // Respond with REFUSED for other queries
+		_ = w.WriteMsg(m)
+	})
 
 	defer func() {
 		err := server.Shutdown()
@@ -246,28 +229,103 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	// Call the method under test
 	dispatcher.HandleDNSRequest(writer, req)
 
-	// Assert that the response has a BADSIG Rcode
 	assert.NotNil(t, writer.WrittenMsg)
-	assert.Equal(t, dns.RcodeBadSig, writer.WrittenMsg.Rcode)
+	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
 }
 
-func waitForPort(addr string, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
-	client := dns.Client{
-		Net: "udp",
-		DialTimeout: 100 * time.Millisecond,
+func dnsRecord(addr string, rrtype uint16, ip []byte) dns.HandlerFunc {
+	return func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeSuccess)
+		m.Authoritative = true
+
+		aRecord := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   addr,
+				Rrtype: rrtype,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			A: ip,
+		}
+
+		m.Answer = append(m.Answer, aRecord)
+
+		_ = w.WriteMsg(m)
 	}
+}
+
+func probeDecorator(probeName string, handler dns.HandlerFunc) dns.HandlerFunc {
+	return func(w dns.ResponseWriter, r *dns.Msg) {
+
+		// Check if it's the probe query from waitForPort
+		if len(r.Question) > 0 && r.Question[0].Name == probeName {
+			m := new(dns.Msg)
+			m.SetReply(r)                   // Set reply based on the request
+			m.SetRcode(r, dns.RcodeSuccess) // Respond with success for the probe
+			_ = w.WriteMsg(m)
+		} else {
+			handler(w, r)
+		}
+	}
+}
+
+func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) {
+	t.Helper()
+	probeName := fmt.Sprintf("%s.dns-probe.local.", uuid.New().String())
+	server := &dns.Server{
+		Addr:    ":0", // Use dynamic port
+		Net:     "udp",
+		Handler: probeDecorator(probeName, handler),
+	}
+
+	go func() {
+		err := server.ListenAndServe()
+		require.NoError(t, err)
+	}()
+
+	// Wait for the server's PacketConn to be initialized and get its address
+	// This loop is necessary because ListenAndServe blocks, but PacketConn
+	// is populated once the listener is active.
+	var upstream string
+	serverReady := make(chan struct{})
+	for range 10 {
+		if server.PacketConn != nil {
+			upstream = server.PacketConn.LocalAddr().String()
+			t.Logf("Mock DNS server listening on: %s", upstream)
+			close(serverReady)
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	select {
+	case <-serverReady: // Server is ready, continue
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for mock DNS server to become ready")
+	}
+
+	waitForPort(t, upstream, probeName, 5*time.Second)
+	return server, upstream
+}
+
+func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	client := dns.Client{DialTimeout: 100 * time.Millisecond}
 	req := new(dns.Msg)
-	req.SetQuestion("example.com.", dns.TypeA) // A simple request
+	req.SetQuestion(probeName, dns.TypeA)
 
 	for time.Now().Before(deadline) {
+		t.Logf("Testing server for: %s", probeName)
 		_, _, err := client.Exchange(req, addr)
 		if err == nil {
-			return nil // Success!
+			return
 		}
-		// Log the error to understand why it's failing
-		fmt.Printf("waitForPort: client.Exchange error: %v\n", err)
-		time.Sleep(10 * time.Millisecond)
+		t.Logf("waitForPort: client.Exchange error: %v\n", err)
+		time.Sleep(50 * time.Millisecond)
 	}
-	return fmt.Errorf("server not ready at %s", addr)
+
+	t.Fatalf("server not ready at %s", addr)
 }

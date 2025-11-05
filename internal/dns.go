@@ -138,8 +138,8 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	if len(unansweredQuestions) > 0 {
 		rcode, answers, err := d.resolveUpstream(unansweredQuestions, req)
 		if err != nil {
-			d.reportError("upstream", err)
 			resp.Rcode = rcode
+			d.reportError("upstream", err)
 			d.sendResponse(writer, resp)
 			return
 		}
@@ -201,13 +201,12 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 
 	upstreamResp, err := d.forwardQuery(upstreamReq)
 	if err != nil {
-		d.reportError("upstream", err)
 		return dns.RcodeServerFailure, nil, err
 	}
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
 		// Propagate the upstream response Rcode if not successful
-		return upstreamResp.Rcode, nil, fmt.Errorf("upstream resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
+		return upstreamResp.Rcode, nil, fmt.Errorf("resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
 	}
 
 	// Group answers by question for efficient lookup
