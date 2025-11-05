@@ -87,9 +87,15 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	// Call the method under test
 	dispatcher.HandleDNSRequest(writer, req)
 
-	// Assert that the response has an NXDOMAIN Rcode
+	// Assert that the response has an RcodeSuccess Rcode
 	assert.NotNil(t, writer.WrittenMsg)
-	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	assert.Len(t, writer.WrittenMsg.Answer, 1, "should have one answer")
+	assert.Len(t, writer.WrittenMsg.Ns, 0, "should have no NS record")
+
+	soa, ok := writer.WrittenMsg.Answer[0].(*dns.SOA)
+	assert.True(t, ok, "should be a SOA record")
+	assert.Equal(t, "ns.blocked.local.", soa.Ns, "unexpected Ns name")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
@@ -111,8 +117,21 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	// Assert that the response writer was called with a non-nil message
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	assert.Len(t, writer.WrittenMsg.Answer, 6)
-	assert.Len(t, writer.WrittenMsg.Question, 1)
+	assert.Len(t, writer.WrittenMsg.Answer, 7)
+	assert.Len(t, writer.WrittenMsg.Question, 2)
+
+	// Verify that the blocked domain has a SOA record in the answer section
+	foundSOA := false
+	for _, rr := range writer.WrittenMsg.Answer {
+		if soa, ok := rr.(*dns.SOA); ok {
+			if soa.Hdr.Name == "ads.0xbt.net." {
+				assert.Equal(t, "ns.blocked.local.", soa.Ns, "unexpected Ns name for blocked domain")
+				foundSOA = true
+				break
+			}
+		}
+	}
+	assert.True(t, foundSOA, "SOA record for ads.0xbt.net. not found in answers")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {

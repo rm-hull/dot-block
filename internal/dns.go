@@ -23,6 +23,7 @@ type DNSDispatcher struct {
 	latencyHistogram prometheus.Histogram
 	errorCounts      *prometheus.CounterVec
 	requestCounts    *prometheus.CounterVec
+	queryCounts      *prometheus.CounterVec
 	uniqueClientsHLL *hyperloglog.Sketch
 }
 
@@ -61,8 +62,13 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
-		Help: "Counts the number of DNS requests, broken down by type: total, allowed, blocked, errored",
+		Help: "Counts the number of DNS requests, broken down by type: total, errored",
 	}, []string{"type"})
+
+	queryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_query_count",
+		Help: "Counts the number of DNS questions, broken down by type (A, CNAME, MX, etc) and whether blocked (true/false)",
+	}, []string{"type", "blocked"})
 
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
@@ -71,7 +77,14 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		return float64(sketch.Estimate())
 	})
 
-	if err := shouldRegister(latencyHistogram, errorCounts, cacheStats, requestCounts, uniqueClientsCount); err != nil {
+	if err := shouldRegister(
+		latencyHistogram,
+		errorCounts,
+		cacheStats,
+		requestCounts,
+		queryCounts,
+		uniqueClientsCount,
+	); err != nil {
 		return nil, fmt.Errorf("failed to register: %w", err)
 	}
 
@@ -84,20 +97,9 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		latencyHistogram: latencyHistogram,
 		errorCounts:      errorCounts,
 		requestCounts:    requestCounts,
+		queryCounts:      queryCounts,
 		uniqueClientsHLL: sketch,
 	}, nil
-}
-
-func shouldRegister(cs ...prometheus.Collector) error {
-	var are prometheus.AlreadyRegisteredError
-	for _, coll := range cs {
-		if err := prometheus.Register(coll); err != nil {
-			if !errors.As(err, &are) {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg) {
@@ -114,83 +116,30 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 	resp := new(dns.Msg)
 	resp.SetReply(req)
+	resp.Question = req.Question
 
 	unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 	for _, q := range req.Question {
-		log.Printf("Query for %s %s", q.Name, dns.TypeToString[q.Qtype])
-
-		isBlocked, err := d.blockList.IsBlocked(q.Name)
+		answers, err := d.processQuestion(q)
 		if err != nil {
-			d.handleError("blocklist", err)
 			resp.Rcode = dns.RcodeServerFailure
 			d.sendResponse(writer, resp)
 			return
 		}
 
-		if isBlocked {
-			log.Printf("Domain %s is BLOCKED", q.Name)
-			d.requestCounts.WithLabelValues("blocked").Inc()
-
-			soa := &dns.SOA{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeSOA,
-					Class:  dns.ClassINET,
-					Ttl:    uint32(d.defaultTTL),
-				},
-				Ns:      "ns.blocked.local.",
-				Mbox:    "hostmaster.blocked.local.",
-				Serial:  1,
-				Refresh: 3600,
-				Retry:   900,
-				Expire:  604800,
-				Minttl:  uint32(d.defaultTTL),
-			}
-			resp.Ns = append(resp.Ns, soa)
-			continue
-		}
-
-		if cachedRRs, ok := d.cache.Get(getCacheKey(&q)); ok {
-			resp.Answer = append(resp.Answer, cachedRRs...)
+		if len(answers) > 0 {
+			resp.Answer = append(resp.Answer, answers...)
 		} else {
 			unansweredQuestions = append(unansweredQuestions, q)
 		}
 	}
 
 	if len(unansweredQuestions) > 0 {
-		upstreamReq := new(dns.Msg)
-		upstreamReq.Id = dns.Id()
-		upstreamReq.RecursionDesired = req.RecursionDesired
-		upstreamReq.Question = unansweredQuestions
-
-		upstreamResp, err := d.forwardQuery(upstreamReq)
-		if err != nil {
-			d.handleError("upstream", err)
+		if err := d.resolveUpstream(unansweredQuestions, req, resp); err != nil {
 			resp.Rcode = dns.RcodeServerFailure
 			d.sendResponse(writer, resp)
 			return
-		}
-
-		resp.Answer = append(resp.Answer, upstreamResp.Answer...)
-
-		// Group answers by question for efficient lookup
-		answerMap := make(map[string][]dns.RR)
-		for _, ans := range upstreamResp.Answer {
-			key := ans.Header().Name + ":" + dns.TypeToString[ans.Header().Rrtype]
-			answerMap[key] = append(answerMap[key], ans)
-		}
-
-		// Process unanswered questions and cache the results
-		for _, q := range unansweredQuestions {
-			key := getCacheKey(&q)
-			if answersForQuestion, ok := answerMap[key]; ok {
-				cacheTTL := d.defaultTTL
-				if len(answersForQuestion) > 0 && answersForQuestion[0].Header().Ttl > 0 {
-					cacheTTL = math.Max(cacheTTL, float64(answersForQuestion[0].Header().Ttl))
-				}
-				d.cache.Set(key, answersForQuestion, time.Duration(cacheTTL)*time.Second)
-			}
 		}
 	}
 
@@ -199,6 +148,81 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	}
 
 	d.sendResponse(writer, resp)
+}
+
+func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
+	queryType := dns.TypeToString[q.Qtype]
+	log.Printf("Query for %s %s", q.Name, queryType)
+
+	isBlocked, err := d.blockList.IsBlocked(q.Name)
+	if err != nil {
+		d.handleError("blocklist", err)
+		return nil, err
+	}
+
+	if isBlocked {
+		log.Printf("Domain %s is BLOCKED", q.Name)
+		d.queryCounts.WithLabelValues(queryType, "true").Inc()
+
+		soa := &dns.SOA{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeSOA,
+				Class:  dns.ClassINET,
+				Ttl:    uint32(d.defaultTTL),
+			},
+			Ns:   "ns.blocked.local.",
+			Mbox: "hostmaster.blocked.local.", Serial: 1,
+			Refresh: 3600,
+			Retry:   900,
+			Expire:  604800,
+			Minttl:  uint32(d.defaultTTL),
+		}
+		return []dns.RR{soa}, nil
+	}
+
+	d.queryCounts.WithLabelValues(queryType, "false").Inc()
+	if cachedRRs, ok := d.cache.Get(getCacheKey(&q)); ok {
+		return cachedRRs, nil
+	}
+
+	return nil, nil
+}
+
+func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg, resp *dns.Msg) error {
+	upstreamReq := new(dns.Msg)
+	upstreamReq.Id = dns.Id()
+	upstreamReq.RecursionDesired = req.RecursionDesired
+	upstreamReq.Question = unansweredQuestions
+
+	upstreamResp, err := d.forwardQuery(upstreamReq)
+	if err != nil {
+		d.handleError("upstream", err)
+		return err
+	}
+
+	resp.Answer = append(resp.Answer, upstreamResp.Answer...)
+
+	// Group answers by question for efficient lookup
+	answerMap := make(map[string][]dns.RR)
+	for _, ans := range upstreamResp.Answer {
+		key := ans.Header().Name + ":" + dns.TypeToString[ans.Header().Rrtype]
+		answerMap[key] = append(answerMap[key], ans)
+	}
+
+	// Process unanswered questions and cache the results
+	for _, q := range unansweredQuestions {
+		key := getCacheKey(&q)
+		if answersForQuestion, ok := answerMap[key]; ok {
+			cacheTTL := d.defaultTTL
+			if len(answersForQuestion) > 0 && answersForQuestion[0].Header().Ttl > 0 {
+				cacheTTL = math.Max(cacheTTL, float64(answersForQuestion[0].Header().Ttl))
+			}
+			d.cache.Set(key, answersForQuestion, time.Duration(cacheTTL)*time.Second)
+		}
+	}
+
+	return nil
 }
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
@@ -210,10 +234,6 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 
 	d.uniqueClientsHLL.Insert([]byte(host))
 	return nil
-}
-
-func getCacheKey(q *dns.Question) string {
-	return dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
 }
 
 func (d *DNSDispatcher) handleError(errorCategory string, err error) {
@@ -232,5 +252,20 @@ func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
 		d.handleError("response", err)
 		return
 	}
-	d.requestCounts.WithLabelValues("allowed").Inc()
+}
+
+func getCacheKey(q *dns.Question) string {
+	return dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
+}
+
+func shouldRegister(cs ...prometheus.Collector) error {
+	var are prometheus.AlreadyRegisteredError
+	for _, coll := range cs {
+		if err := prometheus.Register(coll); err != nil {
+			if !errors.As(err, &are) {
+				return err
+			}
+		}
+	}
+	return nil
 }
