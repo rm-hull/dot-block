@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -25,7 +26,7 @@ type DNSDispatcher struct {
 	uniqueClientsHLL *hyperloglog.Sketch
 }
 
-func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDispatcher {
+func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, *dns.Msg]().WithMaxKeys(maxSize).WithLRU()
 	sketch := hyperloglog.New14()
@@ -70,7 +71,9 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 		return float64(sketch.Estimate())
 	})
 
-	prometheus.MustRegister(latencyHistogram, errorCounts, cacheStats, requestCounts, uniqueClientsCount)
+	if err := shouldRegister(latencyHistogram, errorCounts, cacheStats, requestCounts, uniqueClientsCount); err != nil {
+		return nil, fmt.Errorf("failed to register: %w", err)
+	}
 
 	return &DNSDispatcher{
 		dnsClient:        &dnsClient,
@@ -82,7 +85,19 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) *DNSDi
 		errorCounts:      errorCounts,
 		requestCounts:    requestCounts,
 		uniqueClientsHLL: sketch,
+	}, nil
+}
+
+func shouldRegister(cs ...prometheus.Collector) error {
+	var are prometheus.AlreadyRegisteredError
+	for _, coll := range cs {
+		if err := prometheus.Register(coll); err != nil {
+			if !errors.As(err, &are) {
+				return err
+			}
+		}
 	}
+	return nil
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg) {
