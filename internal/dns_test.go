@@ -173,7 +173,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
-	// Create a local DNS server that returns a SERVFAIL Rcode
+	// Create a local DNS server that returns a BADSIG Rcode
 
 	upstream := "127.0.0.1:5034"
 	server := &dns.Server{
@@ -186,13 +186,14 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		}),
 	}
 
-	err := waitForPort(upstream, 5*time.Second)
-	require.NoError(t, err)
-
 	go func() {
 		err := server.ListenAndServe()
 		assert.NoError(t, err)
 	}()
+
+
+	err := waitForPort(upstream, 5*time.Second)
+	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 	defer func() {

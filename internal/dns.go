@@ -138,7 +138,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	if len(unansweredQuestions) > 0 {
 		rcode, answers, err := d.resolveUpstream(unansweredQuestions, req)
 		if err != nil {
-			d.handleError("upstream", err)
+			d.reportError("upstream", err)
 			resp.Rcode = rcode
 			d.sendResponse(writer, resp)
 			return
@@ -160,7 +160,7 @@ func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
-		d.handleError("blocklist", err)
+		d.reportError("blocklist", err)
 		return nil, err
 	}
 
@@ -201,7 +201,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 
 	upstreamResp, err := d.forwardQuery(upstreamReq)
 	if err != nil {
-		d.handleError("upstream", err)
+		d.reportError("upstream", err)
 		return dns.RcodeServerFailure, nil, err
 	}
 
@@ -242,7 +242,7 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	return nil
 }
 
-func (d *DNSDispatcher) handleError(errorCategory string, err error) {
+func (d *DNSDispatcher) reportError(errorCategory string, err error) {
 	log.Printf("%s error: %v", errorCategory, err)
 	d.errorCounts.WithLabelValues(errorCategory).Inc()
 	d.requestCounts.WithLabelValues("errored").Inc()
@@ -256,7 +256,7 @@ func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 
 func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
 	if err := writer.WriteMsg(msg); err != nil {
-		d.handleError("response", err)
+		d.reportError("response", err)
 		return
 	}
 }
