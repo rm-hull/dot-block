@@ -14,6 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const TOP_K = 20
+
 type DNSDispatcher struct {
 	dnsClient        *dns.Client
 	upstream         string
@@ -34,8 +36,8 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	sketch := hyperloglog.New14()
 	dnsClient := dns.Client{Timeout: 3 * time.Second}
-	topClients := NewSpaceSaver(20)
-	topDomains := NewSpaceSaver(20)
+	topClients := NewSpaceSaver(TOP_K)
+	topDomains := NewSpaceSaver(TOP_K)
 
 	cacheStats := NewStatsCollector("dns_cache_stats", "type",
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
@@ -51,20 +53,20 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		})
 
 	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
-		"Shows the top 20 most requested domains",
+		fmt.Sprintf("Shows the top %d most requested domains", TOP_K),
 		func() map[string]int {
 			results := make(map[string]int)
-			for _, entry := range topDomains.TopN(20) {
+			for _, entry := range topDomains.TopN(TOP_K) {
 				results[entry.Key] = entry.Count
 			}
 			return results
 		})
 
 	topClientsStats := NewStatsCollector("dns_top_clients", "ip_addr",
-		"Shows the top 20 most active clients",
+		fmt.Sprintf("Shows the top %d most active clients", TOP_K),
 		func() map[string]int {
 			results := make(map[string]int)
-			for _, entry := range topClients.TopN(20) {
+			for _, entry := range topClients.TopN(TOP_K) {
 				results[entry.Key] = entry.Count
 			}
 			return results
