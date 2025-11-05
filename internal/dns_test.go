@@ -1,12 +1,15 @@
 package internal
 
 import (
+	"fmt"
 	"net"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 // MockResponseWriter is a mock implementation of dns.ResponseWriter.
@@ -167,4 +170,61 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	stats = dispatcher.cache.Stat()
 	assert.Equal(t, 1, stats.Hits, "Expected 1 cache hit")
 	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+}
+
+func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
+	// Create a local DNS server that returns a SERVFAIL Rcode
+
+	upstream := "127.0.0.1:5034"
+	server := &dns.Server{
+		Addr: upstream,
+		Net:  "udp",
+		Handler: dns.HandlerFunc(func(w dns.ResponseWriter, r *dns.Msg) {
+			m := new(dns.Msg)
+			m.SetRcode(r, dns.RcodeBadSig)
+			_ = w.WriteMsg(m)
+		}),
+	}
+
+	err := waitForPort(upstream, 5*time.Second)
+	require.NoError(t, err)
+
+	go func() {
+		err := server.ListenAndServe()
+		assert.NoError(t, err)
+	}()
+
+	time.Sleep(100 * time.Millisecond)
+	defer func() {
+		_ = server.Shutdown()
+	}()
+
+	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	assert.NoError(t, err)
+
+	req := new(dns.Msg)
+	req.SetQuestion("google.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest(writer, req)
+
+	// Assert that the response has a BADSIG Rcode
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeBadSig, writer.WrittenMsg.Rcode)
+}
+
+func waitForPort(addr string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("udp", addr, 50*time.Millisecond)
+		if err == nil {
+			conn.Close()
+			return nil
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	return fmt.Errorf("server not ready")
 }

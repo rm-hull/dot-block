@@ -136,9 +136,10 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	}
 
 	if len(unansweredQuestions) > 0 {
-		answers, err := d.resolveUpstream(unansweredQuestions, req)
+		rcode, answers, err := d.resolveUpstream(unansweredQuestions, req)
 		if err != nil {
-			resp.Rcode = dns.RcodeServerFailure
+			d.handleError("upstream", err)
+			resp.Rcode = rcode
 			d.sendResponse(writer, resp)
 			return
 		}
@@ -192,7 +193,7 @@ func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
 	return nil, nil
 }
 
-func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg) ([]dns.RR, error) {
+func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
 	upstreamReq := new(dns.Msg)
 	upstreamReq.Id = dns.Id()
 	upstreamReq.RecursionDesired = req.RecursionDesired
@@ -201,7 +202,11 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	upstreamResp, err := d.forwardQuery(upstreamReq)
 	if err != nil {
 		d.handleError("upstream", err)
-		return nil, err
+		return dns.RcodeServerFailure, nil, err
+	}
+
+	if upstreamResp.Rcode != dns.RcodeSuccess {
+		return upstreamReq.Rcode, nil, fmt.Errorf("upstream resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
 	}
 
 	// Group answers by question for efficient lookup
@@ -223,7 +228,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 		}
 	}
 
-	return upstreamResp.Answer, nil
+	return upstreamReq.Rcode, upstreamResp.Answer, nil
 }
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
