@@ -6,7 +6,7 @@ import (
 
 type StatsCollector struct {
 	callbackFn func() map[string]int
-	desc  *prometheus.Desc
+	desc       *prometheus.Desc
 }
 
 func (coll *StatsCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -24,13 +24,13 @@ func (coll *StatsCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 }
 
-func NewStatsCollector(desc, help string, callbackFn func() map[string]int) *StatsCollector {
+func NewStatsCollector(desc, label, help string, callbackFn func() map[string]int) *StatsCollector {
 	return &StatsCollector{
 		callbackFn: callbackFn,
 		desc: prometheus.NewDesc(
 			desc,
 			help,
-			[]string{"type"},
+			[]string{label},
 			nil,
 		),
 	}
