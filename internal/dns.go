@@ -62,7 +62,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
-		Help: "Counts the number of DNS requests, broken down by type: total, errored",
+		Help: "Counts the number of DNS requests, broken down by type: total, errored, forwarded",
 	}, []string{"type"})
 
 	queryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -136,11 +136,14 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	}
 
 	if len(unansweredQuestions) > 0 {
-		if err := d.resolveUpstream(unansweredQuestions, req, resp); err != nil {
+		answers, err := d.resolveUpstream(unansweredQuestions, req)
+		if err != nil {
 			resp.Rcode = dns.RcodeServerFailure
 			d.sendResponse(writer, resp)
 			return
 		}
+
+		resp.Answer = append(resp.Answer, answers...)
 	}
 
 	if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
@@ -189,7 +192,7 @@ func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
 	return nil, nil
 }
 
-func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg, resp *dns.Msg) error {
+func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg) ([]dns.RR, error) {
 	upstreamReq := new(dns.Msg)
 	upstreamReq.Id = dns.Id()
 	upstreamReq.RecursionDesired = req.RecursionDesired
@@ -198,10 +201,8 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	upstreamResp, err := d.forwardQuery(upstreamReq)
 	if err != nil {
 		d.handleError("upstream", err)
-		return err
+		return nil, err
 	}
-
-	resp.Answer = append(resp.Answer, upstreamResp.Answer...)
 
 	// Group answers by question for efficient lookup
 	answerMap := make(map[string][]dns.RR)
@@ -222,7 +223,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 		}
 	}
 
-	return nil
+	return upstreamResp.Answer, nil
 }
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
@@ -243,6 +244,7 @@ func (d *DNSDispatcher) handleError(errorCategory string, err error) {
 }
 
 func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
+	d.requestCounts.WithLabelValues("forwarded").Inc()
 	in, _, err := d.dnsClient.Exchange(req, d.upstream)
 	return in, err
 }
