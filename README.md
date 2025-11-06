@@ -100,6 +100,12 @@ DoT Block can be configured using the following command-line flags:
 | `--allowed-host` | List of domains used for the CertManager allow policy. | `nil` |
 | `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 
+## Grafana Dashboard
+
+A [dashboard.json](./dashboard.json) is available for importing into Grafana:
+
+![dashboard screenshot](./docs/grafana.png)
+
 ## Contributing
 
 Contributions are welcome! Please feel free to open an issue or submit a pull request.
