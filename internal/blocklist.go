@@ -2,6 +2,7 @@ package internal
 
 import (
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -40,7 +41,7 @@ func NewBlockList(items []string, fpRate float64) *BlockList {
 		Name: "blocklist_age",
 		Help: "The age (in seconds) since the blocklist was loaded",
 	}, func() float64 {
-		return time.Since(blocklist.updated).Seconds()
+		return math.Round(time.Since(blocklist.updated).Seconds())
 	})
 
 	_ = shouldRegister(count, age)
