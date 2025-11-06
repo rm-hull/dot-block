@@ -80,8 +80,8 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 
 	errorCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_error_count",
-		Help: "Counts the number of errors broken down by type",
-	}, []string{"error"})
+		Help: "Counts the number of errors broken down by category",
+	}, []string{"category"})
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
