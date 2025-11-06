@@ -50,16 +50,25 @@
       },
       "id": 1,
       "options": {
-        "displayLabels": ["name", "percent", "value"],
+        "displayLabels": [
+          "name",
+          "percent",
+          "value"
+        ],
         "legend": {
           "displayMode": "table",
           "placement": "right",
           "showLegend": false,
-          "values": ["value", "percent"]
+          "values": [
+            "value",
+            "percent"
+          ]
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -132,19 +141,21 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "12.2.1",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "rate(dns_cache_stats{type=\"hits\"}[1h]) / (rate(dns_cache_stats{type=\"hits\"}[1h]) + rate(dns_cache_stats{type=\"misses\"}[1h])) * 100",
+          "expr": "sum(dns_cache_stats{type=\"hits\"}) / (sum(dns_cache_stats{type=\"hits\"}) + sum(dns_cache_stats{type=\"misses\"})) * 100",
           "range": true,
           "refId": "A"
         }
@@ -171,7 +182,38 @@
           },
           "mappings": []
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Allowed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blocked"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "semi-dark-red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -181,16 +223,25 @@
       },
       "id": 3,
       "options": {
-        "displayLabels": ["name", "percent", "value"],
+        "displayLabels": [
+          "name",
+          "percent",
+          "value"
+        ],
         "legend": {
           "displayMode": "table",
           "placement": "right",
           "showLegend": false,
-          "values": ["value", "percent"]
+          "values": [
+            "value",
+            "percent"
+          ]
         },
         "pieType": "pie",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -204,13 +255,17 @@
       "pluginVersion": "12.2.1",
       "targets": [
         {
-          "expr": "dns_request_count{type=\"allowed\"}",
+          "editorMode": "code",
+          "expr": "sum(dns_query_count{blocked=\"false\"})",
           "legendFormat": "Allowed",
+          "range": true,
           "refId": "A"
         },
         {
-          "expr": "dns_request_count{type=\"blocked\"}",
+          "editorMode": "code",
+          "expr": "sum(dns_query_count{blocked=\"true\"})",
           "legendFormat": "Blocked",
+          "range": true,
           "refId": "B"
         }
       ],
@@ -263,19 +318,21 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "12.2.1",
       "targets": [
         {
           "editorMode": "code",
-          "expr": "dns_request_count{type=\"blocked\"} / dns_request_count{type=\"total\"} * 100",
+          "expr": "sum(dns_query_count{blocked=\"true\"}) / sum(dns_query_count) * 100",
           "range": true,
           "refId": "A"
         }
@@ -310,7 +367,7 @@
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "linear",
+            "lineInterpolation": "smooth",
             "lineStyle": {
               "fill": "solid"
             },
@@ -337,16 +394,43 @@
               {
                 "color": "green",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
           "unit": "short"
         },
-        "overrides": []
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Allowed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Blocked"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       },
       "gridPos": {
         "h": 8,
@@ -371,17 +455,21 @@
       "pluginVersion": "12.2.1",
       "targets": [
         {
-          "expr": "increase(dns_request_count{type=\"allowed\"}[1h])",
+          "editorMode": "code",
+          "expr": "sum(increase(dns_query_count{blocked=\"false\"}[1h]))",
           "legendFormat": "Allowed",
+          "range": true,
           "refId": "A"
         },
         {
-          "expr": "increase(dns_request_count{type=\"blocked\"}[1h])",
+          "editorMode": "code",
+          "expr": "sum(increase(dns_query_count{blocked=\"true\"}[1h]))",
           "legendFormat": "Blocked",
+          "range": true,
           "refId": "B"
         }
       ],
-      "title": "Request Count Over Time",
+      "title": "DNS Queries Over Time",
       "type": "timeseries"
     },
     {
@@ -459,7 +547,12 @@
           "displayMode": "table",
           "placement": "right",
           "showLegend": true,
-          "values": ["min", "max", "mean", "last"]
+          "values": [
+            "min",
+            "max",
+            "mean",
+            "last"
+          ]
         },
         "tooltip": {
           "hideZeros": false,
@@ -698,6 +791,10 @@
       "type": "timeseries"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eeppumwcaakg0f"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -706,12 +803,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "blue",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -720,8 +813,8 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 8,
+        "h": 6,
+        "w": 6,
         "x": 0,
         "y": 24
       },
@@ -733,7 +826,9 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -753,9 +848,14 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eeppumwcaakg0f"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
+          "displayName": "Updated",
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -779,9 +879,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 8,
+        "h": 6,
+        "w": 6,
+        "x": 6,
         "y": 24
       },
       "id": 10,
@@ -792,7 +892,9 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -811,6 +913,10 @@
       "type": "stat"
     },
     {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "eeppumwcaakg0f"
+      },
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -819,12 +925,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "blue",
                 "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
               }
             ]
           },
@@ -833,9 +935,9 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
+        "h": 6,
+        "w": 12,
+        "x": 12,
         "y": 24
       },
       "id": 11,
@@ -846,12 +948,14 @@
         "orientation": "auto",
         "percentChangeColorMode": "standard",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
         "showPercentChange": false,
-        "textMode": "value_and_name",
+        "textMode": "value",
         "wideLayout": true
       },
       "pluginVersion": "12.2.1",
@@ -868,17 +972,20 @@
   "preload": false,
   "refresh": "30s",
   "schemaVersion": 42,
-  "tags": ["dns", "prometheus"],
+  "tags": [
+    "dns",
+    "prometheus"
+  ],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-6h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "DNS Service Monitor",
   "uid": "a039bfc8-0cb5-4e7c-8043-367b69df33e1",
-  "version": 9
+  "version": 25
 }
