@@ -9,7 +9,13 @@ import (
 )
 
 const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
-const DEFAULT_UPSTREAM_DNS = "1.1.1.1:53"
+
+var DEFAULT_UPSTREAM_DNS = []string{
+	"8.8.8.8:53", // Google
+	"8.8.4.4:53",
+	"1.1.1.1:53", // Cloudflare
+	"1.0.0.1:53",
+}
 
 func main() {
 	app := internal.App{}
@@ -26,7 +32,7 @@ func main() {
 	rootCmd.Flags().StringVar(&app.BlockListUrl, "blocklist-url", HAGEZI_PRO_BLOCKLIST, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.CertCacheDir, "cache-dir", "./data/certcache", "Directory for TLS certificate cache")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
-	rootCmd.Flags().StringVar(&app.Upstream, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolver to forward queries to")
+	rootCmd.Flags().StringArrayVar(&app.Upstreams, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolvers to forward queries to")
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")

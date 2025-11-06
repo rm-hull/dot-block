@@ -58,6 +58,7 @@ func (m *MockResponseWriter) Hijack() {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
+
 	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001)
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 
@@ -66,7 +67,8 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -96,7 +98,9 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		err := server.Shutdown()
 		assert.NoError(t, err)
 	}()
-	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+
+	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -128,7 +132,8 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -172,7 +177,8 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -220,7 +226,8 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, err := NewDNSDispatcher(upstream, blockList, 100)
+	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100)
 	require.NoError(t, err)
 
 	req := new(dns.Msg)

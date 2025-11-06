@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/Depado/ginprom"
 	"github.com/gin-contrib/pprof"
@@ -13,7 +14,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/godx"
 	healthcheck "github.com/tavsec/gin-healthcheck"
-	"github.com/tavsec/gin-healthcheck/checks"
 	hc_config "github.com/tavsec/gin-healthcheck/config"
 	"golang.org/x/crypto/acme/autocert"
 )
@@ -21,7 +21,7 @@ import (
 const CACHE_SIZE = 1_000_000
 
 type App struct {
-	Upstream     string
+	Upstreams    []string
 	CertCacheDir string
 	BlockListUrl string
 	DevMode      bool
@@ -35,6 +35,8 @@ func (app *App) RunServer() error {
 	godx.EnvironmentVars()
 	godx.UserInfo()
 
+	timeout := 3 * time.Second
+	dnsClient := NewRoundRobinClient(timeout, app.Upstreams...)
 	hosts, err := DownloadBlocklist(app.BlockListUrl)
 	if err != nil {
 		return fmt.Errorf("failed to download blocklist: %w", err)
@@ -48,11 +50,11 @@ func (app *App) RunServer() error {
 		HostPolicy: autocert.HostWhitelist(app.AllowedHosts...),
 	}
 
-	if _, err := app.startHttpServer(manager); err != nil {
+	if _, err := app.startHttpServer(dnsClient, manager); err != nil {
 		return fmt.Errorf("failed to start HTTP server: %w", err)
 	}
 
-	dispatcher, err := NewDNSDispatcher(app.Upstream, blockList, CACHE_SIZE)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE)
 	if err != nil {
 		return fmt.Errorf("failed to create dispatcher: %w", err)
 	}
@@ -91,7 +93,7 @@ func (app *App) RunServer() error {
 	return nil
 }
 
-func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) {
+func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -114,7 +116,7 @@ func (app *App) startHttpServer(manager *autocert.Manager) (*gin.Engine, error) 
 		prometheus.Instrument(),
 	)
 
-	if err := healthcheck.New(r, hc_config.DefaultConfig(), []checks.Check{}); err != nil {
+	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
 		return nil, fmt.Errorf("failed to initialize healthcheck: %w", err)
 	}
 

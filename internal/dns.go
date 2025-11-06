@@ -12,7 +12,7 @@ import (
 )
 
 type DNSDispatcher struct {
-	dnsClient  *dns.Client
+	dnsClient  *RoundRobinClient
 	upstream   string
 	defaultTTL float64
 	cache      cache.Cache[string, []dns.RR]
@@ -20,19 +20,16 @@ type DNSDispatcher struct {
 	metrics    *metrics.DnsMetrics
 }
 
-func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSDispatcher, error) {
+func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize int) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
-	dnsClient := dns.Client{Timeout: 3 * time.Second}
-
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize: %w", err)
 	}
 
 	return &DNSDispatcher{
-		dnsClient:  &dnsClient,
-		upstream:   upstream,
+		dnsClient:  dnsClient,
 		defaultTTL: 300, // TODO: pass in
 		cache:      cache,
 		blockList:  blockList,
@@ -187,7 +184,7 @@ func (d *DNSDispatcher) reportError(errorCategory string, err error) {
 
 func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 	d.metrics.RequestCounts.WithLabelValues("forwarded").Inc()
-	in, _, err := d.dnsClient.Exchange(req, d.upstream)
+	in, err := d.dnsClient.Exchange(req)
 	return in, err
 }
 
