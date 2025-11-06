@@ -25,6 +25,7 @@ type DNSDispatcher struct {
 	errorCounts      *prometheus.CounterVec
 	requestCounts    *prometheus.CounterVec
 	queryCounts      *prometheus.CounterVec
+	replyCounts      *prometheus.CounterVec
 	uniqueClientsHLL *hyperloglog.Sketch
 	topClients       *SpaceSaver
 	topDomains       *SpaceSaver
@@ -93,6 +94,11 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		Help: "Counts the number of DNS questions, broken down by type (A, CNAME, MX, etc) and whether blocked (true/false)",
 	}, []string{"type", "blocked"})
 
+	replyCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_reply_count",
+		Help: "Counts the number of DNS replies, broken down by response code",
+	}, []string{"rcode"})
+
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
 		Help: "Estimates the number of unique clients (relative error ≈ 1.04%)",
@@ -106,6 +112,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		cacheStats,
 		requestCounts,
 		queryCounts,
+		replyCounts,
 		uniqueClientsCount,
 		topClientsStats,
 		topDomainsStats,
@@ -123,6 +130,7 @@ func NewDNSDispatcher(upstream string, blockList *BlockList, maxSize int) (*DNSD
 		errorCounts:      errorCounts,
 		requestCounts:    requestCounts,
 		queryCounts:      queryCounts,
+		replyCounts:      replyCounts,
 		uniqueClientsHLL: sketch,
 		topClients:       topClients,
 		topDomains:       topDomains,
@@ -281,6 +289,7 @@ func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 }
 
 func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
+	d.replyCounts.WithLabelValues(dns.RcodeToString[msg.Rcode]).Inc()
 	if err := writer.WriteMsg(msg); err != nil {
 		d.reportError("response", err)
 		return
