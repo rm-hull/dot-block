@@ -1,11 +1,11 @@
 package internal
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/rm-hull/dot-block/internal/metrics"
 
 	cache "github.com/go-pkgz/expirable-cache/v3"
@@ -25,7 +25,7 @@ func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize: %w", err)
+		return nil, errors.Wrap(err, "failed to initialize")
 	}
 
 	return &DNSDispatcher{
@@ -142,7 +142,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
 		// Propagate the upstream response Rcode if not successful
-		return upstreamResp.Rcode, nil, fmt.Errorf("resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
+		return upstreamResp.Rcode, nil, errors.Newf("resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
 	}
 
 	// Group answers by question for efficient lookup
@@ -168,7 +168,7 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	remoteAddr := writer.RemoteAddr().String()
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err != nil {
-		return fmt.Errorf("failed to parse `host:port` from %s: %w", remoteAddr, err)
+		return errors.Wrapf(err, "failed to parse `host:port` from %s", remoteAddr)
 	}
 
 	d.metrics.TopClients.Add(host)

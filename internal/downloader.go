@@ -2,12 +2,12 @@ package internal
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/dustin/go-humanize"
 )
 
@@ -16,13 +16,13 @@ func DownloadBlocklist(url string) ([]string, error) {
 	log.Printf("Retrieving blocklist: %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, errors.Wrap(err, "failed to create request")
 	}
 
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch from %s: %w", url, err)
+		return nil, errors.Wrapf(err, "failed to fetch from %s", url)
 	}
 
 	defer func() {
@@ -32,7 +32,7 @@ func DownloadBlocklist(url string) ([]string, error) {
 	}()
 
 	if resp.StatusCode > 299 {
-		return nil, fmt.Errorf("error response from %s: %s", url, resp.Status)
+		return nil, errors.Newf("error response from %s: %s", url, resp.Status)
 	}
 
 	lastModified := resp.Header.Get("Last-Modified")
@@ -61,7 +61,7 @@ func DownloadBlocklist(url string) ([]string, error) {
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading response body: %w", err)
+		return nil, errors.Wrap(err, "error reading response body")
 	}
 
 	log.Printf("Loaded %d hostnames", len(blocklist))

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/Depado/ginprom"
+	"github.com/cockroachdb/errors"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
@@ -39,7 +40,7 @@ func (app *App) RunServer() error {
 	dnsClient := NewRoundRobinClient(timeout, app.Upstreams...)
 	hosts, err := DownloadBlocklist(app.BlockListUrl)
 	if err != nil {
-		return fmt.Errorf("failed to download blocklist: %w", err)
+		return errors.Wrap(err, "failed to download blocklist")
 	}
 
 	blockList := NewBlockList(hosts, 0.0001)
@@ -51,12 +52,12 @@ func (app *App) RunServer() error {
 	}
 
 	if _, err := app.startHttpServer(dnsClient, manager); err != nil {
-		return fmt.Errorf("failed to start HTTP server: %w", err)
+		return errors.Wrap(err, "failed to start HTTP server")
 	}
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE)
 	if err != nil {
-		return fmt.Errorf("failed to create dispatcher: %w", err)
+		return errors.Wrap(err, "failed to create dispatcher")
 	}
 
 	if app.DevMode {
@@ -68,7 +69,7 @@ func (app *App) RunServer() error {
 
 		log.Println("Starting DNS server in DEV mode on port 8053 (no TLS)...")
 		if err := dnsServer.ListenAndServe(); err != nil {
-			return fmt.Errorf("failed to start DNS server in dev mode: %w", err)
+			return errors.Wrap(err, "failed to start DNS server in dev mode")
 		}
 		return nil
 	}
@@ -88,7 +89,7 @@ func (app *App) RunServer() error {
 
 	log.Println("Starting DNS-over-TLS server on port 853...")
 	if err := dnsServer.ListenAndServe(); err != nil {
-		return fmt.Errorf("failed to start DoT server: %v", err)
+		return errors.Wrap(err, "failed to start DoT server")
 	}
 	return nil
 }
@@ -117,7 +118,7 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	)
 
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
-		return nil, fmt.Errorf("failed to initialize healthcheck: %w", err)
+		return nil, errors.Wrap(err, "failed to initialize healthcheck")
 	}
 
 	if app.MetricsAuth == "" {
@@ -136,7 +137,7 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 		} else {
-			return nil, fmt.Errorf("invalid metrics-auth value: %s", app.MetricsAuth)
+			return nil, errors.Newf("invalid metrics-auth value: %s", app.MetricsAuth)
 		}
 	}
 
