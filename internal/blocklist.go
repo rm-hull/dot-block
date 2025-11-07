@@ -1,11 +1,11 @@
 package internal
 
 import (
-	"dot-block/internal/metrics"
 	"log"
 	"strings"
 
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"golang.org/x/net/publicsuffix"
 )
 

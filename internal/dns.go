@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"dot-block/internal/metrics"
 	"log"
 	"net"
 	"time"
@@ -9,6 +8,7 @@ import (
 	"github.com/cockroachdb/errors"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
 type DNSDispatcher struct {
