@@ -4,9 +4,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/rm-hull/dot-block/internal/metrics"
-
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"golang.org/x/net/publicsuffix"
 )
 

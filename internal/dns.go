@@ -6,10 +6,9 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/rm-hull/dot-block/internal/metrics"
-
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
 type DNSDispatcher struct {
