@@ -1,10 +1,10 @@
 package metrics
 
 import (
-	"fmt"
 	"math"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -29,7 +29,7 @@ func NewBlockListMetrics(size uint) (*BlockListMetrics, error) {
 	})
 
 	if err := shouldRegister(count, age); err != nil {
-		return nil, fmt.Errorf("failed to register blocklist metrics: %w", err)
+		return nil, errors.Wrap(err, "failed to register blocklist metrics")
 	}
 
 	return &BlockListMetrics{
