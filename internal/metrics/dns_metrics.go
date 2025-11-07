@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/axiomhq/hyperloglog"
+	"github.com/cockroachdb/errors"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus"
@@ -106,7 +107,7 @@ func NewDNSMetrics(cache cache.Cache[string, []dns.RR]) (*DnsMetrics, error) {
 		topClientsStats,
 		topDomainsStats,
 	); err != nil {
-		return nil, fmt.Errorf("failed to register DNS metrics: %w", err)
+		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
 
 	return &DnsMetrics{
