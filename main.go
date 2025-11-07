@@ -1,9 +1,10 @@
 package main
 
 import (
-	"dot-block/internal"
 	"log"
 	"os"
+
+	"github.com/rm-hull/dot-block/internal"
 
 	"github.com/spf13/cobra"
 )

@@ -1,11 +1,12 @@
 package internal
 
 import (
-	"dot-block/internal/metrics"
 	"fmt"
 	"log"
 	"net"
 	"time"
+
+	"github.com/rm-hull/dot-block/internal/metrics"
 
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"

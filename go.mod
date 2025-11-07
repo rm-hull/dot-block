@@ -1,4 +1,4 @@
-module dot-block
+module github.com/rm-hull/dot-block
 
 go 1.25.3
 
