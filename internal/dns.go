@@ -13,7 +13,6 @@ import (
 
 type DNSDispatcher struct {
 	dnsClient  *RoundRobinClient
-	upstream   string
 	defaultTTL float64
 	cache      cache.Cache[string, []dns.RR]
 	blockList  *BlockList
