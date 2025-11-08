@@ -3,7 +3,8 @@ package internal
 import (
 	"crypto/tls"
 	"fmt"
-	"log"
+	"log/slog"
+	"os"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/godx"
+	sloggin "github.com/samber/slog-gin"
 	healthcheck "github.com/tavsec/gin-healthcheck"
 	hc_config "github.com/tavsec/gin-healthcheck/config"
 	"golang.org/x/crypto/acme/autocert"
@@ -29,6 +31,7 @@ type App struct {
 	HttpPort     int
 	AllowedHosts []string
 	MetricsAuth  string
+	Logger       *slog.Logger
 }
 
 func (app *App) RunServer() error {
@@ -38,12 +41,12 @@ func (app *App) RunServer() error {
 
 	timeout := 3 * time.Second
 	dnsClient := NewRoundRobinClient(timeout, app.Upstreams...)
-	hosts, err := DownloadBlocklist(app.BlockListUrl)
+	hosts, err := DownloadBlocklist(app.BlockListUrl, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")
 	}
 
-	blockList := NewBlockList(hosts, 0.0001)
+	blockList := NewBlockList(hosts, 0.0001, app.Logger)
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(app.CertCacheDir),
@@ -55,7 +58,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to start HTTP server")
 	}
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
@@ -67,7 +70,7 @@ func (app *App) RunServer() error {
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
 		}
 
-		log.Println("Starting DNS server in DEV mode on port 8053 (no TLS)...")
+		app.Logger.Info("Starting DNS server in DEV mode", "port", 8053, "tls", false)
 		if err := dnsServer.ListenAndServe(); err != nil {
 			return errors.Wrap(err, "failed to start DNS server in dev mode")
 		}
@@ -87,7 +90,7 @@ func (app *App) RunServer() error {
 		Handler:   dns.HandlerFunc(dispatcher.HandleDNSRequest),
 	}
 
-	log.Println("Starting DNS-over-TLS server on port 853...")
+	app.Logger.Info("Starting DNS-over-TLS server", "port", 853)
 	if err := dnsServer.ListenAndServe(); err != nil {
 		return errors.Wrap(err, "failed to start DoT server")
 	}
@@ -102,7 +105,7 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	r := gin.New()
 
 	if app.DevMode {
-		log.Println("WARNING: pprof endpoints are enabled and exposed. Do not run with this flag in production.")
+		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
 	}
 
@@ -113,7 +116,7 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 
 	r.Use(
 		gin.Recovery(),
-		gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "/metrics"),
+		sloggin.NewWithFilters(app.Logger, sloggin.IgnorePath("/healthz", "/metrics")),
 		prometheus.Instrument(),
 	)
 
@@ -122,13 +125,13 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	}
 
 	if app.MetricsAuth == "" {
-		log.Println("WARNING: metrics endpoint is not protected by basic auth")
+		app.Logger.Warn("Metrics endpoint is not protected by basic auth")
 		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	} else {
 		parts := strings.SplitN(app.MetricsAuth, ":", 2)
 		if len(parts) == 2 {
-			log.Println("Protecting /metrics endpoint with basic auth")
+			app.Logger.Info("Protecting /metrics endpoint with basic auth")
 			user := parts[0]
 			pass := parts[1]
 			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
@@ -145,9 +148,10 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 
 	go func() {
 		port := fmt.Sprintf(":%d", app.HttpPort)
-		log.Printf("Starting HTTP server on port %s for ACME challenge, metrics & healthcheck...", port)
+		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", port)
 		if err := r.Run(port); err != nil {
-			log.Fatalf("HTTP server error: %v", err)
+			app.Logger.Error("HTTP server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
