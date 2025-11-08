@@ -103,7 +103,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q dns.Question) ([]dns.RR, error) {
 	queryType := dns.TypeToString[q.Qtype]
-	requestLogger.Info("Query received", "domain", q.Name, "type", queryType)
+	requestLogger.Info("Query received", "name", q.Name, "type", queryType)
 	d.metrics.TopDomains.Add(q.Name)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
@@ -113,7 +113,7 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q dns.Questi
 	}
 
 	if isBlocked {
-		requestLogger.Info("Domain blocked", "host", q.Name)
+		requestLogger.Info("Domain blocked", "name", q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 
 		soa := &dns.SOA{
