@@ -9,31 +9,43 @@ import (
 )
 
 type BlockListMetrics struct {
-	count *prometheus.Gauge
-	age   *prometheus.CounterFunc
+	size        prometheus.Gauge
+	age         prometheus.CounterFunc
+	reloads     prometheus.Counter
+	lastUpdated time.Time
 }
 
-func NewBlockListMetrics(size uint) (*BlockListMetrics, error) {
-	now := time.Now()
-	count := prometheus.NewGauge(prometheus.GaugeOpts{
+func NewBlockListMetrics() (*BlockListMetrics, error) {
+
+	metrics := &BlockListMetrics{
+		lastUpdated: time.Now(),
+	}
+	metrics.size = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "blocklist_size",
 		Help: "The number of entries in the blocklist",
 	})
-	count.Set(float64(size))
 
-	age := prometheus.NewCounterFunc(prometheus.CounterOpts{
+	metrics.age = prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "blocklist_age",
-		Help: "The age (in seconds) since the blocklist was loaded",
+		Help: "The age (in seconds) since the blocklist was last reloaded",
 	}, func() float64 {
-		return math.Round(time.Since(now).Seconds())
+		return math.Round(time.Since(metrics.lastUpdated).Seconds())
 	})
 
-	if err := shouldRegister(count, age); err != nil {
+	metrics.reloads = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "blocklist_reloads",
+		Help: "The number of times the blocklist was reloaded",
+	})
+
+	if err := shouldRegister(metrics.size, metrics.age, metrics.reloads); err != nil {
 		return nil, errors.Wrap(err, "failed to register blocklist metrics")
 	}
 
-	return &BlockListMetrics{
-		count: &count,
-		age:   &age,
-	}, nil
+	return metrics, nil
+}
+
+func (m *BlockListMetrics) Update(n uint) {
+	m.lastUpdated = time.Now()
+	m.size.Set(float64(n))
+	m.reloads.Inc()
 }
