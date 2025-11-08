@@ -5,10 +5,13 @@ go 1.25.3
 require (
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
 	github.com/getsentry/sentry-go v0.36.2
+	github.com/getsentry/sentry-go/gin v0.36.2
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
+	github.com/joho/godotenv v1.5.1
 	github.com/miekg/dns v1.1.68
 	github.com/prometheus/client_golang v1.23.2
+	github.com/samber/slog-gin v1.18.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.43.0
 )
@@ -68,7 +71,6 @@ require (
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gabriel-vasile/mimetype v1.4.11 // indirect
-	github.com/getsentry/sentry-go/gin v0.36.2
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache/v3 v3.1.0
@@ -77,7 +79,6 @@ require (
 	github.com/go-playground/validator/v10 v10.28.0 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
-	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
@@ -88,7 +89,7 @@ require (
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.56.0 // indirect
 	github.com/rm-hull/godx v0.0.6
-	github.com/samber/slog-gin v1.18.0
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.1
 	github.com/tavsec/gin-healthcheck v1.7.11
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

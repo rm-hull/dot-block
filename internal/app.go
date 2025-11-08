@@ -21,6 +21,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
 	"github.com/rm-hull/godx"
+	"github.com/robfig/cron/v3"
 	sloggin "github.com/samber/slog-gin"
 	healthcheck "github.com/tavsec/gin-healthcheck"
 	hc_config "github.com/tavsec/gin-healthcheck/config"
@@ -37,6 +38,7 @@ type App struct {
 	HttpPort     int
 	AllowedHosts []string
 	MetricsAuth  string
+	CronSchedule string
 	Logger       *slog.Logger
 }
 
@@ -67,6 +69,13 @@ func (app *App) RunServer() error {
 	}
 
 	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
+
+	crontab := cron.New(cron.WithLogger(&SlogAdapter{prefix: "Cron ", logger: app.Logger}))
+	crontab.Start()
+	defer crontab.Stop()
+
+	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
+	_, _ = crontab.AddJob(app.CronSchedule, blocklist.NewCronJob(blockList, app.BlockListUrl))
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(app.CertCacheDir),
