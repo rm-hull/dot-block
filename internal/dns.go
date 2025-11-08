@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
+	"github.com/getsentry/sentry-go"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -191,6 +192,7 @@ func (d *DNSDispatcher) reportError(requestLogger *slog.Logger, errorCategory st
 	requestLogger.Error("DNS error", "category", errorCategory, "error", err)
 	d.metrics.ErrorCounts.WithLabelValues(errorCategory).Inc()
 	d.metrics.RequestCounts.WithLabelValues("errored").Inc()
+	sentry.CaptureException(err)
 }
 
 func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
