@@ -70,12 +70,15 @@ func (app *App) RunServer() error {
 
 	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
 
-	crontab := cron.New(cron.WithLogger(&SlogAdapter{prefix: "Cron ", logger: app.Logger}))
+	adapter := &SlogAdapter{prefix: "Cron ", logger: app.Logger}
+	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
 	crontab.Start()
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
-	_, _ = crontab.AddJob(app.CronSchedule, blocklist.NewCronJob(blockList, app.BlockListUrl))
+	if _, err = crontab.AddJob(app.CronSchedule, blocklist.NewCronJob(blockList, app.BlockListUrl)); err != nil {
+		return errors.Wrap(err, "failed to create blocklist cron job")
+	}
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(app.CertCacheDir),

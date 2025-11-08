@@ -19,7 +19,7 @@ func NewCronJob(blocklist *BlockList, url string) cron.Job {
 func (job *CronJob) Run() {
 	items, err := DownloadBlocklist(job.url, job.blocklist.logger)
 	if err != nil {
-		panic(err)
+		job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err)
 	}
 
 	job.blocklist.Load(items)
