@@ -40,7 +40,7 @@ type App struct {
 
 func (app *App) RunServer() error {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
+		app.Logger.Warn("No .env file found")
 	}
 	godx.GitVersion()
 	godx.EnvironmentVars()
@@ -53,7 +53,7 @@ func (app *App) RunServer() error {
 		Environment: app.environment(),
 	})
 	if err != nil {
-		log.Fatalf("sentry.Init: %s", err)
+		app.Logger.Error("sentry.Init failed", "error", err)
 	}
 	defer sentry.Flush(2 * time.Second)
 
@@ -171,8 +171,8 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
 
 	go func() {
+		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", app.HttpPort)
 		port := fmt.Sprintf(":%d", app.HttpPort)
-		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", port)
 		if err := r.Run(port); err != nil {
 			app.Logger.Error("HTTP server error", "error", err)
 			os.Exit(1)

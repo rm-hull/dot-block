@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/bytedance/gopkg/util/logger"
 	"github.com/rm-hull/dot-block/internal"
 	"github.com/spf13/cobra"
 )
@@ -41,7 +40,7 @@ func main() {
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Error("Failed to execute command", "error", err)
+		app.Logger.Error("Failed to execute command", "error", err)
 		os.Exit(1)
 	}
 }
