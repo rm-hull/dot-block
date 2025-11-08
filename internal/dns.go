@@ -48,7 +48,6 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		host = "unknown" // Fallback to "unknown" if IP parsing fails
 	}
 
-	// Create a new logger with the client's IP
 	requestLogger := d.logger.With("clientIP", host, "requestId", req.Id)
 
 	defer func() {
