@@ -4,13 +4,18 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/Depado/ginprom"
 	"github.com/cockroachdb/errors"
+	"github.com/earthboundkid/versioninfo/v2"
+	"github.com/getsentry/sentry-go"
+	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/godx"
@@ -32,9 +37,23 @@ type App struct {
 }
 
 func (app *App) RunServer() error {
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found")
+	}
 	godx.GitVersion()
 	godx.EnvironmentVars()
 	godx.UserInfo()
+
+	err := sentry.Init(sentry.ClientOptions{
+		Dsn:         os.Getenv("SENTRY_DSN"),
+		Debug:       app.DevMode,
+		Release:     versioninfo.Revision[:7],
+		Environment: app.environment(),
+	})
+	if err != nil {
+		log.Fatalf("sentry.Init: %s", err)
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	timeout := 3 * time.Second
 	dnsClient := NewRoundRobinClient(timeout, app.Upstreams...)
@@ -112,9 +131,15 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	)
 
 	r.Use(
+		sentrygin.New(sentrygin.Options{
+			Repanic:         true,
+			WaitForDelivery: false,
+			Timeout:         5 * time.Second,
+		}),
 		gin.Recovery(),
 		gin.LoggerWithWriter(gin.DefaultWriter, "/healthz", "/metrics"),
 		prometheus.Instrument(),
+		sentryErrorHandler(),
 	)
 
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
@@ -152,4 +177,28 @@ func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.M
 	}()
 
 	return r, nil
+}
+
+func (app *App) environment() string {
+	if app.DevMode {
+		return "DEVELOPMENT"
+	}
+	return "PRODUCTION"
+}
+
+func sentryErrorHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+
+		if len(c.Errors) > 0 {
+			hub := sentrygin.GetHubFromContext(c)
+			for _, e := range c.Errors {
+				if hub != nil {
+					hub.CaptureException(e.Err)
+				} else {
+					sentry.CaptureException(e.Err)
+				}
+			}
+		}
+	}
 }
