@@ -1,7 +1,7 @@
 package main
 
 import (
-	"log"
+	"log/slog"
 	"os"
 
 	"github.com/rm-hull/dot-block/internal"
@@ -18,7 +18,9 @@ var DEFAULT_UPSTREAM_DNS = []string{
 }
 
 func main() {
-	app := internal.App{}
+	app := internal.App{
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+	}
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
 	rootCmd := &cobra.Command{
@@ -38,6 +40,7 @@ func main() {
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
 
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Failed to execute command: %v", err)
+		app.Logger.Error("Failed to execute command", "error", err)
+		os.Exit(1)
 	}
 }

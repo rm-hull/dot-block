@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"log"
+	"log/slog"
 	"net"
 	"time"
 
@@ -18,9 +18,10 @@ type DNSDispatcher struct {
 	cache      cache.Cache[string, []dns.RR]
 	blockList  *BlockList
 	metrics    *metrics.DnsMetrics
+	logger     *slog.Logger
 }
 
-func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize int) (*DNSDispatcher, error) {
+func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize int, logger *slog.Logger) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)
@@ -34,11 +35,21 @@ func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize
 		cache:      cache,
 		blockList:  blockList,
 		metrics:    metrics,
+		logger:     logger,
 	}, nil
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg) {
 	startTime := time.Now()
+	remoteAddr := writer.RemoteAddr().String()
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		d.logger.Warn("failed to parse client IP from remote address", "remote_addr", remoteAddr, "error", err)
+		host = "unknown" // Fallback to "unknown" if IP parsing fails
+	}
+
+	requestLogger := d.logger.With("clientIP", host, "requestId", req.Id)
+
 	defer func() {
 		duration := time.Since(startTime).Seconds()
 		d.metrics.LatencyHistogram.Observe(duration)
@@ -46,7 +57,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	}()
 
 	if err := d.updateClientCount(writer); err != nil {
-		log.Println(err)
+		requestLogger.Warn("failed to update client count", "error", err)
 	}
 
 	resp := new(dns.Msg)
@@ -56,10 +67,10 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 	for _, q := range req.Question {
-		answers, err := d.processQuestion(q)
+		answers, err := d.processQuestion(requestLogger, q)
 		if err != nil {
 			resp.Rcode = dns.RcodeServerFailure
-			d.sendResponse(writer, resp)
+			d.sendResponse(requestLogger, writer, resp)
 			return
 		}
 
@@ -74,8 +85,8 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		rcode, answers, err := d.resolveUpstream(unansweredQuestions, req)
 		if err != nil {
 			resp.Rcode = rcode
-			d.reportError("upstream", err)
-			d.sendResponse(writer, resp)
+			d.reportError(requestLogger, "upstream", err)
+			d.sendResponse(requestLogger, writer, resp)
 			return
 		}
 
@@ -86,22 +97,22 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		resp.Rcode = dns.RcodeNameError
 	}
 
-	d.sendResponse(writer, resp)
+	d.sendResponse(requestLogger, writer, resp)
 }
 
-func (d *DNSDispatcher) processQuestion(q dns.Question) ([]dns.RR, error) {
+func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q dns.Question) ([]dns.RR, error) {
 	queryType := dns.TypeToString[q.Qtype]
-	log.Printf("Query for %s %s", q.Name, queryType)
+	requestLogger.Info("Query received", "domain", q.Name, "type", queryType)
 	d.metrics.TopDomains.Add(q.Name)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
-		d.reportError("blocklist", err)
+		d.reportError(requestLogger, "blocklist", err)
 		return nil, err
 	}
 
 	if isBlocked {
-		log.Printf("Domain %s is BLOCKED", q.Name)
+		requestLogger.Info("Domain blocked", "host", q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 
 		soa := &dns.SOA{
@@ -176,8 +187,8 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	return nil
 }
 
-func (d *DNSDispatcher) reportError(errorCategory string, err error) {
-	log.Printf("%s error: %v", errorCategory, err)
+func (d *DNSDispatcher) reportError(requestLogger *slog.Logger, errorCategory string, err error) {
+	requestLogger.Error("DNS error", "category", errorCategory, "error", err)
 	d.metrics.ErrorCounts.WithLabelValues(errorCategory).Inc()
 	d.metrics.RequestCounts.WithLabelValues("errored").Inc()
 	sentry.CaptureException(err)
@@ -189,10 +200,10 @@ func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
 	return in, err
 }
 
-func (d *DNSDispatcher) sendResponse(writer dns.ResponseWriter, msg *dns.Msg) {
+func (d *DNSDispatcher) sendResponse(requestLogger *slog.Logger, writer dns.ResponseWriter, msg *dns.Msg) {
 	d.metrics.ReplyCounts.WithLabelValues(dns.RcodeToString[msg.Rcode]).Inc()
 	if err := writer.WriteMsg(msg); err != nil {
-		d.reportError("response", err)
+		d.reportError(requestLogger, "response", err)
 		return
 	}
 }

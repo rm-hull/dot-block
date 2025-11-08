@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/bits-and-blooms/bloom/v3"
@@ -12,9 +12,10 @@ import (
 type BlockList struct {
 	bloomFilter *bloom.BloomFilter
 	metrics     *metrics.BlockListMetrics
+	logger      *slog.Logger
 }
 
-func NewBlockList(items []string, fpRate float64) *BlockList {
+func NewBlockList(items []string, fpRate float64, logger *slog.Logger) *BlockList {
 	n := uint(len(items))
 	bf := bloom.NewWithEstimates(n, fpRate)
 	for _, item := range items {
@@ -22,13 +23,14 @@ func NewBlockList(items []string, fpRate float64) *BlockList {
 	}
 
 	m, k := bloom.EstimateParameters(n, fpRate)
-	log.Printf("Bloom filter created: actual FP rate = %f, approx size = %d", bloom.EstimateFalsePositiveRate(m, k, n), bf.ApproximatedSize())
+	logger.Info("Bloom filter created", "actual_fp_rate", bloom.EstimateFalsePositiveRate(m, k, n), "approx_size", bf.ApproximatedSize())
 
 	metrics, _ := metrics.NewBlockListMetrics(n)
 
 	return &BlockList{
 		bloomFilter: bf,
 		metrics:     metrics,
+		logger:      logger,
 	}
 }
 
