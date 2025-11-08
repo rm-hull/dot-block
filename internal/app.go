@@ -18,6 +18,8 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/forwarder"
 	"github.com/rm-hull/godx"
 	sloggin "github.com/samber/slog-gin"
 	healthcheck "github.com/tavsec/gin-healthcheck"
@@ -58,13 +60,13 @@ func (app *App) RunServer() error {
 	defer sentry.Flush(2 * time.Second)
 
 	timeout := 3 * time.Second
-	dnsClient := NewRoundRobinClient(timeout, app.Upstreams...)
-	hosts, err := DownloadBlocklist(app.BlockListUrl, app.Logger)
+	dnsClient := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	hosts, err := blocklist.DownloadBlocklist(app.BlockListUrl, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")
 	}
 
-	blockList := NewBlockList(hosts, 0.0001, app.Logger)
+	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
 
 	manager := &autocert.Manager{
 		Cache:      autocert.DirCache(app.CertCacheDir),
@@ -76,7 +78,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to start HTTP server")
 	}
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE, app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
@@ -115,7 +117,7 @@ func (app *App) RunServer() error {
 	return nil
 }
 
-func (app *App) startHttpServer(dnsClient *RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
+func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}

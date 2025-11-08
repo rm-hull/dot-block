@@ -1,4 +1,4 @@
-package internal
+package forwarder
 
 import (
 	"log/slog"
@@ -9,6 +9,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
@@ -16,12 +17,12 @@ type DNSDispatcher struct {
 	dnsClient  *RoundRobinClient
 	defaultTTL float64
 	cache      cache.Cache[string, []dns.RR]
-	blockList  *BlockList
+	blockList  *blocklist.BlockList
 	metrics    *metrics.DnsMetrics
 	logger     *slog.Logger
 }
 
-func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *BlockList, maxSize int, logger *slog.Logger) (*DNSDispatcher, error) {
+func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *blocklist.BlockList, maxSize int, logger *slog.Logger) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)

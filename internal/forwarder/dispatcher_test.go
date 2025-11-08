@@ -1,4 +1,4 @@
-package internal
+package forwarder
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -61,7 +62,7 @@ func (m *MockResponseWriter) Hijack() {
 
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 
 	defer func() {
@@ -89,7 +90,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t,
 		func(w dns.ResponseWriter, m *dns.Msg) {
 			// shouldn't call upstream
@@ -128,7 +129,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 
 	defer func() {
@@ -174,7 +175,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, dnsRecord("example.com.", dns.TypeA, []byte{93, 184, 216, 34}))
 
 	defer func() {
@@ -219,7 +220,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
 		m.SetReply(r)                   // Set reply based on the request

@@ -1,4 +1,4 @@
-package internal
+package blocklist
 
 import (
 	"bufio"

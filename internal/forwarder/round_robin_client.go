@@ -1,4 +1,4 @@
-package internal
+package forwarder
 
 import (
 	"sync/atomic"
