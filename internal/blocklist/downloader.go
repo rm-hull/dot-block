@@ -19,6 +19,7 @@ func DownloadBlocklist(url string, logger *slog.Logger) ([]string, error) {
 		return nil, errors.Wrap(err, "failed to create request")
 	}
 
+	req.Header.Add("User-Agent", "dot-block downloader (https://github.com/rm-hull/dot-block)")
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
