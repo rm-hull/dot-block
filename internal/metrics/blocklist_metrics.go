@@ -17,7 +17,9 @@ type BlockListMetrics struct {
 
 func NewBlockListMetrics() (*BlockListMetrics, error) {
 
-	metrics := &BlockListMetrics{}
+	metrics := &BlockListMetrics{
+		lastUpdated: time.Now(),
+	}
 	metrics.size = prometheus.NewGauge(prometheus.GaugeOpts{
 		Name: "blocklist_size",
 		Help: "The number of entries in the blocklist",
