@@ -39,7 +39,7 @@ func main() {
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
-	rootCmd.Flags().StringVar(&app.CronSchedule, "cron-schedule", DEFAULT_CRON_SCHEDULE, "cron spec for reloading blocklist`)")
+	rootCmd.Flags().StringVar(&app.CronSchedule, "cron-schedule", DEFAULT_CRON_SCHEDULE, "cron spec for reloading blocklist")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)
