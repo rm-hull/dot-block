@@ -109,7 +109,7 @@ jobs:
             type=sha
           labels: |
             maintainer=rm-hull
-            org.opencontainers.image.description=REST API for GPS routes
+            org.opencontainers.image.description=Ad-blocking DNS-over-TLS server
             org.opencontainers.image.licenses=MIT
 
       - name: Build and push Docker image
