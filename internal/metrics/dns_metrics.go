@@ -22,6 +22,7 @@ type DnsMetrics struct {
 	UniqueClients    *hyperloglog.Sketch
 	TopClients       *SpaceSaver
 	TopDomains       *SpaceSaver
+	UpstreamTTLs     *prometheus.HistogramVec
 }
 
 func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
@@ -81,8 +82,8 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	queryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_query_count",
-		Help: "Counts the number of DNS questions, broken down by type (A, CNAME, MX, etc) and whether blocked (true/false)",
-	}, []string{"type", "blocked"})
+		Help: "Counts the number of DNS questions, broken down by record_type (A, CNAME, MX, etc) and whether blocked (true/false)",
+	}, []string{"record_type", "blocked"})
 
 	replyCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_reply_count",
@@ -96,6 +97,16 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		return float64(uniqueClients.Estimate())
 	})
 
+	upstreamTTLs := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name: "dns_upstream_ttl_seconds",
+		Help: "Observed upstream DNS TTL values (in seconds), broken down by record_type (A, CNAME, MX, etc)",
+		Buckets: []float64{
+			30, 60, 120, 300, 600, 900, 1800, 3600,
+			7200, 14400, 28800, 43200, 86400, 172800, 604800,
+		},
+	}, []string{"record_type"},
+	)
+
 	if err := shouldRegister(
 		latencyHistogram,
 		errorCounts,
@@ -106,6 +117,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		uniqueClientsCount,
 		topClientsStats,
 		topDomainsStats,
+		upstreamTTLs,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -119,5 +131,6 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		UniqueClients:    uniqueClients,
 		TopClients:       topClients,
 		TopDomains:       topDomains,
+		UpstreamTTLs:     upstreamTTLs,
 	}, nil
 }

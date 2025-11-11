@@ -68,7 +68,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 	for _, q := range req.Question {
-		answers, err := d.processQuestion(requestLogger, q)
+		answers, err := d.processQuestion(requestLogger, &q)
 		if err != nil {
 			resp.Rcode = dns.RcodeServerFailure
 			d.sendResponse(requestLogger, writer, resp)
@@ -101,8 +101,8 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 	d.sendResponse(requestLogger, writer, resp)
 }
 
-func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q dns.Question) ([]dns.RR, error) {
-	queryType := dns.TypeToString[q.Qtype]
+func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Question) ([]dns.RR, error) {
+	queryType := getQueryType(q)
 	requestLogger.Info("Query received", "name", q.Name, "type", queryType)
 	d.metrics.TopDomains.Add(q.Name)
 
@@ -134,7 +134,7 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q dns.Questi
 	}
 
 	d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
-	if cachedRRs, ok := d.cache.Get(getCacheKey(&q)); ok {
+	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		return cachedRRs, nil
 	}
 
@@ -168,8 +168,9 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	for _, q := range unansweredQuestions {
 		key := getCacheKey(&q)
 		if answersForQuestion, ok := answerMap[key]; ok {
-			cacheTTL := answersForQuestion[0].Header().Ttl
-			d.cache.Set(key, answersForQuestion, time.Duration(cacheTTL)*time.Second)
+			upstreamTTL := answersForQuestion[0].Header().Ttl
+			d.cache.Set(key, answersForQuestion, time.Duration(upstreamTTL)*time.Second)
+			d.metrics.UpstreamTTLs.WithLabelValues(getQueryType(&q)).Observe(float64(upstreamTTL))
 		}
 	}
 
@@ -210,5 +211,9 @@ func (d *DNSDispatcher) sendResponse(requestLogger *slog.Logger, writer dns.Resp
 }
 
 func getCacheKey(q *dns.Question) string {
-	return dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
+	return dns.Fqdn(q.Name) + ":" + getQueryType(q)
+}
+
+func getQueryType(q *dns.Question) string {
+	return dns.TypeToString[q.Qtype]
 }
