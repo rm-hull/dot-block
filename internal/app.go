@@ -38,8 +38,11 @@ type App struct {
 	HttpPort     int
 	AllowedHosts []string
 	MetricsAuth  string
-	CronSchedule string
-	Logger       *slog.Logger
+	CronSchedule struct {
+		Downloader  string
+		CacheReaper string
+	}
+	Logger *slog.Logger
 }
 
 func (app *App) RunServer() error {
@@ -76,7 +79,7 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule, blocklist.NewDownloaderCronJob(blockList, app.BlockListUrl)); err != nil {
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewDownloaderCronJob(blockList, app.BlockListUrl)); err != nil {
 		return errors.Wrap(err, "failed to create blocklist cron job")
 	}
 
@@ -94,9 +97,8 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
-	cacheReaperSchedule := "@every 10m"
-	app.Logger.Info("Creating cache reaper cron job", "schedule", cacheReaperSchedule)
-	if _, err = crontab.AddJob(cacheReaperSchedule, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
+	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
+	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
