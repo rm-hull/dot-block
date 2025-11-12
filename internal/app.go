@@ -94,6 +94,11 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
+	cacheReaperSchedule := "@every 10m"
+	app.Logger.Info("Creating cache reaper cron job", "schedule", cacheReaperSchedule)
+	if _, err = crontab.AddJob(cacheReaperSchedule, forwarder.NewCronJob(dispatcher)); err != nil {
+		return errors.Wrap(err, "failed to create cache reaper cron job")
+	}
 
 	if app.DevMode {
 		dnsServer := &dns.Server{
