@@ -9,7 +9,29 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/dustin/go-humanize"
+	"github.com/robfig/cron/v3"
 )
+
+type Downloader struct {
+	blocklist *BlockList
+	url       string
+}
+
+func NewDownloaderCronJob(blocklist *BlockList, url string) cron.Job {
+	return &Downloader{
+		blocklist: blocklist,
+		url:       url,
+	}
+}
+
+func (job *Downloader) Run() {
+	items, err := DownloadBlocklist(job.url, job.blocklist.logger)
+	if err != nil {
+		job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err)
+	}
+
+	job.blocklist.Load(items)
+}
 
 func DownloadBlocklist(url string, logger *slog.Logger) ([]string, error) {
 

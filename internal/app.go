@@ -76,7 +76,7 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule, blocklist.NewCronJob(blockList, app.BlockListUrl)); err != nil {
+	if _, err = crontab.AddJob(app.CronSchedule, blocklist.NewDownloaderCronJob(blockList, app.BlockListUrl)); err != nil {
 		return errors.Wrap(err, "failed to create blocklist cron job")
 	}
 
@@ -96,7 +96,7 @@ func (app *App) RunServer() error {
 	}
 	cacheReaperSchedule := "@every 10m"
 	app.Logger.Info("Creating cache reaper cron job", "schedule", cacheReaperSchedule)
-	if _, err = crontab.AddJob(cacheReaperSchedule, forwarder.NewCronJob(dispatcher)); err != nil {
+	if _, err = crontab.AddJob(cacheReaperSchedule, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 

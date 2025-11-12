@@ -2,18 +2,17 @@ package forwarder
 
 import "github.com/robfig/cron/v3"
 
-type CronJob struct{
+type CacheReaper struct {
 	dispatcher *DNSDispatcher
 }
 
-func NewCronJob(dispatcher *DNSDispatcher) cron.Job {
-	return &CronJob{
+func NewCacheReaperCronJob(dispatcher *DNSDispatcher) cron.Job {
+	return &CacheReaper{
 		dispatcher: dispatcher,
 	}
 }
 
-func (job *CronJob) Run() {
-
+func (job *CacheReaper) Run() {
 	job.dispatcher.logger.Info("Running cache reaper to cleardown expired entries.")
 	job.dispatcher.cache.DeleteExpired()
 	job.dispatcher.metrics.CacheReaperCalls.Inc()
