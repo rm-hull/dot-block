@@ -8,7 +8,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const DEFAULT_CRON_SCHEDULE = "@every 19h"
+const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
+const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "@every 10m"
 const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
 
 var DEFAULT_UPSTREAM_DNS = []string{
@@ -39,7 +40,8 @@ func main() {
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
-	rootCmd.Flags().StringVar(&app.CronSchedule, "cron-schedule", DEFAULT_CRON_SCHEDULE, "cron spec for reloading blocklist")
+	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", DEFAULT_DOWNLOADER_CRON_SCHEDULE, "cron spec for reloading blocklist")
+	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)

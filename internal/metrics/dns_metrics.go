@@ -23,6 +23,7 @@ type DnsMetrics struct {
 	TopClients       *SpaceSaver
 	TopDomains       *SpaceSaver
 	UpstreamTTLs     *prometheus.HistogramVec
+	CacheReaperCalls prometheus.Counter
 }
 
 func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
@@ -107,6 +108,11 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 	}, []string{"record_type"},
 	)
 
+	cacheReaperCalls := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dns_cache_reaper_calls",
+		Help: "The number of times the cache reaper has been called",
+	})
+
 	if err := shouldRegister(
 		latencyHistogram,
 		errorCounts,
@@ -118,6 +124,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		topClientsStats,
 		topDomainsStats,
 		upstreamTTLs,
+		cacheReaperCalls,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -132,5 +139,6 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		TopClients:       topClients,
 		TopDomains:       topDomains,
 		UpstreamTTLs:     upstreamTTLs,
+		CacheReaperCalls: cacheReaperCalls,
 	}, nil
 }
