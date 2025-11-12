@@ -13,7 +13,7 @@ func NewCacheReaperCronJob(dispatcher *DNSDispatcher) cron.Job {
 }
 
 func (job *CacheReaper) Run() {
-	job.dispatcher.logger.Info("Running cache reaper to cleardown expired entries.")
+	job.dispatcher.logger.Info("Cleaning up expired DNS cache entries")
 	job.dispatcher.cache.DeleteExpired()
 	job.dispatcher.metrics.CacheReaperCalls.Inc()
 }
