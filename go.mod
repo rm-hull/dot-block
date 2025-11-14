@@ -1,6 +1,6 @@
 module github.com/rm-hull/dot-block
 
-go 1.25.3
+go 1.25.4
 
 require (
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
@@ -101,6 +101,6 @@ require (
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
-	golang.org/x/tools v0.38.0 // indirect
+	golang.org/x/tools v0.39.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 )
