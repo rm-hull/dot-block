@@ -14,7 +14,7 @@ import (
 const TOP_K = 20
 
 type DnsMetrics struct {
-	LatencyHistogram prometheus.Histogram
+	RequestLatency   prometheus.Histogram
 	ErrorCounts      *prometheus.CounterVec
 	RequestCounts    *prometheus.CounterVec
 	QueryCounts      *prometheus.CounterVec
@@ -23,7 +23,13 @@ type DnsMetrics struct {
 	TopClients       *SpaceSaver
 	TopDomains       *SpaceSaver
 	UpstreamTTLs     *prometheus.HistogramVec
+	UpstreamLatency  *prometheus.HistogramVec
 	CacheReaperCalls prometheus.Counter
+}
+
+var latencyBuckets = []float64{
+	0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025,
+	0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
 }
 
 func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
@@ -64,11 +70,11 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 			return results
 		})
 
-	latencyHistogram := prometheus.NewHistogram(
+	requestLatency := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "dns_request_latency",
 			Help:    "Duration of DNS requests",
-			Buckets: []float64{0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1)},
+			Buckets: latencyBuckets,
 		})
 
 	errorCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -108,13 +114,19 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 	}, []string{"record_type"},
 	)
 
+	upstreamLatency := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "dns_upstream_latency",
+		Help:    "Duration of upstream DNS requests, broken down by server",
+		Buckets: latencyBuckets,
+	}, []string{"ip_addr"})
+
 	cacheReaperCalls := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "dns_cache_reaper_calls",
 		Help: "The number of times the cache reaper has been called",
 	})
 
 	if err := shouldRegister(
-		latencyHistogram,
+		requestLatency,
 		errorCounts,
 		cacheStats,
 		requestCounts,
@@ -124,13 +136,14 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		topClientsStats,
 		topDomainsStats,
 		upstreamTTLs,
+		upstreamLatency,
 		cacheReaperCalls,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
 
 	return &DnsMetrics{
-		LatencyHistogram: latencyHistogram,
+		RequestLatency:   requestLatency,
 		ErrorCounts:      errorCounts,
 		RequestCounts:    requestCounts,
 		QueryCounts:      queryCounts,
@@ -139,6 +152,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		TopClients:       topClients,
 		TopDomains:       topDomains,
 		UpstreamTTLs:     upstreamTTLs,
+		UpstreamLatency:  upstreamLatency,
 		CacheReaperCalls: cacheReaperCalls,
 	}, nil
 }

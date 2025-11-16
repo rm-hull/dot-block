@@ -53,7 +53,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 	defer func() {
 		duration := time.Since(startTime).Seconds()
-		d.metrics.LatencyHistogram.Observe(duration)
+		d.metrics.RequestLatency.Observe(duration)
 		d.metrics.RequestCounts.WithLabelValues("total").Inc()
 	}()
 
@@ -197,8 +197,12 @@ func (d *DNSDispatcher) reportError(requestLogger *slog.Logger, errorCategory st
 }
 
 func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
+	startTime := time.Now()
 	d.metrics.RequestCounts.WithLabelValues("forwarded").Inc()
-	in, err := d.dnsClient.Exchange(req)
+	in, upstream, err := d.dnsClient.Exchange(req)
+
+	duration := time.Since(startTime).Seconds()
+	d.metrics.UpstreamLatency.WithLabelValues(upstream).Observe(duration)
 	return in, err
 }
 

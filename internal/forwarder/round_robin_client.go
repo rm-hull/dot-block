@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/errors"
 	"github.com/miekg/dns"
 	"github.com/tavsec/gin-healthcheck/checks"
 )
@@ -14,11 +15,14 @@ type RoundRobinClient struct {
 	counter   uint32
 }
 
-func NewRoundRobinClient(timeout time.Duration, upstreams ...string) *RoundRobinClient {
+func NewRoundRobinClient(timeout time.Duration, upstreams ...string) (*RoundRobinClient, error) {
+	if len(upstreams) == 0 {
+		return nil, errors.New("no upstream servers configured")
+	}
 	return &RoundRobinClient{
 		client:    &dns.Client{Timeout: timeout},
 		upstreams: upstreams,
-	}
+	}, nil
 }
 
 func (r *RoundRobinClient) getNextUpstream() string {
@@ -26,10 +30,10 @@ func (r *RoundRobinClient) getNextUpstream() string {
 	return r.upstreams[(int(n)-1)%len(r.upstreams)]
 }
 
-func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, error) {
+func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 	upstream := r.getNextUpstream()
 	resp, _, err := r.client.Exchange(msg, upstream)
-	return resp, err
+	return resp, upstream, err
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
