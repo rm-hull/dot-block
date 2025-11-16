@@ -65,7 +65,11 @@ func (app *App) RunServer() error {
 	defer sentry.Flush(2 * time.Second)
 
 	timeout := 3 * time.Second
-	dnsClient := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize upstream DNS client")
+	}
+
 	hosts, err := blocklist.DownloadBlocklist(app.BlockListUrl, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")

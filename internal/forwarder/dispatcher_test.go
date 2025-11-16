@@ -70,7 +70,9 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	assert.NoError(t, err)
+
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger)
 	assert.NoError(t, err)
 
@@ -103,7 +105,9 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	assert.NoError(t, err)
+
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger)
 	assert.NoError(t, err)
 
@@ -137,7 +141,9 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	assert.NoError(t, err)
+
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger)
 	assert.NoError(t, err)
 
@@ -183,7 +189,9 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	assert.NoError(t, err)
+
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger)
 	assert.NoError(t, err)
 
@@ -233,7 +241,9 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient := NewRoundRobinClient(2*time.Second, upstream)
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	assert.NoError(t, err)
+
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger)
 	require.NoError(t, err)
 
