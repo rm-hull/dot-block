@@ -27,6 +27,11 @@ type DnsMetrics struct {
 	CacheReaperCalls prometheus.Counter
 }
 
+var latencyBuckets = []float64{
+	0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025,
+	0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
+}
+
 func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
 	uniqueClients := hyperloglog.New14()
 	topClients := NewSpaceSaver(TOP_K)
@@ -67,12 +72,9 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	requestLatency := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
-			Name: "dns_request_latency",
-			Help: "Duration of DNS requests",
-			Buckets: []float64{
-				0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025,
-				0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
-			},
+			Name:    "dns_request_latency",
+			Help:    "Duration of DNS requests",
+			Buckets: latencyBuckets,
 		})
 
 	errorCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -113,12 +115,9 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 	)
 
 	upstreamLatency := prometheus.NewHistogramVec(prometheus.HistogramOpts{
-		Name: "dns_upstream_latency",
-		Help: "Duration of upstream DNS requests, broken down by client",
-		Buckets: []float64{
-			0.0001, 0.00025, 0.0005, 0.001, 0.005, 0.01, 0.025,
-			0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
-		},
+		Name:    "dns_upstream_latency",
+		Help:    "Duration of upstream DNS requests, broken down by server",
+		Buckets: latencyBuckets,
 	}, []string{"ip_addr"})
 
 	cacheReaperCalls := prometheus.NewCounter(prometheus.CounterOpts{
