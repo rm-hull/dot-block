@@ -26,10 +26,10 @@ func (r *RoundRobinClient) getNextUpstream() string {
 	return r.upstreams[(int(n)-1)%len(r.upstreams)]
 }
 
-func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, error) {
+func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 	upstream := r.getNextUpstream()
 	resp, _, err := r.client.Exchange(msg, upstream)
-	return resp, err
+	return resp, upstream, err
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
