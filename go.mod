@@ -46,7 +46,7 @@ require (
 	github.com/prometheus/common v0.67.2 // indirect
 	github.com/prometheus/procfs v0.19.2 // indirect
 	github.com/rabbitmq/amqp091-go v1.10.0 // indirect
-	github.com/redis/go-redis/v9 v9.16.0 // indirect
+	github.com/redis/go-redis/v9 v9.17.0 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
@@ -91,7 +91,7 @@ require (
 	github.com/rm-hull/godx v0.0.7
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.1
-	github.com/tavsec/gin-healthcheck v1.7.11
+	github.com/tavsec/gin-healthcheck v1.7.12
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
 	go.uber.org/mock v0.6.0 // indirect
