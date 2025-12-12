@@ -9,7 +9,7 @@ require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/miekg/dns v1.1.68
+	github.com/miekg/dns v1.1.69
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/slog-gin v1.18.0
 	github.com/stretchr/testify v1.11.1
