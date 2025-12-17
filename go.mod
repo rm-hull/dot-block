@@ -63,7 +63,7 @@ require (
 
 require (
 	github.com/Depado/ginprom v1.8.2
-	github.com/axiomhq/hyperloglog v0.2.5
+	github.com/axiomhq/hyperloglog v0.2.6
 	github.com/bits-and-blooms/bloom/v3 v3.7.1
 	github.com/bytedance/sonic v1.14.2 // indirect
 	github.com/bytedance/sonic/loader v0.4.0 // indirect
