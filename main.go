@@ -36,6 +36,7 @@ func main() {
 	rootCmd.Flags().StringVar(&app.BlockListUrl, "blocklist-url", HAGEZI_PRO_BLOCKLIST, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.CertCacheDir, "cache-dir", "./data/certcache", "Directory for TLS certificate cache")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
+	rootCmd.Flags().IntVar(&app.DnsPort, "dns-port", 53, "The port to run regular DNS (UDP/TCP) server on")
 	rootCmd.Flags().StringArrayVar(&app.Upstreams, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolvers to forward queries to")
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")

@@ -5,6 +5,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 ## Features
 
 -   **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
+-   **Regular DNS:** Supports standard UDP and TCP DNS queries on port 53.
 -   **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
 -   **High Performance:** Built with Go for speed and efficiency.
 -   **Caching:** Caches DNS responses to speed up subsequent lookups.
@@ -45,13 +46,19 @@ For local development, you can run the server in "dev mode", which uses plain TC
     ```bash
     go run main.go --dev-mode --http-port=8080
     ```
-    The DNS server will be listening on port `8053`, and HTTP server on port `8080`.
+    The DNS server (UDP/TCP) will be listening on port `8053`, DoT (plain TCP) on `8853`, and the HTTP server on port `8080`.
 
 ## Usage
 
 You can test the server using `dig` or `openssl`.
 
 ### `dig`
+
+**Regular DNS (UDP/TCP):**
+
+```bash
+dig @dot.your-domain.com -p 53 example.com A
+```
 
 **Production (TLS):**
 
@@ -61,10 +68,17 @@ dig @dot.your-domain.com -p 853 +tls example.com A
 
 Note that the bundled `dig` binary in MacOS doesn't support the `+tls` options, so use an alternative like [kdig](https://www.knot-dns.cz/docs/2.6/html/man_kdig.html) instead.
 
-**Local Development (no TLS):**
+**Local Development:**
 
 ```bash
+# Regular DNS (UDP)
+dig @127.0.0.1 -p 8053 www.google.com A
+
+# Regular DNS (TCP)
 dig @127.0.0.1 -p 8053 www.google.com A +tcp
+
+# DoT (plain TCP)
+dig @127.0.0.1 -p 8853 www.google.com A +tcp
 ```
 
 ### `openssl`
@@ -98,6 +112,7 @@ DoT Block can be configured using the following command-line flags:
 | `--blocklist-url` | URL of the blocklist (wildcard hostname format).                | `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt` |
 | `--cache-dir`     | Directory for the TLS certificate cache.                        | `./data/certcache`                                                                        |
 | `--dev-mode`      | Run the server in dev mode (no TLS, plain TCP).                 | `false`                                                                                   |
+| `--dns-port`      | The port to run regular DNS (UDP/TCP) server on.                | `53`                                                                                      |
 | `--upstream`      | Upstream DNS resolver to forward queries to.                    | `1.1.1.1:53`                                                                              |
 | `--http-port`     | The port to run the HTTP server on.                             | `80`                                                                                      |
 | `--allowed-host`  | List of domains used for the CertManager allow policy.          | `nil`                                                                                     |
