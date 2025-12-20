@@ -109,53 +109,55 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
-	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
-	dotPort := ":853"
+	var dnsListenPort, dotListenPort int
 	if app.DevMode {
-		dnsPort = ":8053"
-		dotPort = ":8853"
+		dnsListenPort = 8053
+		dotListenPort = 8853
+	} else {
+		dnsListenPort = app.DnsPort
+		dotListenPort = 853
 	}
+	dnsPort := fmt.Sprintf(":%d", dnsListenPort)
+	dotPort := fmt.Sprintf(":%d", dotListenPort)
 
-	var g errgroup.Group
+	var group errgroup.Group
 
-	g.Go(func() error {
+	group.Go(func() error {
 		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", app.HttpPort)
 		return r.Run(fmt.Sprintf(":%d", app.HttpPort))
 	})
 
-	g.Go(func() error {
-		app.Logger.Info("Starting UDP DNS server", "port", dnsPort)
+	group.Go(func() error {
+		app.Logger.Info("Starting UDP DNS server", "port", dnsListenPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "udp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
 
-	g.Go(func() error {
-		app.Logger.Info("Starting TCP DNS server", "port", dnsPort)
+	group.Go(func() error {
+		app.Logger.Info("Starting TCP DNS server", "port", dnsListenPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
 
-	if app.DevMode {
-		g.Go(func() error {
-			app.Logger.Info("Starting DoT server (plain TCP) in DEV mode", "port", dotPort)
-			srv := &dns.Server{Addr: dotPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
-			return srv.ListenAndServe()
-		})
-	} else {
-		tlsConfig := &tls.Config{
-			MinVersion:     tls.VersionTLS12,
-			NextProtos:     []string{"dot"}, // important for DNS-over-TLS
-			GetCertificate: manager.GetCertificate,
+	group.Go(func() error {
+		var tlsConfig *tls.Config
+		logMessage := "Starting DoT server (plain TCP) in DEV mode"
+		dotNet := "tcp"
+		if !app.DevMode {
+			logMessage = "Starting DNS-over-TLS server"
+			dotNet = "tcp-tls"
+			tlsConfig = &tls.Config{
+				MinVersion:     tls.VersionTLS12,
+				NextProtos:     []string{"dot"}, // important for DNS-over-TLS
+				GetCertificate: manager.GetCertificate,
+			}
 		}
+		app.Logger.Info(logMessage, "port", dotListenPort)
+		srv := &dns.Server{Addr: dotPort, Net: dotNet, TLSConfig: tlsConfig, Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
+		return srv.ListenAndServe()
+	})
 
-		g.Go(func() error {
-			app.Logger.Info("Starting DNS-over-TLS server", "port", dotPort)
-			srv := &dns.Server{Addr: dotPort, Net: "tcp-tls", TLSConfig: tlsConfig, Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
-			return srv.ListenAndServe()
-		})
-	}
-
-	return g.Wait()
+	return group.Wait()
 }
 
 func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
