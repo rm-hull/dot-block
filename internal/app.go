@@ -38,6 +38,7 @@ type App struct {
 	DevMode      bool
 	HttpPort     int
 	DnsPort      int
+	DotPort      int
 	AllowedHosts []string
 	MetricsAuth  string
 	CronSchedule struct {
@@ -109,16 +110,8 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
-	var dnsListenPort, dotListenPort int
-	if app.DevMode {
-		dnsListenPort = 8053
-		dotListenPort = 8853
-	} else {
-		dnsListenPort = app.DnsPort
-		dotListenPort = 853
-	}
-	dnsPort := fmt.Sprintf(":%d", dnsListenPort)
-	dotPort := fmt.Sprintf(":%d", dotListenPort)
+	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
+	dotPort := fmt.Sprintf(":%d", app.DotPort)
 
 	var group errgroup.Group
 
@@ -128,13 +121,13 @@ func (app *App) RunServer() error {
 	})
 
 	group.Go(func() error {
-		app.Logger.Info("Starting UDP DNS server", "port", dnsListenPort)
+		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "udp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
 
 	group.Go(func() error {
-		app.Logger.Info("Starting TCP DNS server", "port", dnsListenPort)
+		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
@@ -152,7 +145,7 @@ func (app *App) RunServer() error {
 				GetCertificate: manager.GetCertificate,
 			}
 		}
-		app.Logger.Info(logMessage, "port", dotListenPort)
+		app.Logger.Info(logMessage, "port", app.DotPort)
 		srv := &dns.Server{Addr: dotPort, Net: dotNet, TLSConfig: tlsConfig, Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
