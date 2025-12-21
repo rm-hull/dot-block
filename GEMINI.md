@@ -7,6 +7,7 @@ This project is a DNS-over-TLS (DoT) server written in Go. It acts as a secure D
 The core components are:
 
 -   A `DNSDispatcher` struct encapsulates DNS forwarding logic for better modularity and shared data management.
+-   A DNS server (UDP/TCP) listening on port 53 (configurable).
 -   A DoT server built using the `miekg/dns` library, listening on port 853.
 -   An HTTP server using `gin-gonic/gin` to handle ACME http-01 challenges from Let's Encrypt for automatic TLS certificate acquisition.
 -   Command-line interface managed by `cobra`.
@@ -19,7 +20,7 @@ The server can be run in a "dev mode" which uses plain TCP instead of TLS for ea
 
 ### Local Development
 
-To run the server locally in development mode (no TLS on port 8053):
+To run the server locally in development mode (DNS on 8053, DoT on 8853):
 
 ```bash
 go run main.go --dev-mode
@@ -28,7 +29,11 @@ go run main.go --dev-mode
 You can then test the server with `dig`:
 
 ```bash
-dig @127.0.0.1 -p 8053 www.google.com A +tcp
+# Regular DNS
+dig @127.0.0.1 -p 8053 www.google.com A
+
+# DoT (plain TCP)
+dig @127.0.0.1 -p 8853 www.google.com A +tcp
 ```
 
 ### Docker
@@ -66,4 +71,4 @@ You can also test the deployed DoT server using `openssl` or `dig` as described 
 -   **Dependencies:** Go modules are used for dependency management. Key libraries include `miekg/dns`, `gin-gonic/gin`, and `cobra`.
 -   **Configuration:** Server behavior is configured via command-line flags.
 -   **Containerization:** A multi-stage `Dockerfile` is used to create a small, optimized runtime image.
--   **API:** The primary interface is the DoT service on port 853. An HTTP server on port 80 is used for the ACME challenge.
+-   **API:** The primary interfaces are the regular DNS service (UDP/TCP) on port 53 and the DoT service on port 853. An HTTP server on port 80 is used for the ACME challenge.

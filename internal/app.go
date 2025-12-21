@@ -26,6 +26,7 @@ import (
 	healthcheck "github.com/tavsec/gin-healthcheck"
 	hc_config "github.com/tavsec/gin-healthcheck/config"
 	"golang.org/x/crypto/acme/autocert"
+	"golang.org/x/sync/errgroup"
 )
 
 const CACHE_SIZE = 1_000_000
@@ -36,6 +37,8 @@ type App struct {
 	BlockListUrl string
 	DevMode      bool
 	HttpPort     int
+	DnsPort      int
+	DotPort      int
 	AllowedHosts []string
 	MetricsAuth  string
 	CronSchedule struct {
@@ -93,8 +96,9 @@ func (app *App) RunServer() error {
 		HostPolicy: autocert.HostWhitelist(app.AllowedHosts...),
 	}
 
-	if _, err := app.startHttpServer(dnsClient, manager); err != nil {
-		return errors.Wrap(err, "failed to start HTTP server")
+	r, err := app.startHttpServer(dnsClient, manager)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
 	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE, app.Logger)
@@ -106,38 +110,47 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
-	if app.DevMode {
-		dnsServer := &dns.Server{
-			Addr:    ":8053",
-			Net:     "tcp",
-			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
+	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
+	dotPort := fmt.Sprintf(":%d", app.DotPort)
+
+	var group errgroup.Group
+
+	group.Go(func() error {
+		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", app.HttpPort)
+		return r.Run(fmt.Sprintf(":%d", app.HttpPort))
+	})
+
+	group.Go(func() error {
+		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
+		srv := &dns.Server{Addr: dnsPort, Net: "udp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
+		return srv.ListenAndServe()
+	})
+
+	group.Go(func() error {
+		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
+		srv := &dns.Server{Addr: dnsPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
+		return srv.ListenAndServe()
+	})
+
+	group.Go(func() error {
+		var tlsConfig *tls.Config
+		logMessage := "Starting DoT server (plain TCP) in DEV mode"
+		dotNet := "tcp"
+		if !app.DevMode {
+			logMessage = "Starting DNS-over-TLS server"
+			dotNet = "tcp-tls"
+			tlsConfig = &tls.Config{
+				MinVersion:     tls.VersionTLS12,
+				NextProtos:     []string{"dot"}, // important for DNS-over-TLS
+				GetCertificate: manager.GetCertificate,
+			}
 		}
+		app.Logger.Info(logMessage, "port", app.DotPort)
+		srv := &dns.Server{Addr: dotPort, Net: dotNet, TLSConfig: tlsConfig, Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
+		return srv.ListenAndServe()
+	})
 
-		app.Logger.Info("Starting DNS server in DEV mode", "port", 8053, "tls", false)
-		if err := dnsServer.ListenAndServe(); err != nil {
-			return errors.Wrap(err, "failed to start DNS server in dev mode")
-		}
-		return nil
-	}
-
-	tlsConfig := &tls.Config{
-		MinVersion:     tls.VersionTLS12,
-		NextProtos:     []string{"dot"}, // important for DNS-over-TLS
-		GetCertificate: manager.GetCertificate,
-	}
-
-	dnsServer := &dns.Server{
-		Addr:      ":853",
-		Net:       "tcp-tls",
-		TLSConfig: tlsConfig,
-		Handler:   dns.HandlerFunc(dispatcher.HandleDNSRequest),
-	}
-
-	app.Logger.Info("Starting DNS-over-TLS server", "port", 853)
-	if err := dnsServer.ListenAndServe(); err != nil {
-		return errors.Wrap(err, "failed to start DoT server")
-	}
-	return nil
+	return group.Wait()
 }
 
 func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
@@ -194,15 +207,6 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 	}
 
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
-
-	go func() {
-		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", app.HttpPort)
-		port := fmt.Sprintf(":%d", app.HttpPort)
-		if err := r.Run(port); err != nil {
-			app.Logger.Error("HTTP server error", "error", err)
-			os.Exit(1)
-		}
-	}()
 
 	return r, nil
 }
