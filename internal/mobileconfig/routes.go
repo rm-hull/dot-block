@@ -19,19 +19,22 @@ func Handler(dataDir string) gin.HandlerFunc {
 		PayloadIdentifier:   "org.destructuring-bind.dot.profile",
 		PayloadUUID:         ROOT_PAYLOAD_UUID,
 		PayloadDisplayName:  "dot-block DNS",
+		PayloadScope:        "System",
 		PayloadDescription:  "Configures system-wide DNS over TLS with ad and malware blocking.",
 		PayloadOrganization: "Destructuring Bind Ltd",
 
 		PayloadContent: []DNSSpec{
 			{
-				PayloadType:        "com.apple.dnsSettings.managed",
-				PayloadVersion:     1,
-				PayloadIdentifier:  "org.destructuring-bind.dot",
-				PayloadUUID:        DNS_PAYLOAD_UUID,
-				PayloadDisplayName: "Encrypted DNS",
+				PayloadType:         "com.apple.dnsSettings.managed",
+				PayloadVersion:      1,
+				PayloadIdentifier:   "org.destructuring-bind.dot.profile.dnsSettings.managed",
+				PayloadUUID:         DNS_PAYLOAD_UUID,
+				PayloadDisplayName:  "Encrypted DNS",
+				PayloadOrganization: "Destructuring Bind Ltd",
 				DNSSettings: DNSBlock{
 					DNSProtocol:     "TLS",
-					ServerAddresses: []string{"dot.destructuring-bind.org"}, // FIXME: generate from config or servername
+					ServerName:      "dot.destructuring-bind.org",
+					ServerAddresses: []string{"192.241.203.173"}, // FIXME: generate from DNS lookup
 				},
 			},
 		},
@@ -49,7 +52,7 @@ func Handler(dataDir string) gin.HandlerFunc {
 			return
 		}
 
-		c.Header("Content-Disposition", "attachment; filename=\"dns.mobileconfig\"")
+		c.Header("Content-Disposition", "attachment; filename=\"dot-block.mobileconfig\"")
 		c.Data(http.StatusOK, "application/x-apple-aspen-config", buf.Bytes())
 	}
 }
