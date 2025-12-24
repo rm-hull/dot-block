@@ -213,7 +213,16 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 	}
 
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
-	r.GET("/.mobileconfig", mobileconfig.Handler(app.DataDir))
+
+	serverName := "dot.destructuring-bind.org"
+	if len(app.AllowedHosts) > 0 {
+		serverName = app.AllowedHosts[0]
+	}
+	handler, err := mobileconfig.NewHandler(serverName)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize mobileconfig handler")
+	}
+	r.GET("/.mobileconfig", handler)
 
 	return r, nil
 }

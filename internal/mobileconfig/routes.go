@@ -2,8 +2,10 @@ package mobileconfig
 
 import (
 	"bytes"
+	"net"
 	"net/http"
 
+	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 	"howett.net/plist"
 )
@@ -11,7 +13,11 @@ import (
 const ROOT_PAYLOAD_UUID = "5ac4b893-0095-4bea-afeb-5dc00025f4c1"
 const DNS_PAYLOAD_UUID = "bc0e0b3a-ef87-4f23-b8b1-f8383f6f5c66"
 
-func Handler(dataDir string) gin.HandlerFunc {
+func NewHandler(serverName string) (gin.HandlerFunc, error) {
+	ips, err := net.LookupHost(serverName)
+	if err != nil {
+		return nil, err
+	}
 
 	profile := Profile{
 		PayloadType:         "Configuration",
@@ -33,8 +39,8 @@ func Handler(dataDir string) gin.HandlerFunc {
 				PayloadOrganization: "Destructuring Bind Ltd",
 				DNSSettings: DNSBlock{
 					DNSProtocol:     "TLS",
-					ServerName:      "dot.destructuring-bind.org",
-					ServerAddresses: []string{"192.241.203.173"}, // FIXME: generate from DNS lookup
+					ServerName:      serverName,
+					ServerAddresses: ips,
 				},
 			},
 		},
@@ -44,15 +50,13 @@ func Handler(dataDir string) gin.HandlerFunc {
 	enc := plist.NewEncoder(buf)
 	enc.Indent("  ")
 
-	err := enc.Encode(profile)
+	err = enc.Encode(profile)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to encode profile")
+	}
 
 	return func(c *gin.Context) {
-		if err != nil {
-			c.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-
 		c.Header("Content-Disposition", "attachment; filename=\"dot-block.mobileconfig\"")
 		c.Data(http.StatusOK, "application/x-apple-aspen-config", buf.Bytes())
-	}
+	}, nil
 }
