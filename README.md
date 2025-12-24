@@ -87,6 +87,18 @@ dig @127.0.0.1 -p 8853 www.google.com A +tcp
 openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your-domain.com
 ```
 
+### iOS / iPadOS Configuration
+
+To use DoT Block on your iPhone or iPad, you can install a configuration profile directly from the server:
+
+1.  Open Safari on your iOS device.
+2.  Navigate to `https://dot.your-domain.com/.mobileconfig`.
+3.  Tap **Allow** when prompted to download the configuration profile.
+4.  Open the **Settings** app.
+5.  Tap **Profile Downloaded** near the top.
+6.  Tap **Install** in the top right corner and follow the prompts.
+7.  Once installed, your device will use DoT Block for all DNS queries.
+
 ## Building
 
 To build the binary from source:
