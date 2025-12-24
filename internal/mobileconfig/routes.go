@@ -15,7 +15,7 @@ func Handler(dataDir string) gin.HandlerFunc {
 
 	profile := Profile{
 		PayloadType:         "Configuration",
-		PayloadVersion:      1,
+		PayloadVersion:      2,
 		PayloadIdentifier:   "org.destructuring-bind.dot.profile",
 		PayloadUUID:         ROOT_PAYLOAD_UUID,
 		PayloadDisplayName:  "dot-block DNS",
