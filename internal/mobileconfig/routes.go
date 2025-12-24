@@ -8,7 +8,8 @@ import (
 	"howett.net/plist"
 )
 
-const PAYLOAD_UUID = "5ac4b893-0095-4bea-afeb-5dc00025f4c1"
+const ROOT_PAYLOAD_UUID = "5ac4b893-0095-4bea-afeb-5dc00025f4c1"
+const DNS_PAYLOAD_UUID = "bc0e0b3a-ef87-4f23-b8b1-f8383f6f5c66"
 
 func Handler(dataDir string) gin.HandlerFunc {
 
@@ -16,8 +17,8 @@ func Handler(dataDir string) gin.HandlerFunc {
 		PayloadType:         "Configuration",
 		PayloadVersion:      1,
 		PayloadIdentifier:   "org.destructuring-bind.dot.profile",
-		PayloadUUID:         PAYLOAD_UUID,
-		PayloadDisplayName:  "dot-block (destructuring-bind)",
+		PayloadUUID:         ROOT_PAYLOAD_UUID,
+		PayloadDisplayName:  "dot-block DNS",
 		PayloadDescription:  "Configures system-wide DNS over TLS with ad and malware blocking.",
 		PayloadOrganization: "Destructuring Bind Ltd",
 
@@ -26,7 +27,7 @@ func Handler(dataDir string) gin.HandlerFunc {
 				PayloadType:        "com.apple.dnsSettings.managed",
 				PayloadVersion:     1,
 				PayloadIdentifier:  "org.destructuring-bind.dot",
-				PayloadUUID:        PAYLOAD_UUID,
+				PayloadUUID:        DNS_PAYLOAD_UUID,
 				PayloadDisplayName: "Encrypted DNS",
 				DNSSettings: DNSBlock{
 					DNSProtocol:     "TLS",
