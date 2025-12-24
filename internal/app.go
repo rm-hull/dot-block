@@ -33,7 +33,7 @@ const CACHE_SIZE = 1_000_000
 
 type App struct {
 	Upstreams    []string
-	CertCacheDir string
+	DataDir      string
 	BlockListUrl string
 	DevMode      bool
 	HttpPort     int
@@ -90,8 +90,13 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create blocklist cron job")
 	}
 
+	certCacheDir := fmt.Sprintf("%s/certcache", app.DataDir)
+	if err := os.MkdirAll(certCacheDir, 0700); err != nil {
+		return errors.Wrap(err, "failed to create certcache directory")
+	}
+
 	manager := &autocert.Manager{
-		Cache:      autocert.DirCache(app.CertCacheDir),
+		Cache:      autocert.DirCache(certCacheDir),
 		Prompt:     autocert.AcceptTOS,
 		HostPolicy: autocert.HostWhitelist(app.AllowedHosts...),
 	}
