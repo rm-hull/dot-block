@@ -1,11 +1,13 @@
 package mobileconfig
 
+import "github.com/google/uuid"
+
 type Profile struct {
 	PayloadType         string    `plist:"PayloadType"`
 	PayloadVersion      int       `plist:"PayloadVersion"`
 	PayloadIdentifier   string    `plist:"PayloadIdentifier"`
 	PayloadScope        string    `plist:"PayloadScope"`
-	PayloadUUID         string    `plist:"PayloadUUID"`
+	PayloadUUID         uuid.UUID `plist:"PayloadUUID"`
 	PayloadDisplayName  string    `plist:"PayloadDisplayName"`
 	PayloadOrganization string    `plist:"PayloadOrganization,omitempty"`
 	PayloadDescription  string    `plist:"PayloadDescription,omitempty"`
@@ -16,7 +18,7 @@ type DNSSpec struct {
 	PayloadType         string         `plist:"PayloadType"`
 	PayloadVersion      int            `plist:"PayloadVersion"`
 	PayloadIdentifier   string         `plist:"PayloadIdentifier"`
-	PayloadUUID         string         `plist:"PayloadUUID"`
+	PayloadUUID         uuid.UUID      `plist:"PayloadUUID"`
 	PayloadDisplayName  string         `plist:"PayloadDisplayName"`
 	PayloadOrganization string         `plist:"PayloadOrganization,omitempty"`
 	PayloadDescription  string         `plist:"PayloadDescription,omitempty"`
