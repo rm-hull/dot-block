@@ -22,11 +22,10 @@ func TestHandler(t *testing.T) {
 	assert.Equal(t, "application/x-apple-aspen-config", w.Header().Get("Content-Type"))
 	assert.Contains(t, w.Header().Get("Content-Disposition"), "dot-block.mobileconfig")
 
-	body := w.Body.String()
-	assert.Contains(t, body, "<key>ServerName</key>")
-	assert.Contains(t, body, "<string>dot.destructuring-bind.org</string>")
-	assert.Contains(t, body, "<key>ServerAddresses</key>")
-	// We know it resolves to 192.241.203.173 currently, but let's just check it's not empty
-	assert.Contains(t, body, "<array>")
-	assert.Contains(t, body, "</array>")
+var profile Profile
+	err := plist.NewDecoder(w.Body).Decode(&profile)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "dot.destructuring-bind.org", profile.PayloadContent[0].DNSSettings.ServerName)
+	assert.NotEmpty(t, profile.PayloadContent[0].DNSSettings.ServerAddresses, "ServerAddresses should not be empty")
 }
