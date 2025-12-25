@@ -214,7 +214,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
 
-if len(app.AllowedHosts) == 0 {
+	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-host")
 	}
 	serverName := app.AllowedHosts[0]
