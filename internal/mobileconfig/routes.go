@@ -12,9 +12,6 @@ import (
 	"howett.net/plist"
 )
 
-const ROOT_PAYLOAD_UUID = "5ac4b893-0095-4bea-afeb-5dc00025f4c1"
-const DNS_PAYLOAD_UUID = "bc0e0b3a-ef87-4f23-b8b1-f8383f6f5c66"
-
 func NewHandler(serverName string) gin.HandlerFunc {
 
 	rootPayloadIdentifier := invertServerName(serverName) + ".profile"
