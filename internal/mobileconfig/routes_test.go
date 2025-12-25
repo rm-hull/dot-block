@@ -25,7 +25,7 @@ func TestHandler(t *testing.T) {
 	assert.Contains(t, w.Header().Get("Content-Disposition"), "dot-block.mobileconfig")
 
 	var profile Profile
-	err := plist.NewDecoder(strings.NewReader(string(w.Body.Bytes()))).Decode(&profile)
+	err := plist.NewDecoder(strings.NewReader(w.Body.String())).Decode(&profile)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "dot.destructuring-bind.org", profile.PayloadContent[0].DNSSettings.ServerName)
