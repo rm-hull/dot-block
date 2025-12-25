@@ -33,17 +33,17 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if app.DevMode {
-				app.DnsPort = 8053
-				app.DotPort = 8853
-				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
-			}
+			app.DnsPort = dnsPort
+			app.DotPort = dotPort
 
-			if cmd.Flags().Changed("dns-port") {
-				app.DnsPort = dnsPort
-			}
-			if cmd.Flags().Changed("dot-port") {
-				app.DotPort = dotPort
+			if app.DevMode {
+				if !cmd.Flags().Changed("dns-port") {
+					app.DnsPort = 8053
+				}
+				if !cmd.Flags().Changed("dot-port") {
+					app.DotPort = 8853
+				}
+				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
 			}
 
 			return app.RunServer()
