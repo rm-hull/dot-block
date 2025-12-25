@@ -66,6 +66,14 @@ go test -v ./...
 
 You can also test the deployed DoT server using `openssl` or `dig` as described in the `README.md`.
 
+### iOS / iPadOS Client Configuration
+
+For Apple devices, the server provides an auto-generated `.mobileconfig` profile:
+
+1.  Navigate to `https://<your-server-address>/.mobileconfig` in Safari on the iOS/iPadOS device.
+2.  Follow the system prompts to download and install the profile in **Settings > Profile Downloaded**.
+3.  This configures the system-wide DNS to use the DoT server with the appropriate `ServerName` and resolved IP addresses.
+
 ## Development Conventions
 
 -   **Dependencies:** Go modules are used for dependency management. Key libraries include `miekg/dns`, `gin-gonic/gin`, and `cobra`.

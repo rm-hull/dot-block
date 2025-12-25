@@ -1,0 +1,42 @@
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadType</key>
+      <string>com.apple.dnsSettings.managed</string>
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+      <key>PayloadIdentifier</key>
+      <string>com.example.dot</string>
+      <key>PayloadUUID</key>
+      <string>REPLACE-WITH-UUID</string>
+      <key>PayloadDisplayName</key>
+      <string>Encrypted DNS</string>
+
+      <key>DNSSettings</key>
+      <dict>
+        <key>DNSProtocol</key>
+        <string>TLS</string>
+        <key>ServerAddresses</key>
+        <array>
+          <string>dns.example.com</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+
+  <key>PayloadType</key>
+  <string>Configuration</string>
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+  <key>PayloadIdentifier</key>
+  <string>com.example.dot.profile</string>
+  <key>PayloadUUID</key>
+  <string>REPLACE-WITH-UUID</string>
+  <key>PayloadDisplayName</key>
+  <string>My DNS over TLS</string>
+</dict>
+</plist>

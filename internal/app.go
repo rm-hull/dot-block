@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
+	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
 	sloggin "github.com/samber/slog-gin"
@@ -212,6 +213,12 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 	}
 
 	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
+
+	if len(app.AllowedHosts) == 0 {
+		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-host")
+	}
+	serverName := app.AllowedHosts[0]
+	r.GET("/.mobileconfig", mobileconfig.NewHandler(serverName))
 
 	return r, nil
 }

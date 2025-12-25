@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-
 func TestIsBlocked_ApexDomain_PublicSuffix(t *testing.T) {
 	assert := assert.New(t)
 
