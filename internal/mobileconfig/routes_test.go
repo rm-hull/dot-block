@@ -12,8 +12,7 @@ import (
 func TestHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	handler, _ := NewHandler("dot.destructuring-bind.org")
-	r.GET("/.mobileconfig", handler)
+	r.GET("/.mobileconfig", NewHandler("dot.destructuring-bind.org"))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/.mobileconfig", nil)

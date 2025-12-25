@@ -218,11 +218,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 	if len(app.AllowedHosts) > 0 {
 		serverName = app.AllowedHosts[0]
 	}
-	handler, err := mobileconfig.NewHandler(serverName)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize mobileconfig handler")
-	}
-	r.GET("/.mobileconfig", handler)
+	r.GET("/.mobileconfig", mobileconfig.NewHandler(serverName))
 
 	return r, nil
 }
