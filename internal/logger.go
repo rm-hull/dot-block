@@ -16,7 +16,6 @@ func NewZapLoggerAdapter(logger *slog.Logger) *zap.Logger {
 type slogCore struct {
 	logger *slog.Logger
 	level  zapcore.LevelEnabler
-	fields []slog.Attr
 }
 
 func (c *slogCore) Enabled(l zapcore.Level) bool {
