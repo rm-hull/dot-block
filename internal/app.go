@@ -99,7 +99,7 @@ func (app *App) RunServer() error {
 	}
 
 	// certmagic setup
-	zapLogger := NewZapLoggerAdapter(app.Logger)
+	zapLogger := NewZapLoggerAdapter(app.Logger, "certmagic")
 	certmagic.Default.Logger = zapLogger
 	certmagic.DefaultACME.Logger = zapLogger
 	certmagic.DefaultACME.Agreed = true

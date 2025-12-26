@@ -3,14 +3,18 @@ package internal
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
 // NewZapLoggerAdapter creates a zap.Logger that writes to the provided slog.Logger.
-func NewZapLoggerAdapter(logger *slog.Logger) *zap.Logger {
-	return zap.New(&slogCore{logger: logger, level: zap.DebugLevel})
+func NewZapLoggerAdapter(logger *slog.Logger, source string) *zap.Logger {
+	return zap.New(&slogCore{
+		logger: logger.With(slog.String("source", source)),
+		level:  zap.DebugLevel,
+	})
 }
 
 type slogCore struct {
@@ -23,13 +27,13 @@ func (c *slogCore) Enabled(l zapcore.Level) bool {
 }
 
 func (c *slogCore) With(fields []zapcore.Field) zapcore.Core {
-	attrs := make([]slog.Attr, 0, len(fields))
-	for _, f := range fields {
-		attrs = append(attrs, zapFieldToSlogAttr(f))
+	attrs := make([]any, len(fields))
+	for i, f := range fields {
+		attrs[i] = zapFieldToSlogAttr(f)
 	}
 	// Clone the logger with new fields
 	return &slogCore{
-		logger: c.logger.With(anyList(attrs)...),
+		logger: c.logger.With(attrs...),
 		level:  c.level,
 	}
 }
@@ -59,8 +63,7 @@ func (c *slogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 		lvl = slog.LevelInfo
 	}
 
-	attrs := make([]slog.Attr, 0, len(fields)+1)
-	attrs = append(attrs, slog.String("source", "certmagic"))
+	attrs := make([]slog.Attr, 0, len(fields))
 	for _, f := range fields {
 		attrs = append(attrs, zapFieldToSlogAttr(f))
 	}
@@ -83,18 +86,18 @@ func zapFieldToSlogAttr(f zapcore.Field) slog.Attr {
 		return slog.Uint64(f.Key, uint64(f.Integer))
 	case zapcore.BoolType:
 		return slog.Bool(f.Key, f.Integer == 1)
+	case zapcore.DurationType:
+		return slog.Duration(f.Key, time.Duration(f.Integer))
+	case zapcore.TimeType:
+		t := time.Unix(0, f.Integer)
+		if f.Interface != nil {
+			t = t.In(f.Interface.(*time.Location))
+		}
+		return slog.Time(f.Key, t)
 	case zapcore.ErrorType:
 		return slog.Any(f.Key, f.Interface)
 	default:
 		// Fallback for other types
 		return slog.Any(f.Key, f.Interface)
 	}
-}
-
-func anyList(attrs []slog.Attr) []any {
-	args := make([]any, len(attrs))
-	for i, a := range attrs {
-		args[i] = a
-	}
-	return args
 }
