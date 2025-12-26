@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log/slog"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Depado/ginprom"
+	"github.com/caddyserver/certmagic"
 	"github.com/cockroachdb/errors"
 	"github.com/earthboundkid/versioninfo/v2"
 	"github.com/getsentry/sentry-go"
@@ -16,6 +18,7 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/libdns/cloudflare"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
@@ -26,7 +29,6 @@ import (
 	sloggin "github.com/samber/slog-gin"
 	healthcheck "github.com/tavsec/gin-healthcheck"
 	hc_config "github.com/tavsec/gin-healthcheck/config"
-	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -96,13 +98,34 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create certcache directory")
 	}
 
-	manager := &autocert.Manager{
-		Cache:      autocert.DirCache(certCacheDir),
-		Prompt:     autocert.AcceptTOS,
-		HostPolicy: autocert.HostWhitelist(app.AllowedHosts...),
+	// certmagic setup
+	certmagic.DefaultACME.Agreed = true
+	certmagic.DefaultACME.Email = os.Getenv("ACME_EMAIL")
+	certmagic.Default.Storage = &certmagic.FileStorage{Path: certCacheDir}
+
+	var magic *certmagic.Config
+
+	if !app.DevMode {
+		token := os.Getenv("CLOUDFLARE_API_TOKEN")
+		if token == "" {
+			return errors.New("CLOUDFLARE_API_TOKEN environment variable is required for DNS-01 challenge")
+		}
+
+		certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
+			DNSManager: certmagic.DNSManager{
+				DNSProvider: &cloudflare.Provider{
+					APIToken: token,
+				},
+			},
+		}
+
+		magic = certmagic.NewDefault()
+		if err := magic.ManageSync(context.Background(), app.AllowedHosts); err != nil {
+			return errors.Wrap(err, "failed to manage certificates")
+		}
 	}
 
-	r, err := app.startHttpServer(dnsClient, manager)
+	r, err := app.startHttpServer(dnsClient)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -148,7 +171,7 @@ func (app *App) RunServer() error {
 			tlsConfig = &tls.Config{
 				MinVersion:     tls.VersionTLS12,
 				NextProtos:     []string{"dot"}, // important for DNS-over-TLS
-				GetCertificate: manager.GetCertificate,
+				GetCertificate: magic.GetCertificate,
 			}
 		}
 		app.Logger.Info(logMessage, "port", app.DotPort)
@@ -159,7 +182,7 @@ func (app *App) RunServer() error {
 	return group.Wait()
 }
 
-func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *autocert.Manager) (*gin.Engine, error) {
+func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -211,8 +234,6 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, manager *
 			return nil, errors.Newf("invalid metrics-auth value: %s", app.MetricsAuth)
 		}
 	}
-
-	r.Any("/.well-known/acme-challenge/*path", gin.WrapH(manager.HTTPHandler(nil)))
 
 	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-host")

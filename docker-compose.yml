@@ -20,6 +20,9 @@ services:
     container_name: dns-server
     cap_add:
       - NET_BIND_SERVICE
+    environment:
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN}
+      - ACME_EMAIL=${ACME_EMAIL}
     volumes:
       - ./data:/data
     labels:
