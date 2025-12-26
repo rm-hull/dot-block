@@ -99,6 +99,9 @@ func (app *App) RunServer() error {
 	}
 
 	// certmagic setup
+	zapLogger := NewZapLoggerAdapter(app.Logger)
+	certmagic.Default.Logger = zapLogger
+	certmagic.DefaultACME.Logger = zapLogger
 	certmagic.DefaultACME.Agreed = true
 	certmagic.DefaultACME.Email = os.Getenv("ACME_EMAIL")
 	certmagic.Default.Storage = &certmagic.FileStorage{Path: certCacheDir}
