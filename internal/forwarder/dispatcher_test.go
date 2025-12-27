@@ -1,6 +1,7 @@
 package forwarder
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log/slog"
@@ -258,6 +259,51 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
+}
+
+func TestDNSDispatcher_QueryLogging(t *testing.T) {
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
+
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+	defer func() {
+		_ = server.Shutdown()
+	}()
+
+	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	require.NoError(t, err)
+
+	t.Run("Logging disabled", func(t *testing.T) {
+		logBuf.Reset()
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, true)
+		require.NoError(t, err)
+
+		req := new(dns.Msg)
+		req.SetQuestion("google.com.", dns.TypeA)
+		writer := new(MockResponseWriter)
+		writer.On("WriteMsg", mock.Anything).Return(nil)
+
+		dispatcher.HandleDNSRequest(writer, req)
+
+		assert.NotContains(t, logBuf.String(), "Query received")
+	})
+
+	t.Run("Logging enabled", func(t *testing.T) {
+		logBuf.Reset()
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+		require.NoError(t, err)
+
+		req := new(dns.Msg)
+		req.SetQuestion("google.com.", dns.TypeA)
+		writer := new(MockResponseWriter)
+		writer.On("WriteMsg", mock.Anything).Return(nil)
+
+		dispatcher.HandleDNSRequest(writer, req)
+
+		assert.Contains(t, logBuf.String(), "Query received")
+		assert.Contains(t, logBuf.String(), "google.com.")
+	})
 }
 
 func dnsRecord(addr string, rrtype uint16, ip []byte) dns.HandlerFunc {
