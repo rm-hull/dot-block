@@ -14,15 +14,22 @@ import (
 )
 
 type DNSDispatcher struct {
-	dnsClient  *RoundRobinClient
-	defaultTTL float64
-	cache      cache.Cache[string, []dns.RR]
-	blockList  *blocklist.BlockList
-	metrics    *metrics.DnsMetrics
-	logger     *slog.Logger
+	dnsClient    *RoundRobinClient
+	defaultTTL   float64
+	cache        cache.Cache[string, []dns.RR]
+	blockList    *blocklist.BlockList
+	metrics      *metrics.DnsMetrics
+	logger       *slog.Logger
+	queryLogging bool
 }
 
-func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *blocklist.BlockList, maxSize int, logger *slog.Logger) (*DNSDispatcher, error) {
+func NewDNSDispatcher(
+	dnsClient *RoundRobinClient,
+	blockList *blocklist.BlockList,
+	maxSize int,
+	logger *slog.Logger,
+	noDnsLogging bool,
+) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)
@@ -31,12 +38,13 @@ func NewDNSDispatcher(dnsClient *RoundRobinClient, blockList *blocklist.BlockLis
 	}
 
 	return &DNSDispatcher{
-		dnsClient:  dnsClient,
-		defaultTTL: 300, // TODO: pass in
-		cache:      cache,
-		blockList:  blockList,
-		metrics:    metrics,
-		logger:     logger,
+		dnsClient:    dnsClient,
+		defaultTTL:   300, // TODO: pass in
+		cache:        cache,
+		blockList:    blockList,
+		metrics:      metrics,
+		logger:       logger,
+		queryLogging: !noDnsLogging,
 	}, nil
 }
 
@@ -103,7 +111,9 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Question) ([]dns.RR, error) {
 	queryType := getQueryType(q)
-	requestLogger.Info("Query received", "name", q.Name, "type", queryType)
+	if d.queryLogging {
+		requestLogger.Info("Query received", "name", q.Name, "type", queryType)
+	}
 	d.metrics.TopDomains.Add(q.Name)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
@@ -113,7 +123,9 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 	}
 
 	if isBlocked {
-		requestLogger.Info("Domain blocked", "name", q.Name)
+		if d.queryLogging {
+			requestLogger.Info("Domain blocked", "name", q.Name)
+		}
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 
 		soa := &dns.SOA{
