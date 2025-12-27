@@ -119,24 +119,29 @@ go test ./...
 
 DoT Block can be configured using the following command-line flags:
 
-| Flag              | Description                                                     | Default                                                                                   |
-| ----------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `--blocklist-url` | URL of the blocklist (wildcard hostname format).                | `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt` |
-| `--cache-dir`     | Directory for the TLS certificate cache.                        | `./data/certcache`                                                                        |
-| `--dev-mode`      | Run the server in dev mode (no TLS, plain TCP).                 | `false`                                                                                   |
-| `--dns-port`      | The port to run regular DNS (UDP/TCP) server on.                | `53`                                                                                      |
-| `--upstream`      | Upstream DNS resolver to forward queries to.                    | `1.1.1.1:53`                                                                              |
-| `--http-port`     | The port to run the HTTP server on.                             | `80`                                                                                      |
-| `--allowed-host`  | List of domains used for the CertManager allow policy.          | `nil`                                                                                     |
-| `--metrics-auth`  | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""`                                                                                      |
+| Flag | Description | Default |
+| :--- | :--- | :--- |
+| `--allowed-host` | List of domains used for the CertManager allow policy. | `nil` |
+| `--blocklist-url` | URL of the blocklist (wildcard hostname format). | `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt` |
+| `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `@every 10m` |
+| `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
+| `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |
+| `--dev-mode` | Run the server in dev mode (no TLS, plain TCP). | `false` |
+| `--dns-port` | The port to run regular DNS (UDP/TCP) server on. | `53` |
+| `--dot-port` | The port to run DNS-over-TLS server on. | `853` |
+| `--http-port` | The port to run the HTTP server on. | `80` |
+| `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
+| `--no-dns-logging` | Disable all DNS query logging. | `false` |
+| `--upstream` | Upstream DNS resolvers to forward queries to. | `8.8.8.8:53`, `8.8.4.4:53`, `1.1.1.1:53`, `1.0.0.1:53`, `9.9.9.9:53`, `149.112.112.112:53` |
 
-### Sentry Error Reporting
+### Environment Variables
 
-For error reporting, set the `SENTRY_DSN` environment variable. Not setting will deactivate remote error reporting.
-
-```bash
-export SENTRY_DSN="YOUR_SENTRY_DSN_HERE"
-```
+| Variable | Description | Required |
+| :--- | :--- | :--- |
+| `ACME_EMAIL` | Email address used for Let's Encrypt registration. | Yes (in production) |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (CertManager). | Yes (in production) |
+| `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | No |
+| `SENTRY_DSN` | DSN for Sentry error reporting. | No |
 
 ## Grafana Dashboard
 
