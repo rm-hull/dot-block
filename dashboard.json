@@ -22,7 +22,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": "Prometheus"
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -93,10 +93,7 @@
       "type": "piechart"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
@@ -161,10 +158,7 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -270,10 +264,7 @@
       "type": "piechart"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "decimals": 1,
@@ -338,10 +329,7 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -470,10 +458,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -788,10 +773,7 @@
       "type": "timeseries"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -845,10 +827,7 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
@@ -910,10 +889,7 @@
       "type": "stat"
     },
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus",
       "fieldConfig": {
         "defaults": {
           "decimals": 0,
