@@ -77,7 +77,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	hosts, err := blocklist.DownloadBlocklist(app.BlockListUrl, app.Logger)
+	hosts, err := blocklist.Fetch(app.BlockListUrl, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")
 	}
