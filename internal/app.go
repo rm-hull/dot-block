@@ -23,6 +23,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
+	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
@@ -84,7 +85,7 @@ func (app *App) RunServer() error {
 
 	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
 
-	adapter := &SlogAdapter{prefix: "Cron ", logger: app.Logger}
+	adapter := logging.NewSlogAdapter(app.Logger, "cron")
 	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
 	crontab.Start()
 	defer crontab.Stop()
@@ -100,7 +101,7 @@ func (app *App) RunServer() error {
 	}
 
 	// certmagic setup
-	zapLogger := NewZapLoggerAdapter(app.Logger, "certmagic")
+	zapLogger := logging.NewZapLoggerAdapter(app.Logger, "certmagic")
 	certmagic.Default.Logger = zapLogger
 	certmagic.DefaultACME.Logger = zapLogger
 	certmagic.DefaultACME.Agreed = true
