@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -18,12 +19,16 @@ func isValidUrl(uri string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https")
 }
 
-func TransientDownload(logger *slog.Logger, purpose string, uri string, handler func(tmpfile string, header http.Header) error) error {
+func TransientDownload(logger *slog.Logger, purpose string, uri string, redact string, handler func(tmpfile string, header http.Header) error) error {
 	if !isValidUrl(uri) {
 		return handler(uri, http.Header{})
 	}
 
-	logger.Info(fmt.Sprintf("Retrieving %s", purpose), "uri", uri)
+	redactedUri := uri
+	if redact != "" {
+		redactedUri = strings.ReplaceAll(uri, redact, "********")
+	}
+	logger.Info(fmt.Sprintf("Retrieving %s", purpose), "uri", redactedUri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create request")
@@ -46,7 +51,7 @@ func TransientDownload(logger *slog.Logger, purpose string, uri string, handler 
 		return fmt.Errorf("error response from %s: %s", uri, resp.Status)
 	}
 
-	tmp, err := os.CreateTemp("", "download-*")
+	tmp, err := os.CreateTemp("", fmt.Sprintf("dot-block-%s-download-*", purpose))
 	if err != nil {
 		return err
 	}

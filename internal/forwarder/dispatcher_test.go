@@ -74,7 +74,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -109,7 +109,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -145,7 +145,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -193,7 +193,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -245,7 +245,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 	require.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -276,7 +276,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 	t.Run("Logging disabled", func(t *testing.T) {
 		logBuf.Reset()
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, true)
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, true)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)
@@ -291,7 +291,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 	t.Run("Logging enabled", func(t *testing.T) {
 		logBuf.Reset()
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, nil, 100, logger, false)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)

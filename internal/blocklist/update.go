@@ -12,19 +12,19 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-type Downloader struct {
+type BlocklistUpdater struct {
 	blocklist *BlockList
 	url       string
 }
 
-func NewDownloaderCronJob(blocklist *BlockList, url string) cron.Job {
-	return &Downloader{
+func NewBlocklistUpdaterCronJob(blocklist *BlockList, url string) cron.Job {
+	return &BlocklistUpdater{
 		blocklist: blocklist,
 		url:       url,
 	}
 }
 
-func (job *Downloader) Run() {
+func (job *BlocklistUpdater) Run() {
 	items, err := Fetch(job.url, job.blocklist.logger)
 	if err != nil {
 		job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err)
@@ -34,11 +34,8 @@ func (job *Downloader) Run() {
 }
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
-
 	blocklist := make([]string, 0, 100_000)
-
-	err := downloader.TransientDownload(logger, "blocklist", url, func(tmpFile string, header http.Header) error {
-
+	err := downloader.TransientDownload(logger, "blocklist", url, "", func(tmpFile string, header http.Header) error {
 		file, err := os.Open(tmpFile)
 		if err != nil {
 			return errors.Wrap(err, "failed to open downloaded blocklist")
