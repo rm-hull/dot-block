@@ -4,7 +4,7 @@ import (
 	"log/slog"
 )
 
-// SlogAdapter makes slog.Logger compatible with cron.Logger
+// compatible with cron.Logger
 type cronLoggerAdapter struct {
 	logger *slog.Logger
 }
