@@ -85,7 +85,7 @@ func (app *App) RunServer() error {
 
 	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
 
-	adapter := logging.NewSlogAdapter(app.Logger, "cron")
+	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
 	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
 	crontab.Start()
 	defer crontab.Stop()

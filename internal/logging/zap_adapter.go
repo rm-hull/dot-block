@@ -11,41 +11,41 @@ import (
 
 // NewZapLoggerAdapter creates a zap.Logger that writes to the provided slog.Logger.
 func NewZapLoggerAdapter(logger *slog.Logger, source string) *zap.Logger {
-	return zap.New(&slogCore{
+	return zap.New(&zapAdapter{
 		logger: logger.With(slog.String("source", source)),
 		level:  zap.DebugLevel,
 	})
 }
 
-type slogCore struct {
+type zapAdapter struct {
 	logger *slog.Logger
 	level  zapcore.LevelEnabler
 }
 
-func (c *slogCore) Enabled(l zapcore.Level) bool {
+func (c *zapAdapter) Enabled(l zapcore.Level) bool {
 	return c.level.Enabled(l)
 }
 
-func (c *slogCore) With(fields []zapcore.Field) zapcore.Core {
+func (c *zapAdapter) With(fields []zapcore.Field) zapcore.Core {
 	attrs := make([]any, len(fields))
 	for i, f := range fields {
 		attrs[i] = zapFieldToSlogAttr(f)
 	}
 	// Clone the logger with new fields
-	return &slogCore{
+	return &zapAdapter{
 		logger: c.logger.With(attrs...),
 		level:  c.level,
 	}
 }
 
-func (c *slogCore) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
+func (c *zapAdapter) Check(ent zapcore.Entry, ce *zapcore.CheckedEntry) *zapcore.CheckedEntry {
 	if c.Enabled(ent.Level) {
 		return ce.AddCore(ent, c)
 	}
 	return ce
 }
 
-func (c *slogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
+func (c *zapAdapter) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	ctx := context.Background()
 	var lvl slog.Level
 	switch ent.Level {
@@ -72,7 +72,7 @@ func (c *slogCore) Write(ent zapcore.Entry, fields []zapcore.Field) error {
 	return nil
 }
 
-func (c *slogCore) Sync() error {
+func (c *zapAdapter) Sync() error {
 	return nil
 }
 
