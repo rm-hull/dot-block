@@ -44,8 +44,6 @@ func Fetch(fileId string, dataDir string, logger *slog.Logger) ([]string, error)
 	}
 	url := fmt.Sprintf("https://www.ip2location.com/download/?token=%s&file=%s", token, fileId)
 
-	url = "ip2location.zip" // FIXME: remove for production
-
 	dataDir += "/ip2location"
 	_ = os.MkdirAll(dataDir, 0755)
 

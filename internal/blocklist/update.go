@@ -41,7 +41,11 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 			return errors.Wrap(err, "failed to open downloaded blocklist")
 		}
 
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				logger.Warn("error closing blocklist file", "error", err)
+			}
+		}()
 
 		scanner := bufio.NewScanner(bufio.NewReader(file))
 		for scanner.Scan() {

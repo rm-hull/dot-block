@@ -8,9 +8,9 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/getsentry/sentry-go"
 	cache "github.com/go-pkgz/expirable-cache/v3"
-	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
@@ -19,7 +19,7 @@ type DNSDispatcher struct {
 	defaultTTL   float64
 	cache        cache.Cache[string, []dns.RR]
 	blockList    *blocklist.BlockList
-	geoIpDb      *ip2location.DB
+	geoIpLookup  geoblock.GeoIpLookup
 	metrics      *metrics.DnsMetrics
 	logger       *slog.Logger
 	queryLogging bool
@@ -28,7 +28,7 @@ type DNSDispatcher struct {
 func NewDNSDispatcher(
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
-	geoIpDb *ip2location.DB,
+	geoIpLookup geoblock.GeoIpLookup,
 	maxSize int,
 	logger *slog.Logger,
 	noDnsLogging bool,
@@ -45,7 +45,7 @@ func NewDNSDispatcher(
 		defaultTTL:   300, // TODO: pass in
 		cache:        cache,
 		blockList:    blockList,
-		geoIpDb:      geoIpDb,
+		geoIpLookup:  geoIpLookup,
 		metrics:      metrics,
 		logger:       logger,
 		queryLogging: !noDnsLogging,
@@ -68,7 +68,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		d.metrics.RequestLatency.Observe(duration)
 		d.metrics.RequestCounts.WithLabelValues("total").Inc()
 
-		loc, err := d.geoIpDb.Get_all(ipAddr)
+		loc, err := d.geoIpLookup.Get_all(ipAddr)
 		if err != nil {
 			requestLogger.Warn("failed to get geolocation for client IP", "error", err)
 		} else {
