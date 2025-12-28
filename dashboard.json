@@ -22,10 +22,7 @@
   "links": [],
   "panels": [
     {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "eeppumwcaakg0f"
-      },
+      "datasource": "Prometheus"
       "fieldConfig": {
         "defaults": {
           "color": {
