@@ -80,7 +80,7 @@ logger.Warn("error closing zip file", "error", err)
 }
 
 func extractZipFile(f *zip.File, toFolder string, logger *slog.Logger) (string, error) {
-	destPath := toFolder + "/" + f.Name[strings.LastIndex(f.Name, "/")+1:]
+destPath := filepath.Join(toFolder, path.Base(f.Name))
 	logger.Info(fmt.Sprintf("Extracting file (%s) from zip", humanize.Bytes(uint64(f.FileInfo().Size()))),
 		"to", destPath,
 	)
