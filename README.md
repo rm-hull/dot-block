@@ -141,6 +141,7 @@ DoT Block can be configured using the following command-line flags:
 | `ACME_EMAIL` | Email address used for Let's Encrypt registration. | Yes (in production) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (CertManager). | Yes (in production) |
 | `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | No |
+| `IP2LOCATION_TOKEN` | IP2Location token for downloading geoIP locations. | Yes |
 | `SENTRY_DSN` | DSN for Sentry error reporting. | No |
 
 ## Grafana Dashboard

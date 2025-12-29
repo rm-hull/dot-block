@@ -83,7 +83,9 @@ func (app *App) RunServer() error {
 	// if err != nil {
 	// 	return errors.Wrap(err, "failed to download geoblock database")
 	// }
-	geoIpDb, err := ip2location.OpenDB(fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir))
+	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
+	geoIpDb, err := ip2location.OpenDB(geolocationDb)
 	if err != nil {
 		return errors.Wrap(err, "failed to open geoblock database")
 	}
