@@ -38,7 +38,7 @@ func TransientDownload(logger *slog.Logger, purpose string, uri string, redact s
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, "failed to fetch from %s", uri)
+return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
 	}
 
 	defer func() {
