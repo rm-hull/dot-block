@@ -10,12 +10,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
+
+// MockGeoIpLookup is a mock implementation of GeoIPService.
+type MockGeoIpLookup struct {
+	mock.Mock
+}
+
+func (m *MockGeoIpLookup) Get_all(ipAddress string) (ip2location.IP2Locationrecord, error) {
+	args := m.Called(ipAddress)
+	return args.Get(0).(ip2location.IP2Locationrecord), args.Error(1)
+}
 
 // MockResponseWriter is a mock implementation of dns.ResponseWriter.
 type MockResponseWriter struct {
@@ -74,7 +85,10 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -109,7 +123,10 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -145,7 +162,10 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -193,7 +213,10 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -245,7 +268,10 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	require.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -276,7 +302,10 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 	t.Run("Logging disabled", func(t *testing.T) {
 		logBuf.Reset()
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, true)
+		mockGeo := new(MockGeoIpLookup)
+		mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, true)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)
@@ -291,7 +320,10 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 	t.Run("Logging enabled", func(t *testing.T) {
 		logBuf.Reset()
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, 100, logger, false)
+		mockGeo := new(MockGeoIpLookup)
+		mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)

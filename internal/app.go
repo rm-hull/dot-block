@@ -17,6 +17,7 @@ import (
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
+	"github.com/ip2location/ip2location-go/v9"
 	"github.com/joho/godotenv"
 	"github.com/libdns/cloudflare"
 	"github.com/miekg/dns"
@@ -78,7 +79,18 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	hosts, err := blocklist.DownloadBlocklist(app.BlockListUrl, app.Logger)
+	// _, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+	// if err != nil {
+	// 	return errors.Wrap(err, "failed to download geoblock database")
+	// }
+	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
+	geoIpDb, err := ip2location.OpenDB(geolocationDb)
+	if err != nil {
+		return errors.Wrap(err, "failed to open geoblock database")
+	}
+
+	hosts, err := blocklist.Fetch(app.BlockListUrl, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")
 	}
@@ -91,7 +103,7 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewDownloaderCronJob(blockList, app.BlockListUrl)); err != nil {
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListUrl)); err != nil {
 		return errors.Wrap(err, "failed to create blocklist cron job")
 	}
 
@@ -135,7 +147,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, CACHE_SIZE, app.Logger, app.NoDnsLogging)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpDb, CACHE_SIZE, app.Logger, app.NoDnsLogging)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}

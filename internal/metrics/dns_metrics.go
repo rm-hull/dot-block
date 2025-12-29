@@ -19,6 +19,7 @@ type DnsMetrics struct {
 	RequestCounts    *prometheus.CounterVec
 	QueryCounts      *prometheus.CounterVec
 	ReplyCounts      *prometheus.CounterVec
+	CountryCounts    *prometheus.CounterVec
 	UniqueClients    *hyperloglog.Sketch
 	TopClients       *SpaceSaver
 	TopDomains       *SpaceSaver
@@ -84,7 +85,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
-		Help: "Counts the number of DNS requests, broken down by type: total, errored, forwarded",
+		Help: "Counts the number of DNS requests, broken down by type (total, errored, forwarded)",
 	}, []string{"type"})
 
 	queryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
@@ -96,6 +97,11 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		Name: "dns_reply_count",
 		Help: "Counts the number of DNS replies, broken down by response code",
 	}, []string{"rcode"})
+
+	countryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_country_count",
+		Help: "Counts the number of DNS requests, broken down by country code (ISO 3166-1 alpha-2)",
+	}, []string{"iso_code"})
 
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
@@ -132,6 +138,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		requestCounts,
 		queryCounts,
 		replyCounts,
+		countryCounts,
 		uniqueClientsCount,
 		topClientsStats,
 		topDomainsStats,
@@ -148,6 +155,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		RequestCounts:    requestCounts,
 		QueryCounts:      queryCounts,
 		ReplyCounts:      replyCounts,
+		CountryCounts:    countryCounts,
 		UniqueClients:    uniqueClients,
 		TopClients:       topClients,
 		TopDomains:       topDomains,
