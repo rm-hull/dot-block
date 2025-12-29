@@ -170,14 +170,15 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 	upstreamReq.RecursionDesired = req.RecursionDesired
 	upstreamReq.Question = unansweredQuestions
 
-	upstreamResp, err := d.forwardQuery(upstreamReq)
+	upstreamResp, upstream, err := d.forwardQuery(upstreamReq)
 	if err != nil {
 		return dns.RcodeServerFailure, nil, err
 	}
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
 		// Propagate the upstream response Rcode if not successful
-		return upstreamResp.Rcode, nil, errors.Newf("resolver returned a non-success Rcode: %s", dns.RcodeToString[upstreamResp.Rcode])
+		err := errors.Newf("upstream resolver (%s) returned Rcode: %s", upstream, dns.RcodeToString[upstreamResp.Rcode])
+		return upstreamResp.Rcode, nil, err
 	}
 
 	// Group answers by question for efficient lookup
@@ -219,14 +220,14 @@ func (d *DNSDispatcher) reportError(requestLogger *slog.Logger, errorCategory st
 	sentry.CaptureException(err)
 }
 
-func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, error) {
+func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, string, error) {
 	startTime := time.Now()
 	d.metrics.RequestCounts.WithLabelValues("forwarded").Inc()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	duration := time.Since(startTime).Seconds()
 	d.metrics.UpstreamLatency.WithLabelValues(upstream).Observe(duration)
-	return in, err
+	return in, upstream, err
 }
 
 func (d *DNSDispatcher) sendResponse(requestLogger *slog.Logger, writer dns.ResponseWriter, msg *dns.Msg) {
