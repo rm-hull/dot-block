@@ -48,7 +48,7 @@ return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
 	}()
 
 	if resp.StatusCode > 299 {
-		return fmt.Errorf("error response from %s: %s", uri, resp.Status)
+return fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
 	}
 
 	tmp, err := os.CreateTemp("", fmt.Sprintf("dot-block-%s-download-*", purpose))
