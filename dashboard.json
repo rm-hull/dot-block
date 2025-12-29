@@ -76,7 +76,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "dns_cache_stats{type=\"hits\"}",
@@ -145,7 +145,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "editorMode": "code",
@@ -243,7 +243,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "editorMode": "code",
@@ -316,7 +316,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "editorMode": "code",
@@ -437,7 +437,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "editorMode": "code",
@@ -473,15 +473,15 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 0,
-            "gradientMode": "none",
+            "fillOpacity": 22,
+            "gradientMode": "opacity",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
               "viz": false
             },
             "insertNulls": false,
-            "lineInterpolation": "smooth",
+            "lineInterpolation": "stepAfter",
             "lineWidth": 1,
             "pointSize": 5,
             "scaleDistribution": {
@@ -489,7 +489,7 @@
             },
             "showPoints": "auto",
             "showValues": false,
-            "spanNulls": false,
+            "spanNulls": true,
             "stacking": {
               "group": "A",
               "mode": "none"
@@ -542,7 +542,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "editorMode": "code",
@@ -666,7 +666,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "dns_cache_stats{type=\"size\"}",
@@ -761,7 +761,7 @@
           "sort": "none"
         }
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "dns_unique_clients",
@@ -815,7 +815,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "blocklist_size",
@@ -878,7 +878,7 @@
         "textMode": "value_and_name",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "blocklist_age",
@@ -931,7 +931,7 @@
         "textMode": "value",
         "wideLayout": true
       },
-      "pluginVersion": "12.2.1",
+      "pluginVersion": "12.3.1",
       "targets": [
         {
           "expr": "dns_request_count{type=\"total\"}",
@@ -960,5 +960,5 @@
   "timezone": "browser",
   "title": "DNS Service Monitor",
   "uid": "a039bfc8-0cb5-4e7c-8043-367b69df33e1",
-  "version": 25
+  "version": 2
 }
