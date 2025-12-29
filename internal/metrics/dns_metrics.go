@@ -100,7 +100,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	countryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_country_count",
-		Help: "Counts the number of DNS requests, broken down by country code (ISO 3066-1 alpha-2)",
+Help: "Counts the number of DNS requests, broken down by country code (ISO 3166-1 alpha-2)",
 	}, []string{"iso_code"})
 
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
