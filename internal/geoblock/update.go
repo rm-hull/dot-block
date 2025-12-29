@@ -21,7 +21,7 @@ type Ip2LocationUpdater struct {
 	dataDir string
 }
 
-func NewIp2LocationUpdaterCronJob(logger *slog.Logger, url string, dataDir string) *Ip2LocationUpdater {
+func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string) *Ip2LocationUpdater {
 	return &Ip2LocationUpdater{
 		logger:  logger,
 		url:     url,
