@@ -57,7 +57,7 @@ if err := os.MkdirAll(dataDir, 0755); err != nil {
 		}
 		defer func() {
 			if err := r.Close(); err != nil {
-				log.Printf("error closing zip file: %v", err)
+logger.Warn("error closing zip file", "error", err)
 			}
 		}()
 
