@@ -45,7 +45,9 @@ func Fetch(fileId string, dataDir string, logger *slog.Logger) ([]string, error)
 	url := fmt.Sprintf("https://www.ip2location.com/download/?token=%s&file=%s", token, fileId)
 
 	dataDir += "/ip2location"
-	_ = os.MkdirAll(dataDir, 0755)
+if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return nil, errors.Wrapf(err, "failed to create data directory %q", dataDir)
+	}
 
 	files := make([]string, 0)
 	err := downloader.TransientDownload(logger, "ip2location", url, token, func(zipPath string, header http.Header) error {
