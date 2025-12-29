@@ -28,7 +28,7 @@ func TransientDownload(logger *slog.Logger, purpose string, uri string, redact s
 	if redact != "" {
 		redactedUri = strings.ReplaceAll(uri, redact, "********")
 	}
-	logger.Info(fmt.Sprintf("Retrieving %s", purpose), "uri", redactedUri)
+logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create request")
