@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rm-hull/dot-block/internal"
+	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,9 @@ var DEFAULT_UPSTREAM_DNS = []string{
 
 func main() {
 	app := internal.App{
-		Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+		Logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			ReplaceAttr: logging.ReplaceAttr,
+		})),
 	}
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
