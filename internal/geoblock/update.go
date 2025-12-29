@@ -4,10 +4,11 @@ import (
 	"archive/zip"
 	"fmt"
 	"io"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/cockroachdb/errors"
@@ -17,20 +18,20 @@ import (
 
 type Ip2LocationUpdater struct {
 	logger  *slog.Logger
-	url     string
+	fileId  string
 	dataDir string
 }
 
 func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string) *Ip2LocationUpdater {
 	return &Ip2LocationUpdater{
 		logger:  logger,
-		url:     url,
+		fileId:  fileId,
 		dataDir: dataDir,
 	}
 }
 
 func (job *Ip2LocationUpdater) Run() {
-	_, err := Fetch(job.url, job.dataDir, job.logger)
+	_, err := Fetch(job.fileId, job.dataDir, job.logger)
 	if err != nil {
 		job.logger.Error("failed to download ip2location list for cron reload", "error", err)
 	}
@@ -45,7 +46,7 @@ func Fetch(fileId string, dataDir string, logger *slog.Logger) ([]string, error)
 	url := fmt.Sprintf("https://www.ip2location.com/download/?token=%s&file=%s", token, fileId)
 
 	dataDir += "/ip2location"
-if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, errors.Wrapf(err, "failed to create data directory %q", dataDir)
 	}
 
@@ -57,7 +58,7 @@ if err := os.MkdirAll(dataDir, 0755); err != nil {
 		}
 		defer func() {
 			if err := r.Close(); err != nil {
-logger.Warn("error closing zip file", "error", err)
+				logger.Warn("error closing zip file", "error", err)
 			}
 		}()
 
@@ -80,7 +81,7 @@ logger.Warn("error closing zip file", "error", err)
 }
 
 func extractZipFile(f *zip.File, toFolder string, logger *slog.Logger) (string, error) {
-destPath := filepath.Join(toFolder, path.Base(f.Name))
+	destPath := filepath.Join(toFolder, path.Base(f.Name))
 	logger.Info(fmt.Sprintf("Extracting file (%s) from zip", humanize.Bytes(uint64(f.FileInfo().Size()))),
 		"to", destPath,
 	)

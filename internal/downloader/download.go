@@ -28,7 +28,7 @@ func TransientDownload(logger *slog.Logger, purpose string, uri string, redact s
 	if redact != "" {
 		redactedUri = strings.ReplaceAll(uri, redact, "********")
 	}
-logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
+	logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create request")
@@ -38,7 +38,7 @@ logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
-return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
+		return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
 	}
 
 	defer func() {
@@ -48,7 +48,7 @@ return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
 	}()
 
 	if resp.StatusCode > 299 {
-return fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
+		return fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
 	}
 
 	tmp, err := os.CreateTemp("", fmt.Sprintf("dot-block-%s-download-*", purpose))

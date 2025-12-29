@@ -47,7 +47,7 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 			}
 		}()
 
-scanner := bufio.NewScanner(file)
+		scanner := bufio.NewScanner(file)
 		for scanner.Scan() {
 			line := scanner.Text()
 			if strings.HasPrefix(line, "# ") {
