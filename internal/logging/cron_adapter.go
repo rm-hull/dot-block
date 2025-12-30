@@ -16,7 +16,8 @@ func NewCronLoggerAdapter(logger *slog.Logger, source string) *cronLoggerAdapter
 }
 
 func (s *cronLoggerAdapter) Info(msg string, keysAndValues ...any) {
-	s.logger.Info(msg, keysAndValues...)
+	// Downgrade to Debug for less verbose logging
+	s.logger.Debug(msg, keysAndValues...)
 }
 
 func (s *cronLoggerAdapter) Error(err error, msg string, keysAndValues ...any) {
