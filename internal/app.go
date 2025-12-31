@@ -104,7 +104,7 @@ func (app *App) RunServer() error {
 
 	app.Logger.Info("Creating blocklist cron job", "schedule", app.CronSchedule)
 	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListUrl)); err != nil {
-		return errors.Wrap(err, "failed to create blocklist cron job")
+		return errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
 
 	certCacheDir := fmt.Sprintf("%s/certcache", app.DataDir)
@@ -162,7 +162,7 @@ func (app *App) RunServer() error {
 	var group errgroup.Group
 
 	group.Go(func() error {
-		app.Logger.Info("Starting HTTP server for ACME challenge, metrics & healthcheck", "port", app.HttpPort)
+		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.HttpPort)
 		return r.Run(fmt.Sprintf(":%d", app.HttpPort))
 	})
 
