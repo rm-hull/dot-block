@@ -58,9 +58,7 @@ func (app *App) RunServer() error {
 	if err := godotenv.Load(); err != nil {
 		app.Logger.Warn("No .env file found")
 	}
-	godx.GitVersion()
-	godx.EnvironmentVars()
-	godx.UserInfo()
+	godx.Diagnostics(app.Logger)
 
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:         os.Getenv("SENTRY_DSN"),
