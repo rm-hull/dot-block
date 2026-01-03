@@ -11,21 +11,22 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const TOP_K = 20
+const TOP_K = 50
 
 type DnsMetrics struct {
-	RequestLatency   prometheus.Histogram
-	ErrorCounts      *prometheus.CounterVec
-	RequestCounts    *prometheus.CounterVec
-	QueryCounts      *prometheus.CounterVec
-	ReplyCounts      *prometheus.CounterVec
-	CountryCounts    *prometheus.CounterVec
-	UniqueClients    *hyperloglog.Sketch
-	TopClients       *SpaceSaver
-	TopDomains       *SpaceSaver
-	UpstreamTTLs     *prometheus.HistogramVec
-	UpstreamLatency  *prometheus.HistogramVec
-	CacheReaperCalls prometheus.Counter
+	RequestLatency    prometheus.Histogram
+	ErrorCounts       *prometheus.CounterVec
+	RequestCounts     *prometheus.CounterVec
+	QueryCounts       *prometheus.CounterVec
+	ReplyCounts       *prometheus.CounterVec
+	CountryCounts     *prometheus.CounterVec
+	UniqueClients     *hyperloglog.Sketch
+	TopClients        *SpaceSaver
+	TopDomains        *SpaceSaver
+	TopBlockedDomains *SpaceSaver
+	UpstreamTTLs      *prometheus.HistogramVec
+	UpstreamLatency   *prometheus.HistogramVec
+	CacheReaperCalls  prometheus.Counter
 }
 
 var latencyBuckets = []float64{
@@ -37,6 +38,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 	uniqueClients := hyperloglog.New14()
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
+	topBlockedDomains := NewSpaceSaver(TOP_K)
 
 	cacheStats := NewStatsCollector("dns_cache_stats", "type",
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
@@ -52,10 +54,20 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		})
 
 	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
-		fmt.Sprintf("Shows the top %d most requested domains", TOP_K),
+		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains", TOP_K),
 		func() map[string]int {
 			results := make(map[string]int)
 			for _, entry := range topDomains.TopN(TOP_K) {
+				results[entry.Key] = entry.Count
+			}
+			return results
+		})
+
+	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", "hostname",
+		fmt.Sprintf("Shows the top %d blocked domains", TOP_K),
+		func() map[string]int {
+			results := make(map[string]int)
+			for _, entry := range topBlockedDomains.TopN(TOP_K) {
 				results[entry.Key] = entry.Count
 			}
 			return results
@@ -142,6 +154,7 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		uniqueClientsCount,
 		topClientsStats,
 		topDomainsStats,
+		topBlockedDomainsStats,
 		upstreamTTLs,
 		upstreamLatency,
 		cacheReaperCalls,
@@ -150,17 +163,18 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 	}
 
 	return &DnsMetrics{
-		RequestLatency:   requestLatency,
-		ErrorCounts:      errorCounts,
-		RequestCounts:    requestCounts,
-		QueryCounts:      queryCounts,
-		ReplyCounts:      replyCounts,
-		CountryCounts:    countryCounts,
-		UniqueClients:    uniqueClients,
-		TopClients:       topClients,
-		TopDomains:       topDomains,
-		UpstreamTTLs:     upstreamTTLs,
-		UpstreamLatency:  upstreamLatency,
-		CacheReaperCalls: cacheReaperCalls,
+		RequestLatency:    requestLatency,
+		ErrorCounts:       errorCounts,
+		RequestCounts:     requestCounts,
+		QueryCounts:       queryCounts,
+		ReplyCounts:       replyCounts,
+		CountryCounts:     countryCounts,
+		UniqueClients:     uniqueClients,
+		TopClients:        topClients,
+		TopDomains:        topDomains,
+		TopBlockedDomains: topBlockedDomains,
+		UpstreamTTLs:      upstreamTTLs,
+		UpstreamLatency:   upstreamLatency,
+		CacheReaperCalls:  cacheReaperCalls,
 	}, nil
 }
