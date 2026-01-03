@@ -55,33 +55,18 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
 		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains", TOP_K),
-		func() map[string]int {
-			results := make(map[string]int)
-			for _, entry := range topDomains.TopN(TOP_K) {
-				results[entry.Key] = entry.Count
-			}
-			return results
-		})
+		newSpaceSaverStatsCallback(topDomains, TOP_K),
+	)
 
 	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", "hostname",
 		fmt.Sprintf("Shows the top %d blocked domains", TOP_K),
-		func() map[string]int {
-			results := make(map[string]int)
-			for _, entry := range topBlockedDomains.TopN(TOP_K) {
-				results[entry.Key] = entry.Count
-			}
-			return results
-		})
+		newSpaceSaverStatsCallback(topBlockedDomains, TOP_K),
+	)
 
 	topClientsStats := NewStatsCollector("dns_top_clients", "ip_addr",
 		fmt.Sprintf("Shows the top %d most active clients", TOP_K),
-		func() map[string]int {
-			results := make(map[string]int)
-			for _, entry := range topClients.TopN(TOP_K) {
-				results[entry.Key] = entry.Count
-			}
-			return results
-		})
+		newSpaceSaverStatsCallback(topClients, TOP_K),
+	)
 
 	requestLatency := prometheus.NewHistogram(
 		prometheus.HistogramOpts{
@@ -177,4 +162,14 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		UpstreamLatency:   upstreamLatency,
 		CacheReaperCalls:  cacheReaperCalls,
 	}, nil
+}
+
+func newSpaceSaverStatsCallback(ss *SpaceSaver, topK int) func() map[string]int {
+	return func() map[string]int {
+		results := make(map[string]int, topK)
+		for _, entry := range ss.TopN(topK) {
+			results[entry.Key] = entry.Count
+		}
+		return results
+	}
 }
