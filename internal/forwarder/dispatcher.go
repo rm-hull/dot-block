@@ -125,7 +125,6 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 	if d.queryLogging {
 		requestLogger.Info("Query received", "name", q.Name, "type", queryType)
 	}
-	d.metrics.TopDomains.Add(q.Name)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
@@ -137,6 +136,7 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 		if d.queryLogging {
 			requestLogger.Info("Domain blocked", "name", q.Name)
 		}
+		d.metrics.TopBlockedDomains.Add(q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 
 		soa := &dns.SOA{
@@ -156,6 +156,7 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 		return []dns.RR{soa}, nil
 	}
 
+	d.metrics.TopDomains.Add(q.Name)
 	d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		return cachedRRs, nil
