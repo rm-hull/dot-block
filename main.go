@@ -11,7 +11,11 @@ import (
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
 const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "@every 10m"
-const HAGEZI_PRO_BLOCKLIST = "https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt"
+
+var DEFAULT_BLOCKLIST_URLS = []string{
+	"https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt", // Hagezi Pro blocklist
+	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",  // dot-block default blocklist
+}
 
 var DEFAULT_UPSTREAM_DNS = []string{
 	"8.8.8.8:53", // Google
@@ -54,7 +58,7 @@ func main() {
 	}
 
 	rootCmd.Flags().BoolVar(&app.NoDnsLogging, "no-dns-logging", false, "Disable all DNS query logging")
-	rootCmd.Flags().StringVar(&app.BlockListUrl, "blocklist-url", HAGEZI_PRO_BLOCKLIST, "URL of blocklist, must be wildcard hostname format")
+	rootCmd.Flags().StringArrayVar(&app.BlockListUrls, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 53, "The port to run regular DNS (UDP/TCP) server on")
