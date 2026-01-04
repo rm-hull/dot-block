@@ -39,7 +39,7 @@ const CACHE_SIZE = 1_000_000
 type App struct {
 	Upstreams     []string
 	DataDir       string
-	BlockListUrls []string
+	BlockListURLs []string
 	DevMode       bool
 	HttpPort      int
 	DnsPort       int
@@ -89,7 +89,7 @@ func (app *App) RunServer() error {
 	}
 
 	allHosts := make([]string, 0)
-	for _, url := range app.BlockListUrls {
+	for _, url := range app.BlockListURLs {
 		hosts, err := blocklist.Fetch(url, app.Logger)
 		if err != nil {
 			return errors.Wrapf(err, "failed to download blocklist: %s", url)
@@ -106,7 +106,7 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListUrls)); err != nil {
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListURLs)); err != nil {
 		return errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
 

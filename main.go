@@ -58,7 +58,7 @@ func main() {
 	}
 
 	rootCmd.Flags().BoolVar(&app.NoDnsLogging, "no-dns-logging", false, "Disable all DNS query logging")
-	rootCmd.Flags().StringArrayVar(&app.BlockListUrls, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
+	rootCmd.Flags().StringArrayVar(&app.BlockListURLs, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 53, "The port to run regular DNS (UDP/TCP) server on")
