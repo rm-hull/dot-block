@@ -37,16 +37,16 @@ import (
 const CACHE_SIZE = 1_000_000
 
 type App struct {
-	Upstreams    []string
-	DataDir      string
-	BlockListUrl string
-	DevMode      bool
-	HttpPort     int
-	DnsPort      int
-	DotPort      int
-	AllowedHosts []string
-	MetricsAuth  string
-	CronSchedule struct {
+	Upstreams     []string
+	DataDir       string
+	BlockListURLs []string
+	DevMode       bool
+	HttpPort      int
+	DnsPort       int
+	DotPort       int
+	AllowedHosts  []string
+	MetricsAuth   string
+	CronSchedule  struct {
 		Downloader  string
 		CacheReaper string
 	}
@@ -88,12 +88,17 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to open geoblock database")
 	}
 
-	hosts, err := blocklist.Fetch(app.BlockListUrl, app.Logger)
-	if err != nil {
-		return errors.Wrap(err, "failed to download blocklist")
+	allHosts := make([]string, 0)
+	for _, url := range app.BlockListURLs {
+		hosts, err := blocklist.Fetch(url, app.Logger)
+		if err != nil {
+			return errors.Wrapf(err, "failed to download blocklist: %s", url)
+		}
+
+		allHosts = append(allHosts, hosts...)
 	}
 
-	blockList := blocklist.NewBlockList(hosts, 0.0001, app.Logger)
+	blockList := blocklist.NewBlockList(allHosts, 0.0001, app.Logger)
 
 	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
 	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
@@ -101,7 +106,7 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListUrl)); err != nil {
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListURLs)); err != nil {
 		return errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
 

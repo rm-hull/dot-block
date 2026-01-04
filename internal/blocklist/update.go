@@ -14,23 +14,28 @@ import (
 
 type BlocklistUpdater struct {
 	blocklist *BlockList
-	url       string
+	urls      []string
 }
 
-func NewBlocklistUpdaterCronJob(blocklist *BlockList, url string) cron.Job {
+func NewBlocklistUpdaterCronJob(blocklist *BlockList, urls []string) cron.Job {
 	return &BlocklistUpdater{
 		blocklist: blocklist,
-		url:       url,
+		urls:      urls,
 	}
 }
 
 func (job *BlocklistUpdater) Run() {
-	items, err := Fetch(job.url, job.blocklist.logger)
-	if err != nil {
-		job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err)
-	}
+	allHosts := make([]string, 0)
+	for _, url := range job.urls {
+		hosts, err := Fetch(url, job.blocklist.logger)
+		if err != nil {
+			job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err, "url", url)
+			return
+		}
 
-	job.blocklist.Load(items)
+		allHosts = append(allHosts, hosts...)
+	}
+	job.blocklist.Load(allHosts)
 }
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
