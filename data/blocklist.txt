@@ -1,0 +1,11 @@
+# dot-block custom blocklist
+# Last modified: 04 Jan 2026 21:09 UTC
+# Notes: raise an issue/create a PR to add/remove entries from this blocklist
+#
+ad.doubleclick.net
+adservice.google.com
+doubleclick.net
+googleads.g.doubleclick.net
+googlesyndication.com
+pubads.g.doubleclick.net
+securepubads.g.doubleclick.net
