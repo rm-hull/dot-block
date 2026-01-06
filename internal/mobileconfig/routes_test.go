@@ -14,7 +14,7 @@ import (
 func TestHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/.mobileconfig", NewHandler("dot.destructuring-bind.org"))
+	r.GET("/.mobileconfig", NewHandler("localhost"))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/.mobileconfig", nil)
@@ -28,6 +28,6 @@ func TestHandler(t *testing.T) {
 	err := plist.NewDecoder(strings.NewReader(w.Body.String())).Decode(&profile)
 	assert.NoError(t, err)
 
-	assert.Equal(t, "dot.destructuring-bind.org", profile.PayloadContent[0].DNSSettings.ServerName)
+	assert.Equal(t, "localhost", profile.PayloadContent[0].DNSSettings.ServerName)
 	assert.NotEmpty(t, profile.PayloadContent[0].DNSSettings.ServerAddresses, "ServerAddresses should not be empty")
 }
