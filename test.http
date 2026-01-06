@@ -11,4 +11,4 @@ GET http://localhost:8080/healthz
 
 
 ### Mobile config
-GET http://192.168.68.120:8080/.mobileconfig
+GET http://localhost:8080/.mobileconfig
