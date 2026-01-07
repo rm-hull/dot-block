@@ -17,7 +17,7 @@ type BlocklistUpdater struct {
 	urls      []string
 }
 
-func NewBlocklistUpdaterCronJob(blocklist *BlockList, urls []string) *BlocklistUpdater {
+func NewBlocklistUpdater(blocklist *BlockList, urls []string) *BlocklistUpdater {
 	return &BlocklistUpdater{
 		blocklist: blocklist,
 		urls:      urls,
@@ -43,7 +43,7 @@ func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
 		go job.Run()
 		c.JSON(http.StatusAccepted, gin.H{
 			"message": "Blocklist reload triggered",
-			"urls": job.urls,
+			"urls":    job.urls,
 		})
 	}
 }
