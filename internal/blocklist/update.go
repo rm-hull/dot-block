@@ -40,8 +40,11 @@ func (job *BlocklistUpdater) Run() {
 
 func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		job.Run()
-		c.JSON(http.StatusOK, map[string]any{"urls": job.urls})
+		go job.Run()
+		c.JSON(http.StatusAccepted, gin.H{
+			"message": "Blocklist reload triggered",
+			"urls": job.urls,
+		})
 	}
 }
 
