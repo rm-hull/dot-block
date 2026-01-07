@@ -106,7 +106,8 @@ func (app *App) RunServer() error {
 	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListURLs)); err != nil {
+	blocklistUpdater := blocklist.NewBlocklistUpdaterCronJob(blockList, app.BlockListURLs)
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklistUpdater); err != nil {
 		return errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
 
@@ -145,7 +146,7 @@ func (app *App) RunServer() error {
 		}
 	}
 
-	r, err := app.startHttpServer(dnsClient)
+	r, err := app.startHttpServer(dnsClient, blocklistUpdater)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -202,7 +203,7 @@ func (app *App) RunServer() error {
 	return group.Wait()
 }
 
-func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient) (*gin.Engine, error) {
+func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -236,19 +237,21 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient) (*gin.Eng
 	}
 
 	if app.MetricsAuth == "" {
-		app.Logger.Warn("Metrics endpoint is not protected by basic auth")
+		app.Logger.Warn("Metrics & reload endpoints are not protected by basic auth")
 		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+		r.GET("/reload", blocklistUpdater.NewHandler())
 
 	} else {
 		parts := strings.SplitN(app.MetricsAuth, ":", 2)
 		if len(parts) == 2 {
-			app.Logger.Info("Protecting /metrics endpoint with basic auth")
+			app.Logger.Info("Protecting /metrics and /reload endpoints with basic auth")
 			user := parts[0]
 			pass := parts[1]
 			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
 				user: pass,
 			}))
 			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
+			authorized.GET("/reload", blocklistUpdater.NewHandler())
 
 		} else {
 			return nil, errors.Newf("invalid metrics-auth value: %s", app.MetricsAuth)
