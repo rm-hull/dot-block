@@ -12,3 +12,7 @@ GET http://localhost:8080/healthz
 
 ### Mobile config
 GET http://localhost:8080/.mobileconfig
+
+
+### Reload blocklist
+GET http://localhost:8080/reload

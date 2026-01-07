@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
+	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/downloader"
-	"github.com/robfig/cron/v3"
 )
 
 type BlocklistUpdater struct {
@@ -17,7 +17,7 @@ type BlocklistUpdater struct {
 	urls      []string
 }
 
-func NewBlocklistUpdaterCronJob(blocklist *BlockList, urls []string) cron.Job {
+func NewBlocklistUpdater(blocklist *BlockList, urls []string) *BlocklistUpdater {
 	return &BlocklistUpdater{
 		blocklist: blocklist,
 		urls:      urls,
@@ -36,6 +36,16 @@ func (job *BlocklistUpdater) Run() {
 		allHosts = append(allHosts, hosts...)
 	}
 	job.blocklist.Load(allHosts)
+}
+
+func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		go job.Run()
+		c.JSON(http.StatusAccepted, gin.H{
+			"message": "Blocklist reload triggered",
+			"urls":    job.urls,
+		})
+	}
 }
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
