@@ -1,13 +1,17 @@
 # dot-block custom blocklist
-# Last modified: 07 Jan 2026 07:55 UTC
+# Last modified: 10 Jan 2026 11:37 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.doubleclick.net
 adservice.google.com
+assets.adobedtm.com
 css-load.com
+c.amazon-adsystem.com
 doubleclick.net
+bf.dynatrace.com
 googleads.g.doubleclick.net
 googlesyndication.com
 html-load.com
 pubads.g.doubleclick.net
 securepubads.g.doubleclick.net
+telemetry.sdk.inmobi.com
