@@ -16,3 +16,4 @@ GET http://localhost:8080/.mobileconfig
 
 ### Reload blocklist
 GET http://localhost:8080/reload
+User-Agent: test-client

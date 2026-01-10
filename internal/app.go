@@ -227,7 +227,15 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 			Timeout:         5 * time.Second,
 		}),
 		gin.Recovery(),
-		sloggin.NewWithFilters(app.Logger, sloggin.IgnorePath("/healthz", "/metrics")),
+		sloggin.NewWithConfig(app.Logger, sloggin.Config{
+			DefaultLevel:     slog.LevelInfo,
+			ClientErrorLevel: slog.LevelWarn,
+			ServerErrorLevel: slog.LevelError,
+			WithUserAgent:    true,
+			WithRequestID:    true,
+			WithTraceID:      true,
+			Filters:          []sloggin.Filter{sloggin.IgnorePath("/healthz", "/metrics")},
+		}),
 		prometheus.Instrument(),
 		sentryErrorHandler(),
 	)
