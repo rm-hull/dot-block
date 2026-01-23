@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 10 Jan 2026 11:37 UTC
+# Last modified: 23 Jan 2026 12:45 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.doubleclick.net
@@ -12,6 +12,7 @@ bf.dynatrace.com
 googleads.g.doubleclick.net
 googlesyndication.com
 html-load.com
+jwpsrv.com
 pubads.g.doubleclick.net
 securepubads.g.doubleclick.net
 telemetry.sdk.inmobi.com
