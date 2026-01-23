@@ -12,7 +12,7 @@ require (
 	github.com/ip2location/ip2location-go/v9 v9.8.0
 	github.com/joho/godotenv v1.5.1
 	github.com/libdns/cloudflare v0.2.2
-	github.com/miekg/dns v1.1.70
+	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/slog-gin v1.19.1
 	github.com/stretchr/testify v1.11.1
