@@ -5,7 +5,7 @@ go 1.25.4
 require (
 	github.com/caddyserver/certmagic v0.25.1
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
-	github.com/getsentry/sentry-go v0.41.0
+	github.com/getsentry/sentry-go v0.42.0
 	github.com/getsentry/sentry-go/gin v0.41.0
 	github.com/gin-gonic/gin v1.11.0
 	github.com/google/uuid v1.6.0
