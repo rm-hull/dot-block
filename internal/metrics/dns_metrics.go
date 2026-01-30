@@ -168,7 +168,7 @@ func newSpaceSaverStatsCallback(ss *SpaceSaver, topK int) func() map[string]int 
 	return func() map[string]int {
 		results := make(map[string]int, topK)
 		for _, entry := range ss.TopN(topK) {
-			results[entry.Key] = entry.Count
+			results[entry.Key] = entry.Count - entry.Error
 		}
 		return results
 	}
