@@ -54,17 +54,17 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		})
 
 	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
-		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains", TOP_K),
+		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topDomains, TOP_K),
 	)
 
 	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", "hostname",
-		fmt.Sprintf("Shows the top %d blocked domains", TOP_K),
+		fmt.Sprintf("Shows the top %d blocked domains (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topBlockedDomains, TOP_K),
 	)
 
 	topClientsStats := NewStatsCollector("dns_top_clients", "ip_addr",
-		fmt.Sprintf("Shows the top %d most active clients", TOP_K),
+		fmt.Sprintf("Shows the top %d most active clients (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topClients, TOP_K),
 	)
 

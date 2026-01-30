@@ -52,4 +52,3 @@ func TestNewSpaceSaverStatsCallback(t *testing.T) {
 		})
 	}
 }
-
