@@ -14,7 +14,7 @@ require (
 	github.com/libdns/cloudflare v0.2.2
 	github.com/miekg/dns v1.1.72
 	github.com/prometheus/client_golang v1.23.2
-	github.com/samber/slog-gin v1.20.0
+	github.com/samber/slog-gin v1.20.1
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.1
 )
