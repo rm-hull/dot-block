@@ -1,6 +1,6 @@
 module github.com/rm-hull/dot-block
 
-go 1.25.4
+go 1.26
 
 require (
 	github.com/caddyserver/certmagic v0.25.1
