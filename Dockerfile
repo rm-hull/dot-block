@@ -1,4 +1,4 @@
-FROM golang:1.25-alpine AS build
+FROM golang:1.26-alpine AS build
 
 RUN apk update && \
     apk add --no-cache ca-certificates tzdata git && \
