@@ -84,7 +84,7 @@ require (
 	github.com/cockroachdb/errors v1.12.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
-	github.com/gin-contrib/pprof v1.5.3
+	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-contrib/sse v1.1.0 // indirect
 	github.com/go-pkgz/expirable-cache/v3 v3.1.0
 	github.com/go-playground/locales v0.14.1 // indirect
