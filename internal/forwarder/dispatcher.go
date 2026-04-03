@@ -68,7 +68,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 		d.metrics.RequestLatency.Observe(duration)
 		d.metrics.RequestCounts.WithLabelValues("total").Inc()
 
-		loc, err := d.geoIpLookup.Get_all(ipAddr)
+		loc, err := d.geoIpLookup.GetAll(ipAddr)
 		if err != nil {
 			requestLogger.Warn("failed to get geolocation for client IP", "error", err)
 		} else {

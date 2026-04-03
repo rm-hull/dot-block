@@ -17,13 +17,13 @@ import (
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
-	"github.com/ip2location/ip2location-go/v9"
 	"github.com/joho/godotenv"
 	"github.com/libdns/cloudflare"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/rm-hull/godx"
@@ -49,6 +49,7 @@ type App struct {
 	CronSchedule  struct {
 		Downloader  string
 		CacheReaper string
+		IP2Location string
 	}
 	Logger       *slog.Logger
 	NoDnsLogging bool
@@ -71,21 +72,29 @@ func (app *App) RunServer() error {
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	timeout := 3 * time.Second
-	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize upstream DNS client")
+	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
+	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
+	crontab.Start()
+	defer crontab.Stop()
+
+	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
+		app.Logger.Info("Geolocation database not found, downloading...")
+		_, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to download geoblock database")
+		}
 	}
 
-	// _, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to download geoblock database")
-	// }
-	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
 	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
-	geoIpDb, err := ip2location.OpenDB(geolocationDb)
+	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
 	if err != nil {
 		return errors.Wrap(err, "failed to open geoblock database")
+	}
+
+	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
+	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
+		return errors.Wrap(err, "failed to create IP2Location updater cron job")
 	}
 
 	allHosts := make([]string, 0)
@@ -99,11 +108,6 @@ func (app *App) RunServer() error {
 	}
 
 	blockList := blocklist.NewBlockList(allHosts, 0.0001, app.Logger)
-
-	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
-	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
-	crontab.Start()
-	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
 	blocklistUpdater := blocklist.NewBlocklistUpdater(blockList, app.BlockListURLs)
@@ -146,12 +150,18 @@ func (app *App) RunServer() error {
 		}
 	}
 
+	timeout := 3 * time.Second
+	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize upstream DNS client")
+	}
+
 	r, err := app.startHttpServer(dnsClient, blocklistUpdater)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpDb, CACHE_SIZE, app.Logger, app.NoDnsLogging)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, CACHE_SIZE, app.Logger, app.NoDnsLogging)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
