@@ -3,6 +3,7 @@ package geoblock
 import (
 	"sync"
 
+	"github.com/cockroachdb/errors"
 	"github.com/ip2location/ip2location-go/v9"
 )
 
@@ -50,7 +51,7 @@ func (g *geoBlocker) GetAll(ipAddress string) (ip2location.IP2Locationrecord, er
 	defer g.mu.RUnlock()
 
 	if g.db == nil {
-		return ip2location.IP2Locationrecord{}, nil
+		return ip2location.IP2Locationrecord{}, errors.New("geoblock database not initialized")
 	}
 
 	return g.db.Get_all(ipAddress)
