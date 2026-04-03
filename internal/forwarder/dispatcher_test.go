@@ -23,9 +23,13 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) Get_all(ipAddress string) (ip2location.IP2Locationrecord, error) {
+func (m *MockGeoIpLookup) GetAll(ipAddress string) (ip2location.IP2Locationrecord, error) {
 	args := m.Called(ipAddress)
 	return args.Get(0).(ip2location.IP2Locationrecord), args.Error(1)
+}
+
+func (m *MockGeoIpLookup) Reopen() error {
+	return nil
 }
 
 // MockResponseWriter is a mock implementation of dns.ResponseWriter.
@@ -86,7 +90,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
@@ -124,7 +128,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
@@ -163,7 +167,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
@@ -214,7 +218,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	assert.NoError(t, err)
@@ -269,7 +273,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 	require.NoError(t, err)
@@ -303,7 +307,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	t.Run("Logging disabled", func(t *testing.T) {
 		logBuf.Reset()
 		mockGeo := new(MockGeoIpLookup)
-		mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, true)
 		require.NoError(t, err)
@@ -321,7 +325,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	t.Run("Logging enabled", func(t *testing.T) {
 		logBuf.Reset()
 		mockGeo := new(MockGeoIpLookup)
-		mockGeo.On("Get_all", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
 		require.NoError(t, err)

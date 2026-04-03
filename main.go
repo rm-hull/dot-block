@@ -11,6 +11,7 @@ import (
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
 const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "@every 10m"
+const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *" // 7:05am on the 4th of every month
 
 var DEFAULT_BLOCKLIST_URLS = []string{
 	"https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt", // Hagezi Pro blocklist
@@ -69,6 +70,7 @@ func main() {
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
 	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", DEFAULT_DOWNLOADER_CRON_SCHEDULE, "cron spec for reloading blocklist")
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
+	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)

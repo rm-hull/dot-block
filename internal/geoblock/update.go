@@ -17,23 +17,28 @@ import (
 )
 
 type Ip2LocationUpdater struct {
-	logger  *slog.Logger
-	fileId  string
-	dataDir string
+	logger      *slog.Logger
+	fileId      string
+	dataDir     string
+	geoIpLookup GeoIpLookup
 }
 
-func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string) *Ip2LocationUpdater {
+func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string, geoIpLookup GeoIpLookup) *Ip2LocationUpdater {
 	return &Ip2LocationUpdater{
 		logger:  logger,
 		fileId:  fileId,
 		dataDir: dataDir,
+		geoIpLookup: geoIpLookup,
 	}
 }
 
 func (job *Ip2LocationUpdater) Run() {
-	_, err := Fetch(job.fileId, job.dataDir, job.logger)
-	if err != nil {
+	if _, err := Fetch(job.fileId, job.dataDir, job.logger); err != nil {
 		job.logger.Error("failed to download ip2location list for cron reload", "error", err)
+	}
+
+	if err := job.geoIpLookup.Reopen(); err != nil {
+		job.logger.Error("failed to reopen geoblock database after update", "error", err)
 	}
 }
 

@@ -17,13 +17,13 @@ import (
 	sentrygin "github.com/getsentry/sentry-go/gin"
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
-	"github.com/ip2location/ip2location-go/v9"
 	"github.com/joho/godotenv"
 	"github.com/libdns/cloudflare"
 	"github.com/miekg/dns"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/rm-hull/godx"
@@ -49,6 +49,7 @@ type App struct {
 	CronSchedule  struct {
 		Downloader  string
 		CacheReaper string
+		IP2Location string
 	}
 	Logger       *slog.Logger
 	NoDnsLogging bool
@@ -77,13 +78,17 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	// _, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
-	// if err != nil {
-	// 	return errors.Wrap(err, "failed to download geoblock database")
-	// }
 	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
+		app.Logger.Info("Geolocation database not found, downloading...")
+		_, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+		if err != nil {
+			return errors.Wrap(err, "failed to download geoblock database")
+		}
+	}
+
 	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
-	geoIpDb, err := ip2location.OpenDB(geolocationDb)
+	geoIpDb, err := geoblock.NewGeoIpLookup(geolocationDb)
 	if err != nil {
 		return errors.Wrap(err, "failed to open geoblock database")
 	}
@@ -158,6 +163,11 @@ func (app *App) RunServer() error {
 	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
 	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
+	}
+
+	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
+	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpDb)); err != nil {
+		return errors.Wrap(err, "failed to create IP2Location updater cron job")
 	}
 
 	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
