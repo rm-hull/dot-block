@@ -72,11 +72,10 @@ func (app *App) RunServer() error {
 	}
 	defer sentry.Flush(2 * time.Second)
 
-	timeout := 3 * time.Second
-	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize upstream DNS client")
-	}
+	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
+	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
+	crontab.Start()
+	defer crontab.Stop()
 
 	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
@@ -88,9 +87,14 @@ func (app *App) RunServer() error {
 	}
 
 	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
-	geoIpDb, err := geoblock.NewGeoIpLookup(geolocationDb)
+	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
 	if err != nil {
 		return errors.Wrap(err, "failed to open geoblock database")
+	}
+
+	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
+	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
+		return errors.Wrap(err, "failed to create IP2Location updater cron job")
 	}
 
 	allHosts := make([]string, 0)
@@ -104,11 +108,6 @@ func (app *App) RunServer() error {
 	}
 
 	blockList := blocklist.NewBlockList(allHosts, 0.0001, app.Logger)
-
-	adapter := logging.NewCronLoggerAdapter(app.Logger, "cron")
-	crontab := cron.New(cron.WithChain(cron.Recover(adapter)), cron.WithLogger(adapter))
-	crontab.Start()
-	defer crontab.Stop()
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
 	blocklistUpdater := blocklist.NewBlocklistUpdater(blockList, app.BlockListURLs)
@@ -151,23 +150,24 @@ func (app *App) RunServer() error {
 		}
 	}
 
+	timeout := 3 * time.Second
+	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize upstream DNS client")
+	}
+
 	r, err := app.startHttpServer(dnsClient, blocklistUpdater)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpDb, CACHE_SIZE, app.Logger, app.NoDnsLogging)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, CACHE_SIZE, app.Logger, app.NoDnsLogging)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
 	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
 	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
-	}
-
-	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
-	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpDb)); err != nil {
-		return errors.Wrap(err, "failed to create IP2Location updater cron job")
 	}
 
 	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
