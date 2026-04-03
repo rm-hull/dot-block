@@ -125,6 +125,7 @@ DoT Block can be configured using the following command-line flags:
 | `--blocklist-url` | URL of the blocklist (wildcard hostname format). | `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `@every 10m` |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
+| `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
 | `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |
 | `--dev-mode` | Run the server in dev mode (no TLS, plain TCP). | `false` |
 | `--dns-port` | The port to run regular DNS (UDP/TCP) server on. | `53` |
