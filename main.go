@@ -3,6 +3,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/rm-hull/dot-block/internal"
 	"github.com/rm-hull/dot-block/internal/logging"
@@ -27,9 +28,26 @@ var DEFAULT_UPSTREAM_DNS = []string{
 	"149.112.112.112:53",
 }
 
+func parseLogLevel(level string) slog.Level {
+	switch strings.ToUpper(level) {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
 func main() {
+	var logLevelVar slog.LevelVar
 	app := internal.App{
 		Logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+			Level:       &logLevelVar,
 			ReplaceAttr: logging.ReplaceAttr,
 		})),
 	}
@@ -41,6 +59,7 @@ func main() {
 		Use:   "dotserver",
 		Short: "DNS-over-TLS server",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			logLevelVar.Set(parseLogLevel(app.LogLevel))
 			app.DnsPort = dnsPort
 			app.DotPort = dotPort
 
@@ -58,6 +77,7 @@ func main() {
 		},
 	}
 
+	rootCmd.Flags().StringVar(&app.LogLevel, "log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	rootCmd.Flags().BoolVar(&app.NoDnsLogging, "no-dns-logging", false, "Disable all DNS query logging")
 	rootCmd.Flags().StringArrayVar(&app.BlockListURLs, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")

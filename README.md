@@ -131,6 +131,7 @@ DoT Block can be configured using the following command-line flags:
 | `--dns-port` | The port to run regular DNS (UDP/TCP) server on. | `53` |
 | `--dot-port` | The port to run DNS-over-TLS server on. | `853` |
 | `--http-port` | The port to run the HTTP server on. | `80` |
+| `--log-level` | The log level (DEBUG, INFO, WARN, ERROR). | `INFO` |
 | `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 | `--no-dns-logging` | Disable all DNS query logging. | `false` |
 | `--upstream` | Upstream DNS resolvers to forward queries to. | `8.8.8.8:53`, `8.8.4.4:53`, `1.1.1.1:53`, `1.0.0.1:53`, `9.9.9.9:53`, `149.112.112.112:53` |

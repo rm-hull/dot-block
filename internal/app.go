@@ -52,6 +52,7 @@ type App struct {
 		IP2Location string
 	}
 	Logger       *slog.Logger
+	LogLevel     string
 	NoDnsLogging bool
 }
 
