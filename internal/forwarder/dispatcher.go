@@ -15,14 +15,13 @@ import (
 )
 
 type DNSDispatcher struct {
-	dnsClient    *RoundRobinClient
-	defaultTTL   float64
-	cache        cache.Cache[string, []dns.RR]
-	blockList    *blocklist.BlockList
-	geoIpLookup  geoblock.GeoIpLookup
-	metrics      *metrics.DnsMetrics
-	logger       *slog.Logger
-	queryLogging bool
+	dnsClient   *RoundRobinClient
+	defaultTTL  float64
+	cache       cache.Cache[string, []dns.RR]
+	blockList   *blocklist.BlockList
+	geoIpLookup geoblock.GeoIpLookup
+	metrics     *metrics.DnsMetrics
+	logger      *slog.Logger
 }
 
 func NewDNSDispatcher(
@@ -31,7 +30,6 @@ func NewDNSDispatcher(
 	geoIpLookup geoblock.GeoIpLookup,
 	maxSize int,
 	logger *slog.Logger,
-	noDnsLogging bool,
 ) (*DNSDispatcher, error) {
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
@@ -41,14 +39,13 @@ func NewDNSDispatcher(
 	}
 
 	return &DNSDispatcher{
-		dnsClient:    dnsClient,
-		defaultTTL:   300, // TODO: pass in
-		cache:        cache,
-		blockList:    blockList,
-		geoIpLookup:  geoIpLookup,
-		metrics:      metrics,
-		logger:       logger,
-		queryLogging: !noDnsLogging,
+		dnsClient:   dnsClient,
+		defaultTTL:  300, // TODO: pass in
+		cache:       cache,
+		blockList:   blockList,
+		geoIpLookup: geoIpLookup,
+		metrics:     metrics,
+		logger:      logger,
 	}, nil
 }
 
@@ -122,9 +119,7 @@ func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg
 
 func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Question) ([]dns.RR, error) {
 	queryType := getQueryType(q)
-	if d.queryLogging {
-		requestLogger.Info("Query received", "name", q.Name, "type", queryType)
-	}
+	requestLogger.Debug("Query received", "name", q.Name, "type", queryType)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
@@ -133,9 +128,7 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 	}
 
 	if isBlocked {
-		if d.queryLogging {
-			requestLogger.Info("Domain blocked", "name", q.Name)
-		}
+		requestLogger.Debug("Domain blocked", "name", q.Name)
 		d.metrics.TopBlockedDomains.Add(q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 

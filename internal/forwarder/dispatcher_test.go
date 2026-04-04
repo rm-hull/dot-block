@@ -92,7 +92,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -130,7 +130,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -169,7 +169,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -220,7 +220,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 	assert.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -275,7 +275,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 	require.NoError(t, err)
 
 	req := new(dns.Msg)
@@ -293,9 +293,8 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	var logBuf bytes.Buffer
-	logger := slog.New(slog.NewTextHandler(&logBuf, nil))
 
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 	defer func() {
 		_ = server.Shutdown()
@@ -304,12 +303,13 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
 	require.NoError(t, err)
 
-	t.Run("Logging disabled", func(t *testing.T) {
+	t.Run("Logging at INFO level (should not contain debug logs)", func(t *testing.T) {
 		logBuf.Reset()
+		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, true)
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)
@@ -322,12 +322,13 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		assert.NotContains(t, logBuf.String(), "Query received")
 	})
 
-	t.Run("Logging enabled", func(t *testing.T) {
+	t.Run("Logging at DEBUG level", func(t *testing.T) {
 		logBuf.Reset()
+		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger, false)
+		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, logger)
 		require.NoError(t, err)
 
 		req := new(dns.Msg)
@@ -421,7 +422,7 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 
 func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
+	deadline := deadline(t, timeout)
 	client := dns.Client{DialTimeout: 100 * time.Millisecond}
 	req := new(dns.Msg)
 	req.SetQuestion(probeName, dns.TypeA)
@@ -437,4 +438,12 @@ func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
 	}
 
 	t.Fatalf("server not ready at %s", addr)
+}
+
+func deadline(t *testing.T, timeout time.Duration) time.Time {
+	t.Helper()
+	if d, ok := t.Deadline(); ok {
+		return d.Add(-time.Second)
+	}
+	return time.Now().Add(timeout)
 }

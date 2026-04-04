@@ -51,9 +51,8 @@ type App struct {
 		CacheReaper string
 		IP2Location string
 	}
-	Logger       *slog.Logger
-	LogLevel     string
-	NoDnsLogging bool
+	Logger   *slog.Logger
+	LogLevel string
 }
 
 func (app *App) RunServer() error {
@@ -162,7 +161,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, CACHE_SIZE, app.Logger, app.NoDnsLogging)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, CACHE_SIZE, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
