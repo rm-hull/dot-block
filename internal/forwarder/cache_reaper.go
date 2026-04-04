@@ -17,7 +17,7 @@ func (job *CacheReaper) Run() {
 	job.dispatcher.cache.DeleteExpired()
 
 	sizeAfter := job.dispatcher.cache.Len()
-	job.dispatcher.logger.Info("Cleaned up expired DNS cache entries",
+	job.dispatcher.logger.Debug("Cleaned up expired DNS cache entries",
 		"size", sizeAfter,
 		"removed", sizeBefore-sizeAfter)
 
