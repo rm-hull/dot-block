@@ -171,9 +171,9 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
 		// Propagate the upstream response Rcode if not successful
-		return upstreamResp.Rcode, nil, errors.Newf(
-			"upstream resolver (%s) returned Rcode: %s",
-			upstream, dns.RcodeToString[upstreamResp.Rcode],
+		return upstreamResp.Rcode, nil, errors.NewWithDepthf(0,
+			"upstream resolver (%s) returned Rcode: %s for query: %s",
+			upstream, dns.RcodeToString[upstreamResp.Rcode], unansweredQuestions[0].Name,
 		)
 	}
 
