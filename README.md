@@ -122,7 +122,7 @@ DoT Block can be configured using the following command-line flags:
 | Flag | Description | Default |
 | :--- | :--- | :--- |
 | `--allowed-host` | List of domains used for the CertManager allow policy. | `nil` |
-| `--blocklist-url` | URL of the blocklist (wildcard hostname format). | `https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt` |
+| `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `@every 10m` |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
 | `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |

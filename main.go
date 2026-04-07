@@ -15,8 +15,8 @@ const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "@every 10m"
 const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *" // 7:05am on the 4th of every month
 
 var DEFAULT_BLOCKLIST_URLS = []string{
-	"https://gitlab.com/hagezi/mirror/-/raw/main/dns-blocklists/wildcard/pro-onlydomains.txt", // Hagezi Pro blocklist
-	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",  // dot-block default blocklist
+	"https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt",       // Hagezi Pro blocklist
+	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt", // dot-block default blocklist
 }
 
 var DEFAULT_UPSTREAM_DNS = []string{
