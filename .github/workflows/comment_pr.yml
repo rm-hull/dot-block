@@ -1,0 +1,80 @@
+name: Gemini PR Comment Collaborator
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  pr-update:
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '@gemini-pr-agent') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate token
+        id: generate_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.GEMINI_PR_AGENT_CLIENT_ID }}
+          private-key: ${{ secrets.GEMINI_PR_AGENT_PRIVATE_KEY }}
+
+      - name: Fetch PR Details
+        id: pr_data
+        run: |
+          PR_JSON=$(curl -s -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
+            "${{ github.event.issue.pull_request.url }}")
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+
+      - name: Checkout PR Branch
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          ref: ${{ steps.pr_data.outputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Run Gemini CLI Iteration
+        id: gemini_agent
+        uses: google-github-actions/run-gemini-cli@v0
+        env:
+          GEMINI_CLI_TRUST_WORKSPACE: true
+        with:
+          gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
+          gemini_model: gemini-3.1-flash-lite
+          prompt: |
+            You are helping iterate on an existing Pull Request.
+            The user has left a comment asking for changes.
+            Analyze the existing workspace and execute the requested changes.
+
+            User Request: ${{ github.event.comment.body }}
+
+      - name: Commit and Push Changes
+        env:
+          SUMMARY: ${{ steps.gemini_agent.outputs.summary }}
+          HEAD_REF: ${{ steps.pr_data.outputs.head_ref }}
+        run: |
+          git config --global user.name "gemini-pr-agent[bot]"
+          git config --global user.email "gemini-pr-agent[bot]@users.noreply.github.com"
+
+          # Check if Gemini actually made any file changes
+          if [ -n "$(git status --porcelain)" ]; then
+            git add .
+            git commit -m "chore: iterative updates from Gemini based on PR comment" -m "$SUMMARY"
+            git push origin "HEAD:$HEAD_REF"
+          else
+            echo "No changes detected from Gemini CLI."
+          fi
+
+      - name: Comment on PR with Summary
+        env:
+          SUMMARY: ${{ steps.gemini_agent.outputs.summary }}
+        run: |
+          COMMENT_BODY=$(jq -n --arg body "$SUMMARY" '{"body": $body}')
+          curl -s -X POST \
+            -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
+            -H "Content-Type: application/json" \
+            -d "$COMMENT_BODY" \
+            "${{ github.event.issue.comments_url }}"
