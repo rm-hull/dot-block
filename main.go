@@ -46,7 +46,7 @@ func parseLogLevel(level string) slog.Level {
 func main() {
 	var logLevelVar slog.LevelVar
 	app := internal.App{
-		Logger: slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Logger: slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level:       &logLevelVar,
 			ReplaceAttr: logging.ReplaceAttr,
 		})),

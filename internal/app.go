@@ -109,7 +109,7 @@ func (app *App) RunServer() error {
 
 	blockList := blocklist.NewBlockList(allHosts, 0.0001, app.Logger)
 
-	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule)
+	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
 	blocklistUpdater := blocklist.NewBlocklistUpdater(blockList, app.BlockListURLs)
 	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklistUpdater); err != nil {
 		return errors.Wrap(err, "failed to create blocklist downloader cron job")
