@@ -1,21 +1,47 @@
 # dot-block custom blocklist
-# Last modified: 29 May 2026 22:51 BST
+# Last modified: 29 May 2026 23:09 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
+ad.360yield.com
 ad.doubleclick.net
+adform.net
+ads.betweendigital.com
 adservice.google.com
 assets.adobedtm.com
-css-load.com
-c.amazon-adsystem.com
-doubleclick.net
 bf.dynatrace.com
+c.amazon-adsystem.com
+channelexco.com
+ex.co
+comcluster.cxense.com
+css-load.com
+doubleclick.net
+dsp.360yield.com
+flashtalking.com
+g2.gumgum.com
 googleads.g.doubleclick.net
 googlesyndication.com
-img.outbrainimg.com
+gw.geoedge.be
+hbopenbid.pubmatic.com
 html-load.com
+img.outbrainimg.com
 jwpsrv.com
-paid.outbrain.co.
+match.prod.bidr.io
+paid.outbrain.com
+pixel-sync.sitescout.com
+prg.smartadserver.com
 pubads.g.doubleclick.net
+pubmatic.com
+richaudience.com
+rubiconproject.com
 securepubads.g.doubleclick.net
+sync.ipredictive.com
+t.adx.opera.com
+t.oa.opera.com
 telemetry.sdk.inmobi.com
+tpsc-video-eu.doubleverify.com
+unified.adsafeprotected.com
+usersync.gumgum.com
+video.quantcount.com
+vtrk.dv.tech
 widgets.outbrain.com
+x.bidswitch.net
