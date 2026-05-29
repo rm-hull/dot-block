@@ -1,11 +1,12 @@
 # dot-block custom blocklist
-# Last modified: 29 May 2026 23:09 BST
+# Last modified: 29 May 2026 23:51 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
 ad.doubleclick.net
 adform.net
 ads.betweendigital.com
+ads.theyorkmix.com
 adservice.google.com
 assets.adobedtm.com
 bf.dynatrace.com
@@ -25,6 +26,7 @@ hbopenbid.pubmatic.com
 html-load.com
 img.outbrainimg.com
 jwpsrv.com
+lendhassle.com
 match.prod.bidr.io
 paid.outbrain.com
 pixel-sync.sitescout.com
@@ -37,6 +39,7 @@ securepubads.g.doubleclick.net
 sync.ipredictive.com
 t.adx.opera.com
 t.oa.opera.com
+taboola.com
 telemetry.sdk.inmobi.com
 tpsc-video-eu.doubleverify.com
 unified.adsafeprotected.com
