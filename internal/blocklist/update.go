@@ -70,6 +70,9 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 			} else if len(strings.Trim(line, "# ")) == 0 {
 				continue
 			} else {
+				if after, ok :=strings.CutPrefix(line, "0.0.0.0 "); ok  {
+					line = after
+				}
 				blocklist = append(blocklist, line)
 			}
 		}
