@@ -13,6 +13,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 -   **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
 -   **Prometheus Metrics:** Exports detailed metrics for monitoring.
 -   **Error Reporting (Sentry):** Integrates with Sentry for real-time error tracking and reporting.
+-   **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
 
 ## Getting Started
 
