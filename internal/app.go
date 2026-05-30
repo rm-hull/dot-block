@@ -182,6 +182,7 @@ func (app *App) RunServer() error {
 
 	group.Go(func() error {
 		if app.DnsPort == 0 {
+			app.Logger.Warn("Skipping UDP DNS server: dns-port not specified")
 			return nil
 		}
 		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
@@ -191,6 +192,7 @@ func (app *App) RunServer() error {
 
 	group.Go(func() error {
 		if app.DnsPort == 0 {
+			app.Logger.Warn("Skipping TCP DNS server: dns-port not specified")
 			return nil
 		}
 		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)

@@ -71,11 +71,6 @@ func main() {
 					app.DotPort = 8853
 				}
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
-			} else {
-				if !cmd.Flags().Changed("dns-port") {
-					app.DnsPort = 0
-					app.Logger.Warn("dns-port not specified, skipping regular DNS server")
-				}
 			}
 
 			return app.RunServer()
