@@ -291,6 +291,18 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
 }
 
+func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	dnsClient, _ := NewRoundRobinClient(2*time.Second, "8.8.8.8:53")
+	mockGeo := new(MockGeoIpLookup)
+
+	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, -1*time.Second, logger)
+	assert.Error(t, err)
+	assert.Nil(t, dispatcher)
+	assert.Contains(t, err.Error(), "cacheTtlFloor cannot be negative")
+}
+
 func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	var logBuf bytes.Buffer
 

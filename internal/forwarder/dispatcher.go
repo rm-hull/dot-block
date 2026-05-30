@@ -35,6 +35,10 @@ func NewDNSDispatcher(
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
 
+	if cacheTtlFloor < 0 {
+		return nil, errors.New("cacheTtlFloor cannot be negative")
+	}
+
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
