@@ -114,7 +114,7 @@ Extract and summarise:
 | GC cycles | `go_gc_duration_seconds_count` | |
 | CPU time | `process_cpu_seconds_total` | divide by uptime for avg CPU % |
 | Upstream errors | `dns_error_count{category="upstream"}` | flag if > 0 |
-| Blocklist age | `blocklist_age` (hh:mm:ss) | flag if > 24 h |
+| Blocklist age | `blocklist_age` (number of seconds) | flag if > 24 h |
 | Blocklist size | `blocklist_size` | |
 
 Verdict: flag anything anomalous (high GC pauses, high error count, stale blocklist, memory leaks
