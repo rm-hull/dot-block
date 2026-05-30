@@ -5,7 +5,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 ## Features
 
 -   **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
--   **Regular DNS:** Supports standard UDP and TCP DNS queries on port 53.
+-   **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
 -   **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
 -   **High Performance:** Built with Go for speed and efficiency.
 -   **Caching:** Caches DNS responses to speed up subsequent lookups.
@@ -54,10 +54,10 @@ You can test the server using `dig` or `openssl`.
 
 ### `dig`
 
-**Regular DNS (UDP/TCP):**
+**Regular DNS (UDP/TCP, if configured):**
 
 ```bash
-dig @dot.your-domain.com -p 53 example.com A
+dig @dot.your-domain.com -p <DNS_PORT> example.com A
 ```
 
 **Production (TLS):**
@@ -128,7 +128,7 @@ DoT Block can be configured using the following command-line flags:
 | `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
 | `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |
 | `--dev-mode` | Run the server in dev mode (no TLS, plain TCP). | `false` |
-| `--dns-port` | The port to run regular DNS (UDP/TCP) server on. | `53` |
+| `--dns-port` | The port to run regular DNS (UDP/TCP) server on. If omitted, the regular DNS server will not start. | `0` |
 | `--dot-port` | The port to run DNS-over-TLS server on. | `853` |
 | `--http-port` | The port to run the HTTP server on. | `80` |
 | `--log-level` | The log level (DEBUG, INFO, WARN, ERROR). | `INFO` |

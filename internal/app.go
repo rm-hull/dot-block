@@ -181,12 +181,18 @@ func (app *App) RunServer() error {
 	})
 
 	group.Go(func() error {
+		if app.DnsPort == 0 {
+			return nil
+		}
 		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "udp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()
 	})
 
 	group.Go(func() error {
+		if app.DnsPort == 0 {
+			return nil
+		}
 		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
 		srv := &dns.Server{Addr: dnsPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
 		return srv.ListenAndServe()

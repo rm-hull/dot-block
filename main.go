@@ -71,6 +71,11 @@ func main() {
 					app.DotPort = 8853
 				}
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
+			} else {
+				if !cmd.Flags().Changed("dns-port") {
+					app.DnsPort = 0
+					app.Logger.Warn("dns-port not specified, skipping regular DNS server")
+				}
 			}
 
 			return app.RunServer()
@@ -81,7 +86,7 @@ func main() {
 	rootCmd.Flags().StringArrayVar(&app.BlockListURLs, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
-	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 53, "The port to run regular DNS (UDP/TCP) server on")
+	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 0, "The port to run regular DNS (UDP/TCP) server on")
 	rootCmd.Flags().IntVar(&dotPort, "dot-port", 853, "The port to run DNS-over-TLS server on")
 	rootCmd.Flags().StringArrayVar(&app.Upstreams, "upstream", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolvers to forward queries to")
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
