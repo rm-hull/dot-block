@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 29 May 2026 23:51 BST
+# Last modified: 30 May 2026 22:01 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
@@ -11,6 +11,7 @@ adservice.google.com
 assets.adobedtm.com
 bf.dynatrace.com
 c.amazon-adsystem.com
+cdn.optimizely.com
 channelexco.com
 ex.co
 comcluster.cxense.com
