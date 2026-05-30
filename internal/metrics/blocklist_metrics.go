@@ -10,7 +10,7 @@ import (
 
 type BlockListMetrics struct {
 	size        prometheus.Gauge
-	age         prometheus.CounterFunc
+	age         prometheus.GaugeFunc
 	reloads     prometheus.Counter
 	lastUpdated time.Time
 }
@@ -25,7 +25,7 @@ func NewBlockListMetrics() (*BlockListMetrics, error) {
 		Help: "The number of entries in the blocklist",
 	})
 
-	metrics.age = prometheus.NewCounterFunc(prometheus.CounterOpts{
+	metrics.age = prometheus.NewGaugeFunc(prometheus.GaugeOpts{
 		Name: "blocklist_age",
 		Help: "The age (in seconds) since the blocklist was last reloaded",
 	}, func() float64 {
