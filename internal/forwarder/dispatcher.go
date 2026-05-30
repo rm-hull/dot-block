@@ -199,7 +199,7 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 			upstreamTTL := answersForQuestion[0].Header().Ttl
 			effectiveTTL := time.Duration(upstreamTTL) * time.Second
 
-			if !d.isFreshnessSensitive(&q) && time.Duration(upstreamTTL)*time.Second < d.cacheTtlFloor {
+			if !d.isFreshnessSensitive(&q) && effectiveTTL < d.cacheTtlFloor {
 				effectiveTTL = d.cacheTtlFloor
 			}
 
