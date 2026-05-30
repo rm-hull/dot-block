@@ -92,6 +92,8 @@ func main() {
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
 	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")
 	rootCmd.Flags().DurationVar(&app.CacheTtlFloor, "cache-ttl-floor", 3600*time.Second, "Minimum TTL for cached entries")
+	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
+	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)

@@ -25,9 +25,9 @@ type Ip2LocationUpdater struct {
 
 func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string, geoIpLookup GeoIpLookup) *Ip2LocationUpdater {
 	return &Ip2LocationUpdater{
-		logger:  logger,
-		fileId:  fileId,
-		dataDir: dataDir,
+		logger:      logger,
+		fileId:      fileId,
+		dataDir:     dataDir,
 		geoIpLookup: geoIpLookup,
 	}
 }

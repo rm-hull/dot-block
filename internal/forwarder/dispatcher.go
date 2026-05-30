@@ -21,9 +21,9 @@ type DNSDispatcher struct {
 	cacheTtlFloor time.Duration
 	cache         cache.Cache[string, []dns.RR]
 	blockList     *blocklist.BlockList
-	geoIpLookup geoblock.GeoIpLookup
-	metrics     *metrics.DnsMetrics
-	logger      *slog.Logger
+	geoIpLookup   geoblock.GeoIpLookup
+	metrics       *metrics.DnsMetrics
+	logger        *slog.Logger
 }
 
 func NewDNSDispatcher(
