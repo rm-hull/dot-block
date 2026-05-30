@@ -51,7 +51,7 @@ type App struct {
 		CacheReaper string
 		IP2Location string
 	}
-	CacheTtlFloor int
+	CacheTtlFloor time.Duration
 	Logger        *slog.Logger
 	LogLevel      string
 }

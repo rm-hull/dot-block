@@ -18,7 +18,7 @@ import (
 type DNSDispatcher struct {
 	dnsClient     *RoundRobinClient
 	defaultTTL    float64
-	cacheTtlFloor int
+	cacheTtlFloor time.Duration
 	cache         cache.Cache[string, []dns.RR]
 	blockList     *blocklist.BlockList
 	geoIpLookup geoblock.GeoIpLookup
@@ -31,7 +31,7 @@ func NewDNSDispatcher(
 	blockList *blocklist.BlockList,
 	geoIpLookup geoblock.GeoIpLookup,
 	maxSize int,
-	cacheTtlFloor int,
+	cacheTtlFloor time.Duration,
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
 
@@ -195,8 +195,8 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 			upstreamTTL := answersForQuestion[0].Header().Ttl
 			effectiveTTL := time.Duration(upstreamTTL) * time.Second
 
-			if !d.isFreshnessSensitive(&q) && upstreamTTL < uint32(d.cacheTtlFloor) {
-				effectiveTTL = time.Duration(d.cacheTtlFloor) * time.Second
+			if !d.isFreshnessSensitive(&q) && time.Duration(upstreamTTL)*time.Second < d.cacheTtlFloor {
+				effectiveTTL = d.cacheTtlFloor
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
