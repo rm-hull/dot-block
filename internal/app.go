@@ -229,12 +229,6 @@ func (app *App) RunServer() error {
 			if err != nil {
 				return err
 			}
-			defer func() {
-				err := proxyListener.Close()
-				if err != nil {
-					app.Logger.Warn("error closing PROXY protocol listener", "error", err)
-				}
-			}()
 
 			listener = tls.NewListener(proxyListener, &tls.Config{
 				MinVersion:     tls.VersionTLS12,
