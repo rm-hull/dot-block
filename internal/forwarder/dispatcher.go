@@ -3,6 +3,7 @@ package forwarder
 import (
 	"log/slog"
 	"net"
+	"strings"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -15,10 +16,11 @@ import (
 )
 
 type DNSDispatcher struct {
-	dnsClient   *RoundRobinClient
-	defaultTTL  float64
-	cache       cache.Cache[string, []dns.RR]
-	blockList   *blocklist.BlockList
+	dnsClient     *RoundRobinClient
+	defaultTTL    float64
+	cacheTtlFloor time.Duration
+	cache         cache.Cache[string, []dns.RR]
+	blockList     *blocklist.BlockList
 	geoIpLookup geoblock.GeoIpLookup
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
@@ -29,8 +31,13 @@ func NewDNSDispatcher(
 	blockList *blocklist.BlockList,
 	geoIpLookup geoblock.GeoIpLookup,
 	maxSize int,
+	cacheTtlFloor time.Duration,
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
+
+	if cacheTtlFloor < 0 {
+		return nil, errors.New("cacheTtlFloor cannot be negative")
+	}
 
 	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 	metrics, err := metrics.NewDNSMetrics(cache)
@@ -39,13 +46,14 @@ func NewDNSDispatcher(
 	}
 
 	return &DNSDispatcher{
-		dnsClient:   dnsClient,
-		defaultTTL:  300, // TODO: pass in
-		cache:       cache,
-		blockList:   blockList,
-		geoIpLookup: geoIpLookup,
-		metrics:     metrics,
-		logger:      logger,
+		dnsClient:     dnsClient,
+		defaultTTL:    300, // TODO: pass in
+		cacheTtlFloor: cacheTtlFloor,
+		cache:         cache,
+		blockList:     blockList,
+		geoIpLookup:   geoIpLookup,
+		metrics:       metrics,
+		logger:        logger,
 	}, nil
 }
 
@@ -189,13 +197,38 @@ func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req 
 		key := getCacheKey(&q)
 		if answersForQuestion, ok := answerMap[key]; ok {
 			upstreamTTL := answersForQuestion[0].Header().Ttl
-			d.cache.Set(key, answersForQuestion, time.Duration(upstreamTTL)*time.Second)
+			effectiveTTL := time.Duration(upstreamTTL) * time.Second
+
+			if !d.isFreshnessSensitive(&q) && effectiveTTL < d.cacheTtlFloor {
+				effectiveTTL = d.cacheTtlFloor
+			}
+
+			d.cache.Set(key, answersForQuestion, effectiveTTL)
 			d.metrics.UpstreamTTLs.WithLabelValues(getQueryType(&q)).Observe(float64(upstreamTTL))
 		}
 	}
 
 	return upstreamReq.Rcode, upstreamResp.Answer, nil
 }
+
+func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
+	// Check query type
+	switch q.Qtype {
+	case dns.TypeSOA, dns.TypeTXT:
+		return true
+	}
+
+	// Check name patterns
+	lower := strings.ToLower(q.Name)
+	for _, pattern := range freshnessSensitive {
+		if strings.Contains(lower, pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+var freshnessSensitive = []string{"ocsp", "crl", "pki"}
 
 func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	remoteAddr := writer.RemoteAddr().String()
