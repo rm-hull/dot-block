@@ -39,25 +39,25 @@ import (
 const CACHE_SIZE = 1_000_000
 
 type App struct {
-	Upstreams     []string
-	DataDir       string
-	BlockListURLs []string
-	DevMode       bool
-	HttpPort      int
-	DnsPort       int
-	DotPort       int
-	AllowedHosts  []string
-	MetricsAuth   string
+	Logger        *slog.Logger `json:"-"`
+	LogLevel      string       `json:"log_level"`
+	DevMode       bool         `json:"dev_mode"`
+	DataDir       string       `json:"data_dir"`
+	HttpPort      int          `json:"http_port"`
+	DnsPort       int          `json:"dns_port"`
+	DotPort       int          `json:"dot_port"`
+	Upstreams     []string     `json:"upstreams"`
+	BlockListURLs []string     `json:"blocklist_urls"`
+	AllowedHosts  []string     `json:"allowed_hosts"`
+	MetricsAuth   string       `json:"-"`
 	CronSchedule  struct {
-		Downloader  string
-		CacheReaper string
-		IP2Location string
-	}
-	CacheTtlFloor        time.Duration
-	RequireProxyProtocol bool
-	TrustedProxies       []string
-	Logger               *slog.Logger
-	LogLevel             string
+		Downloader  string `json:"downloader"`
+		CacheReaper string `json:"cache_reaper"`
+		IP2Location string `json:"ip2location"`
+	} `json:"cron_schedule"`
+	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
+	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
+	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
 }
 
 func (app *App) RunServer() error {
@@ -65,6 +65,7 @@ func (app *App) RunServer() error {
 		app.Logger.Warn("No .env file found")
 	}
 	godx.Diagnostics(app.Logger)
+	app.Logger.Info("Configuation on startup", "app", app)
 
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:         os.Getenv("SENTRY_DSN"),
