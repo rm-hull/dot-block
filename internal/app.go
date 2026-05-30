@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/libdns/cloudflare"
 	"github.com/miekg/dns"
+	"github.com/pires/go-proxyproto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
@@ -51,8 +53,10 @@ type App struct {
 		CacheReaper string
 		IP2Location string
 	}
-	Logger   *slog.Logger
-	LogLevel string
+	RequireProxyProtocol bool
+	TrustedProxies       []string
+	Logger               *slog.Logger
+	LogLevel             string
 }
 
 func (app *App) RunServer() error {
@@ -170,9 +174,6 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
-	dnsPort := fmt.Sprintf(":%d", app.DnsPort)
-	dotPort := fmt.Sprintf(":%d", app.DotPort)
-
 	var group errgroup.Group
 
 	group.Go(func() error {
@@ -186,8 +187,11 @@ func (app *App) RunServer() error {
 			return nil
 		}
 		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
-		srv := &dns.Server{Addr: dnsPort, Net: "udp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
-		return srv.ListenAndServe()
+		return (&dns.Server{
+			Addr:    fmt.Sprintf(":%d", app.DnsPort),
+			Net:     "udp",
+			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
+		}).ListenAndServe()
 	})
 
 	group.Go(func() error {
@@ -196,29 +200,92 @@ func (app *App) RunServer() error {
 			return nil
 		}
 		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
-		srv := &dns.Server{Addr: dnsPort, Net: "tcp", Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
-		return srv.ListenAndServe()
+		return (&dns.Server{
+			Addr:    fmt.Sprintf(":%d", app.DnsPort),
+			Net:     "tcp",
+			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
+		}).ListenAndServe()
 	})
 
 	group.Go(func() error {
-		var tlsConfig *tls.Config
-		logMessage := "Starting DoT server (plain TCP) in DEV mode"
-		dotNet := "tcp"
-		if !app.DevMode {
-			logMessage = "Starting DNS-over-TLS server"
-			dotNet = "tcp-tls"
-			tlsConfig = &tls.Config{
-				MinVersion:     tls.VersionTLS12,
-				NextProtos:     []string{"dot"}, // important for DNS-over-TLS
-				GetCertificate: magic.GetCertificate,
-			}
+		dotPort := fmt.Sprintf(":%d", app.DotPort)
+		listener, err := net.Listen("tcp", dotPort)
+		if err != nil {
+			return errors.Wrap(err, "failed to create DoT listener")
 		}
-		app.Logger.Info(logMessage, "port", app.DotPort)
-		srv := &dns.Server{Addr: dotPort, Net: dotNet, TLSConfig: tlsConfig, Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest)}
-		return srv.ListenAndServe()
+		defer func() {
+			err := listener.Close()
+			if err != nil {
+				app.Logger.Warn("error closing DoT listener", "error", err)
+			}
+		}()
+
+		if app.DevMode {
+			app.Logger.Info("Starting DoT server (plain TCP) in DEV mode", "port", app.DotPort)
+		} else {
+			app.Logger.Info("Starting DNS-over-TLS server", "port", app.DotPort)
+
+			proxyListener, err := app.newProxyListener(listener)
+			if err != nil {
+				return err
+			}
+			defer func() {
+				err := proxyListener.Close()
+				if err != nil {
+					app.Logger.Warn("error closing PROXY protocol listener", "error", err)
+				}
+			}()
+
+			listener = tls.NewListener(proxyListener, &tls.Config{
+				MinVersion:     tls.VersionTLS12,
+				NextProtos:     []string{"dot"},
+				GetCertificate: magic.GetCertificate,
+			})
+		}
+
+		return (&dns.Server{
+			Addr:     dotPort,
+			Net:      "tcp",
+			Listener: listener,
+			Handler:  dns.HandlerFunc(dispatcher.HandleDNSRequest),
+		}).ActivateAndServe()
 	})
 
 	return group.Wait()
+}
+
+func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error) {
+	var proxyListener *proxyproto.Listener
+	if len(app.TrustedProxies) > 0 {
+		// If trusted proxies are specified, use a whitelist policy
+		app.Logger.Info("Using PROXY protocol with trusted proxy whitelist", "trusted_proxies", app.TrustedProxies)
+		policy, err := proxyproto.ConnStrictWhiteListPolicy(app.TrustedProxies)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create trusted proxy whitelist policy")
+		}
+		proxyListener = &proxyproto.Listener{
+			Listener:   base,
+			ConnPolicy: policy,
+		}
+	} else if app.RequireProxyProtocol {
+		// If no trusted proxies specified but requirement is on, use REQUIRE policy
+		proxyListener = &proxyproto.Listener{
+			Listener: base,
+			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+				return proxyproto.REQUIRE, nil
+			},
+		}
+	} else {
+		// If requirement is off, use USE policy (optional)
+		app.Logger.Warn("Running with PROXY protocol optional; client IPs may be spoofed if not behind a trusted proxy")
+		proxyListener = &proxyproto.Listener{
+			Listener: base,
+			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+				return proxyproto.USE, nil
+			},
+		}
+	}
+	return proxyListener, nil
 }
 
 func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater) (*gin.Engine, error) {
