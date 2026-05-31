@@ -28,6 +28,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/forwarder"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/logging"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
@@ -57,6 +58,7 @@ type App struct {
 	} `json:"cron_schedule"`
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
 	ConnectionTimeout    time.Duration `json:"connection_timeout"`
+	ConnectionPoolSize   int           `json:"connection_pool_size"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
 	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
 }
@@ -157,7 +159,12 @@ func (app *App) RunServer() error {
 		}
 	}
 
-	dnsClient, err := forwarder.NewRoundRobinClient(app.ConnectionTimeout, app.Upstreams...)
+	cache := forwarder.NewDNSCache(app.MaxCacheSize, app.Logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize metrics")
+	}
+	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ConnectionTimeout, app.ConnectionPoolSize, app.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
@@ -167,7 +174,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, app.MaxCacheSize, app.CacheTtlFloor, app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, geoIpLookup, app.CacheTtlFloor, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}

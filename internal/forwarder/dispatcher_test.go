@@ -13,6 +13,7 @@ import (
 	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -86,13 +87,17 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -113,25 +118,27 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
-	server, upstream := startLocalDNS(t,
-		func(w dns.ResponseWriter, m *dns.Msg) {
-			// shouldn't call upstream
-			t.Fail()
-		},
-	)
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		// shouldn't call upstream
+		t.Fail()
+	})
 
 	defer func() {
 		err := server.Shutdown()
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -165,13 +172,17 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -217,13 +228,17 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -282,13 +297,17 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -308,10 +327,16 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
-	dnsClient, _ := NewRoundRobinClient(2*time.Second, "8.8.8.8:53")
+
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, "8.8.8.8:53")
+	assert.NoError(t, err)
 	mockGeo := new(MockGeoIpLookup)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, -1*time.Second, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, -1*time.Second, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -326,16 +351,20 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		_ = server.Shutdown()
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
-	require.NoError(t, err)
-
 	t.Run("Logging at INFO level (should not contain debug logs)", func(t *testing.T) {
 		logBuf.Reset()
 		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+		cache := NewDNSCache(100, logger)
+		metrics, err := metrics.NewDNSMetrics(cache)
+		assert.NoError(t, err)
+
+		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+		require.NoError(t, err)
+
+		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)
 		t.Cleanup(dispatcher.Close)
 
@@ -355,7 +384,14 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+		cache := NewDNSCache(100, logger)
+		metrics, err := metrics.NewDNSMetrics(cache)
+		assert.NoError(t, err)
+
+		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+		require.NoError(t, err)
+
+		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)
 		t.Cleanup(dispatcher.Close)
 
@@ -412,10 +448,15 @@ func probeDecorator(probeName string, handler dns.HandlerFunc) dns.HandlerFunc {
 func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) {
 	t.Helper()
 	probeName := fmt.Sprintf("%s.dns-probe.local.", uuid.New().String())
+
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+
 	server := &dns.Server{
-		Addr:    ":0", // Use dynamic port
-		Net:     "udp",
-		Handler: probeDecorator(probeName, handler),
+		Listener: l,
+		Net:      "tcp",
+		Handler:  probeDecorator(probeName, handler),
 	}
 
 	started := make(chan struct{})
@@ -424,27 +465,28 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 	}
 
 	go func() {
-		err := server.ListenAndServe()
-		require.NoError(t, err)
+		err := server.ActivateAndServe()
+		if err != nil {
+			// If it's already closed, don't fail the test
+			return
+		}
 	}()
 
-	var upstream string
 	select {
 	case <-started:
-		upstream = server.PacketConn.LocalAddr().String()
-		t.Logf("Mock DNS server listening on: %s", upstream)
+		t.Logf("Mock DNS server listening on: %s", addr)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for mock DNS server to become ready")
 	}
 
-	waitForPort(t, upstream, probeName, 5*time.Second)
-	return server, upstream
+	waitForPort(t, addr, probeName, 5*time.Second)
+	return server, addr
 }
 
 func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
 	t.Helper()
 	deadline := deadline(t, timeout)
-	client := dns.Client{DialTimeout: 100 * time.Millisecond}
+	client := dns.Client{DialTimeout: 100 * time.Millisecond, Net: "tcp"}
 	req := new(dns.Msg)
 	req.SetQuestion(probeName, dns.TypeA)
 

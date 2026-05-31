@@ -53,22 +53,17 @@ type DNSDispatcher struct {
 }
 
 func NewDNSDispatcher(
+	cache *DNSCache,
+	metrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
 	geoIpLookup geoblock.GeoIpLookup,
-	maxSize int,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
 
 	if ttlFloor < 0 {
 		return nil, errors.New("TTL floor cannot be negative")
-	}
-
-	cache := NewDNSCache(maxSize, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize metrics")
 	}
 
 	d := &DNSDispatcher{
