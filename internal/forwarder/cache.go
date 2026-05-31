@@ -17,10 +17,12 @@ type cacheUpdate struct {
 }
 
 type DNSCache struct {
-	cache  cache.Cache[string, []dns.RR]
-	logger *slog.Logger
-	update chan cacheUpdate
-	done   chan struct{}
+	cache    cache.Cache[string, []dns.RR]
+	logger   *slog.Logger
+	update   chan cacheUpdate
+	done     chan struct{}
+	onDrop   func()
+	lastWarn time.Time
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
@@ -58,6 +60,10 @@ func (dc *DNSCache) Close() {
 	close(dc.done)
 }
 
+func (dc *DNSCache) OnDrop(fn func()) {
+	dc.onDrop = fn
+}
+
 func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
 	return dc.cache.Get(key)
 }
@@ -68,7 +74,14 @@ func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
 		return
 	case dc.update <- cacheUpdate{key: key, values: values, ttl: ttl}:
 	default:
-		dc.logger.Warn("DNS cache update channel full, dropping update", "key", key)
+		if dc.onDrop != nil {
+			dc.onDrop()
+		}
+
+		if time.Since(dc.lastWarn) > 1*time.Minute {
+			dc.logger.Warn("DNS cache update channel full, dropping update", "key", key)
+			dc.lastWarn = time.Now()
+		}
 	}
 }
 
