@@ -17,9 +17,10 @@ type cacheUpdate struct {
 }
 
 type DNSCache struct {
-	cache      cache.Cache[string, []dns.RR]
-	updateChan chan cacheUpdate
-	logger     *slog.Logger
+	cache  cache.Cache[string, []dns.RR]
+	logger *slog.Logger
+	update chan cacheUpdate
+	done   chan struct{}
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
@@ -27,9 +28,9 @@ func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
 	c := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 
 	dc := &DNSCache{
-		cache:      c,
-		updateChan: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
-		logger:     logger,
+		cache:  c,
+		update: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
+		logger: logger,
 	}
 
 	go dc.runUpdateWorker()
@@ -39,9 +40,21 @@ func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
 }
 
 func (dc *DNSCache) runUpdateWorker() {
-	for update := range dc.updateChan {
-		dc.cache.Set(update.key, update.values, update.ttl)
+	for {
+		select {
+		case update, ok := <-dc.update:
+			if !ok {
+				return
+			}
+			dc.cache.Set(update.key, update.values, update.ttl)
+		case <-dc.done:
+			return
+		}
 	}
+}
+
+func (dc *DNSCache) Close() {
+	close(dc.done)
 }
 
 //go:inline
@@ -52,7 +65,9 @@ func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
 //go:inline
 func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
 	select {
-	case dc.updateChan <- cacheUpdate{key: key, values: values, ttl: ttl}:
+	case <-dc.done:
+		return
+	case dc.update <- cacheUpdate{key: key, values: values, ttl: ttl}:
 	default:
 		dc.logger.Warn("DNS cache update channel full, dropping update", "key", key)
 	}
