@@ -46,7 +46,6 @@ type DnsMetrics struct {
 	UpstreamLatency       *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
 	DroppedCacheUpdates   prometheus.Counter
-	DroppedCacheUpdates prometheus.Counter
 }
 
 var latencyBuckets = []float64{
