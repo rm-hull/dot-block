@@ -6,22 +6,77 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/tavsec/gin-healthcheck/checks"
 )
 
 type RoundRobinClient struct {
 	client    *dns.Client
 	upstreams []string
+	pools     map[string]*ConnPool
 	counter   uint32
 }
 
-func NewRoundRobinClient(timeout time.Duration, upstreams ...string) (*RoundRobinClient, error) {
+type ConnPool struct {
+	conns   chan *dns.Conn
+	addr    string
+	client  *dns.Client
+	metrics *metrics.DnsMetrics
+}
+
+func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int) *ConnPool {
+	return &ConnPool{
+		conns:   make(chan *dns.Conn, poolSize),
+		addr:    addr,
+		client:  client,
+		metrics: metrics,
+	}
+}
+
+func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
+	var conn *dns.Conn
+	select {
+	case conn = <-p.conns:
+		// Reuse existing connection
+	default:
+		// No available connection, create a new one
+		var err error
+		conn, err = p.client.Dial(p.addr)
+		if err != nil {
+			return nil, 0, errors.Wrapf(err, "failed to dial %s", p.addr)
+		}
+	}
+
+	resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
+	if err != nil {
+		_ = conn.Close() // Close the connection on error
+		return nil, 0, err
+	}
+
+	// Return the connection to the pool if it's still healthy
+	select {
+	case p.conns <- conn:
+	default:
+		_ = conn.Close() // Pool is full, close the connection
+		p.metrics.PoolEvictions.WithLabelValues(p.addr).Inc()
+	}
+
+	return resp, rtt, nil
+}
+
+func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
+	}
+	client := &dns.Client{Timeout: timeout, Net: "tcp"}
+	pools := make(map[string]*ConnPool, len(upstreams))
+	for _, upstream := range upstreams {
+		pools[upstream] = NewConnPool(metrics, upstream, client, poolSize)
 	}
 	return &RoundRobinClient{
 		client:    &dns.Client{Timeout: timeout},
 		upstreams: upstreams,
+		pools:     pools,
 	}, nil
 }
 
@@ -32,7 +87,7 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 	var lastErr error
 	for i := range n {
 		upstream := r.upstreams[(start+i)%n]
-		resp, _, err := r.client.Exchange(msg, upstream)
+		resp, _, err := r.pools[upstream].Exchange(msg)
 		if err == nil {
 			return resp, upstream, nil
 		}

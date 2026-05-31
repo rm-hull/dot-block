@@ -13,6 +13,7 @@ import (
 	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -86,13 +87,17 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -125,13 +130,17 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -165,13 +174,17 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -217,13 +230,17 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	assert.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -282,13 +299,17 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	assert.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -308,10 +329,16 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
-	dnsClient, _ := NewRoundRobinClient(2*time.Second, "8.8.8.8:53")
+
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, "8.8.8.8:53")
+	assert.NoError(t, err)
 	mockGeo := new(MockGeoIpLookup)
 
-	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, -1*time.Second, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, -1*time.Second, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -326,7 +353,12 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		_ = server.Shutdown()
 	}()
 
-	dnsClient, err := NewRoundRobinClient(2*time.Second, upstream)
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	cache := NewDNSCache(100, logger)
+	metrics, err := metrics.NewDNSMetrics(cache)
+	assert.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
 	require.NoError(t, err)
 
 	t.Run("Logging at INFO level (should not contain debug logs)", func(t *testing.T) {
@@ -335,7 +367,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)
 		t.Cleanup(dispatcher.Close)
 
@@ -355,7 +387,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
-		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
+		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)
 		t.Cleanup(dispatcher.Close)
 

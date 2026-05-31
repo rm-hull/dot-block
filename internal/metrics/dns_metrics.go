@@ -32,20 +32,21 @@ func (s *SafeSketch) Estimate() uint64 {
 }
 
 type DnsMetrics struct {
-	RequestLatency        prometheus.Histogram
-	ErrorCounts           *prometheus.CounterVec
-	RequestCounts         *prometheus.CounterVec
-	QueryCounts           *prometheus.CounterVec
-	ReplyCounts           *prometheus.CounterVec
-	CountryCounts         *prometheus.CounterVec
-	UniqueClients         *SafeSketch
-	TopClients            *SpaceSaver
-	TopDomains            *SpaceSaver
-	TopBlockedDomains     *SpaceSaver
-	UpstreamTTLs          *prometheus.HistogramVec
-	UpstreamLatency       *prometheus.HistogramVec
+	RequestLatency      prometheus.Histogram
+	ErrorCounts         *prometheus.CounterVec
+	RequestCounts       *prometheus.CounterVec
+	QueryCounts         *prometheus.CounterVec
+	ReplyCounts         *prometheus.CounterVec
+	CountryCounts       *prometheus.CounterVec
+	UniqueClients       *SafeSketch
+	TopClients          *SpaceSaver
+	TopDomains          *SpaceSaver
+	TopBlockedDomains   *SpaceSaver
+	UpstreamTTLs        *prometheus.HistogramVec
+	UpstreamLatency     *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
-	DroppedCacheUpdates   prometheus.Counter
+	DroppedCacheUpdates prometheus.Counter
+	PoolEvictions       *prometheus.CounterVec
 }
 
 var latencyBuckets = []float64{
@@ -144,7 +145,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 
 	upstreamLatency := prometheus.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "dns_upstream_latency",
-		Help:    "Duration of upstream DNS requests, broken down by server",
+		Help:    "Duration of upstream DNS requests, broken down by upstream server",
 		Buckets: latencyBuckets,
 	}, []string{"ip_addr"})
 
@@ -157,6 +158,11 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		Name: "dns_cache_dropped_updates_total",
 		Help: "Total number of cache updates dropped because the update channel was full",
 	})
+
+	poolEvictions := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_pool_evictions_total",
+		Help: "Total number of connections evicted from the pool due to it being full, broken down by upstream server",
+	}, []string{"ip_addr"})
 
 	if err := shouldRegister(
 		requestLatency,
@@ -174,6 +180,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		upstreamLatency,
 		cacheReaperCalls,
 		droppedCacheUpdates,
+		poolEvictions,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -195,6 +202,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		UpstreamLatency:     upstreamLatency,
 		CacheReaperCalls:    cacheReaperCalls,
 		DroppedCacheUpdates: droppedCacheUpdates,
+		PoolEvictions:       poolEvictions,
 	}, nil
 }
 
