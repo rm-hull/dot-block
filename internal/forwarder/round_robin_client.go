@@ -1,7 +1,6 @@
 package forwarder
 
 import (
-	"net"
 	"sync/atomic"
 	"time"
 
@@ -37,20 +36,9 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 		if err == nil {
 			return resp, upstream, nil
 		}
-
-		// Only fall through to next upstream on network/timeout errors, not DNS errors
-		if isTimeoutError(err) {
-			lastErr = errors.Wrapf(err, "timeout from upstream %s", upstream)
-			continue
-		}
-		return nil, "", errors.Wrapf(err, "DNS error from upstream %s", upstream)
+		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
 	}
 	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
-}
-
-func isTimeoutError(err error) bool {
-	var netErr net.Error
-	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
