@@ -15,6 +15,7 @@ import (
 )
 
 const NUM_WORKERS = 4
+const TELEMETRY_BUFFER_SIZE = 1024
 
 type DNSSource string
 
@@ -48,6 +49,7 @@ type DNSDispatcher struct {
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	telemetryCh chan TelemetryEvent
+	done        chan struct{}
 }
 
 func NewDNSDispatcher(
@@ -78,7 +80,8 @@ func NewDNSDispatcher(
 		geoIpLookup: geoIpLookup,
 		metrics:     metrics,
 		logger:      logger,
-		telemetryCh: make(chan TelemetryEvent, 1024),
+		telemetryCh: make(chan TelemetryEvent, TELEMETRY_BUFFER_SIZE),
+		done:        make(chan struct{}),
 	}
 
 	for range NUM_WORKERS {
@@ -91,6 +94,7 @@ func NewDNSDispatcher(
 
 func (d *DNSDispatcher) Close() {
 	d.cache.Close()
+	close(d.done)
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
@@ -164,8 +168,16 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 }
 
 func (d *DNSDispatcher) telemetryWorker() {
-	for event := range d.telemetryCh {
-		d.recordTelemetry(event.ctx, event.latency)
+	for {
+		select {
+		case event, ok := <-d.telemetryCh:
+			if !ok {
+				return
+			}
+			d.recordTelemetry(event.ctx, event.latency)
+		case <-d.done:
+			return
+		}
 	}
 }
 
