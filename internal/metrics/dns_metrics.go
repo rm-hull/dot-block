@@ -32,19 +32,20 @@ func (s *SafeSketch) Estimate() uint64 {
 }
 
 type DnsMetrics struct {
-	RequestLatency      prometheus.Histogram
-	ErrorCounts         *prometheus.CounterVec
-	RequestCounts       *prometheus.CounterVec
-	QueryCounts         *prometheus.CounterVec
-	ReplyCounts         *prometheus.CounterVec
-	CountryCounts       *prometheus.CounterVec
-	UniqueClients       *SafeSketch
-	TopClients          *SpaceSaver
-	TopDomains          *SpaceSaver
-	TopBlockedDomains   *SpaceSaver
-	UpstreamTTLs        *prometheus.HistogramVec
-	UpstreamLatency     *prometheus.HistogramVec
+	RequestLatency        prometheus.Histogram
+	ErrorCounts           *prometheus.CounterVec
+	RequestCounts         *prometheus.CounterVec
+	QueryCounts           *prometheus.CounterVec
+	ReplyCounts           *prometheus.CounterVec
+	CountryCounts         *prometheus.CounterVec
+	UniqueClients         *SafeSketch
+	TopClients            *SpaceSaver
+	TopDomains            *SpaceSaver
+	TopBlockedDomains     *SpaceSaver
+	UpstreamTTLs          *prometheus.HistogramVec
+	UpstreamLatency       *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
+	DroppedCacheUpdates   prometheus.Counter
 	DroppedCacheUpdates prometheus.Counter
 }
 
