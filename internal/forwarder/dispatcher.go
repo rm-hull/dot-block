@@ -26,7 +26,7 @@ const (
 type RequestContext struct {
 	Logger    *slog.Logger
 	Source    DNSSource
-	StartTime *time.Time
+	StartTime time.Time
 }
 
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
@@ -75,7 +75,6 @@ func NewDNSDispatcher(
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 	return func(writer dns.ResponseWriter, req *dns.Msg) {
-		startTime := time.Now()
 		remoteAddr := writer.RemoteAddr().String()
 		ipAddr, _, err := net.SplitHostPort(remoteAddr)
 		if err != nil {
@@ -85,31 +84,33 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				"error", err)
 
 			ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
+		} else {
+			d.metrics.TopClients.Add(ipAddr)
+			d.metrics.UniqueClients.Insert([]byte(ipAddr))
 		}
 
 		ctx := &RequestContext{
 			Logger:    d.logger.With("clientIP", ipAddr, "requestId", req.Id, "source", source),
 			Source:    source,
-			StartTime: &startTime,
+			StartTime: time.Now(),
 		}
 
 		defer func() {
-			duration := time.Since(startTime).Seconds()
+			duration := time.Since(ctx.StartTime).Seconds()
 			d.metrics.RequestLatency.Observe(duration)
 			d.metrics.RequestCounts.WithLabelValues("total", string(source)).Inc()
 
+			if ipAddr == "unknown" {
+				return // Skip geolocation if IP is unknown
+			}
+
 			loc, err := d.geoIpLookup.GetAll(ipAddr)
 			if err != nil {
-				ctx.Logger.Warn("failed to get geolocation for client IP",
-					"error", err)
+				ctx.Logger.Warn("failed to get geolocation for client IP", "error", err)
 			} else {
 				d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
 			}
 		}()
-
-		if err := d.updateClientCount(writer); err != nil {
-			ctx.Logger.Warn("failed to update client count", "error", err)
-		}
 
 		resp := new(dns.Msg)
 		resp.SetReply(req)
@@ -258,18 +259,6 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 }
 
 var freshnessSensitive = []string{"ocsp", "crl", "pki"}
-
-func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
-	remoteAddr := writer.RemoteAddr().String()
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		return errors.Wrapf(err, "failed to parse `host:port` from %s", remoteAddr)
-	}
-
-	d.metrics.TopClients.Add(host)
-	d.metrics.UniqueClients.Insert([]byte(host))
-	return nil
-}
 
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	args := append(additionalFields, "category", errorCategory, "error", err)
