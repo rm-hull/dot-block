@@ -349,6 +349,10 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		c.Redirect(http.StatusMovedPermanently, "https://github.com/rm-hull/dot-block/blob/main/README.md")
 	})
 
+	r.GET("/robots.txt", func(c *gin.Context) {
+		c.String(http.StatusOK, "User-agent: *\nDisallow: /\n")
+	})
+
 	return r, nil
 }
 
