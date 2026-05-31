@@ -17,19 +17,23 @@ type cacheUpdate struct {
 }
 
 type DNSCache struct {
-	cache      cache.Cache[string, []dns.RR]
-	updateChan chan cacheUpdate
-	logger     *slog.Logger
+	cache    cache.Cache[string, []dns.RR]
+	logger   *slog.Logger
+	update   chan cacheUpdate
+	done     chan struct{}
+	onDrop   func()
+	lastWarn time.Time
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
-	logger.Info("Initializing DNS cache", "maxCcheSize", maxSize, "updateBufferSize", CACHE_UPDATE_BUFFER_SIZE)
+	logger.Info("Initializing DNS cache", "maxCacheSize", maxSize, "updateBufferSize", CACHE_UPDATE_BUFFER_SIZE)
 	c := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 
 	dc := &DNSCache{
-		cache:      c,
-		updateChan: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
-		logger:     logger,
+		cache:  c,
+		logger: logger,
+		update: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
+		done:   make(chan struct{}),
 	}
 
 	go dc.runUpdateWorker()
@@ -39,22 +43,53 @@ func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
 }
 
 func (dc *DNSCache) runUpdateWorker() {
-	for update := range dc.updateChan {
-		dc.cache.Set(update.key, update.values, update.ttl)
+	for {
+		select {
+		case update, ok := <-dc.update:
+			if !ok {
+				return
+			}
+			dc.cache.Set(update.key, update.values, update.ttl)
+		case <-dc.done:
+			return
+		}
 	}
 }
 
-//go:inline
-func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
-	return dc.cache.Get(key)
+func (dc *DNSCache) Close() {
+	close(dc.done)
 }
 
-//go:inline
+func (dc *DNSCache) OnDrop(fn func()) {
+	dc.onDrop = fn
+}
+
+func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
+	rrs, ok := dc.cache.Get(key)
+	if !ok {
+		return nil, false
+	}
+	copied := make([]dns.RR, len(rrs))
+	for i, rr := range rrs {
+		copied[i] = dns.Copy(rr)
+	}
+	return copied, true
+}
+
 func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
 	select {
-	case dc.updateChan <- cacheUpdate{key: key, values: values, ttl: ttl}:
+	case <-dc.done:
+		return
+	case dc.update <- cacheUpdate{key: key, values: values, ttl: ttl}:
 	default:
-		dc.logger.Warn("DNS cache update channel full, dropping update", "key", key)
+		if dc.onDrop != nil {
+			dc.onDrop()
+		}
+
+		if time.Since(dc.lastWarn) > 1*time.Minute {
+			dc.logger.Warn("DNS cache update channel full, dropping update", "key", key)
+			dc.lastWarn = time.Now()
+		}
 	}
 }
 

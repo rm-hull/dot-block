@@ -94,6 +94,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -132,6 +133,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -171,6 +173,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -222,6 +225,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -254,6 +258,13 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		stats := dispatcher.cache.Stat()
 		return stats.Hits == 1 && stats.Misses == 1
 	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache hit and 1 miss")
+
+	// Ensure the cache item is actually retrievable before asserting stats
+	cacheKey := getCacheKey(&req.Question[0])
+	assert.Eventually(t, func() bool {
+		_, ok := dispatcher.cache.Get(cacheKey)
+		return ok // Wait until Get actually finds the item
+	}, 2*time.Second, 10*time.Millisecond, "Cache item not found after first request before second query")
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
@@ -279,6 +290,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	require.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -325,6 +337,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)
@@ -344,6 +357,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)

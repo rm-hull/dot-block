@@ -56,7 +56,6 @@ func NewDNSDispatcher(
 	}
 
 	cache := NewDNSCache(maxSize, logger)
-
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize metrics")
@@ -72,6 +71,10 @@ func NewDNSDispatcher(
 		metrics:     metrics,
 		logger:      logger,
 	}, nil
+}
+
+func (d *DNSDispatcher) Close() {
+	d.cache.Close()
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
@@ -245,7 +248,6 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 	return upstreamReq.Rcode, upstreamResp.Answer, nil
 }
 
-//go:inline
 func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	// Check query type
 	switch q.Qtype {
@@ -291,12 +293,10 @@ func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWri
 	}
 }
 
-//go:inline
 func getCacheKey(q *dns.Question) string {
 	return dns.Fqdn(q.Name) + ":" + getQueryType(q)
 }
 
-//go:inline
 func getQueryType(q *dns.Question) string {
 	return dns.TypeToString[q.Qtype]
 }

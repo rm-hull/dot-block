@@ -8,13 +8,13 @@ import (
 )
 
 type CacheReaper struct {
-	cache   DNSCache
+	cache   *DNSCache
 	logger  *slog.Logger
 	metrics *metrics.DnsMetrics
 }
 
 func NewCacheReaperCronJob(dispatcher *DNSDispatcher) cron.Job {
-	return &CacheReaper{cache: *dispatcher.cache, logger: dispatcher.logger, metrics: dispatcher.metrics}
+	return &CacheReaper{cache: dispatcher.cache, logger: dispatcher.logger, metrics: dispatcher.metrics}
 }
 
 func (job *CacheReaper) Run() {
