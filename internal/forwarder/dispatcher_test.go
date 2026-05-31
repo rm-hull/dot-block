@@ -118,12 +118,10 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
-	server, upstream := startLocalDNS(t,
-		func(w dns.ResponseWriter, m *dns.Msg) {
-			// shouldn't call upstream
-			t.Fail()
-		},
-	)
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		// shouldn't call upstream
+		t.Fail()
+	})
 
 	defer func() {
 		err := server.Shutdown()
@@ -444,9 +442,15 @@ func probeDecorator(probeName string, handler dns.HandlerFunc) dns.HandlerFunc {
 func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) {
 	t.Helper()
 	probeName := fmt.Sprintf("%s.dns-probe.local.", uuid.New().String())
+
+	l, err := net.Listen("tcp", ":0")
+	require.NoError(t, err)
+	addr := l.Addr().String()
+	_ = l.Close()
+
 	server := &dns.Server{
-		Addr:    ":0", // Use dynamic port
-		Net:     "udp",
+		Addr:    addr,
+		Net:     "tcp",
 		Handler: probeDecorator(probeName, handler),
 	}
 
@@ -457,26 +461,27 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 
 	go func() {
 		err := server.ListenAndServe()
-		require.NoError(t, err)
+		if err != nil {
+			// If it's already closed, don't fail the test
+			return
+		}
 	}()
 
-	var upstream string
 	select {
 	case <-started:
-		upstream = server.PacketConn.LocalAddr().String()
-		t.Logf("Mock DNS server listening on: %s", upstream)
+		t.Logf("Mock DNS server listening on: %s", addr)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for mock DNS server to become ready")
 	}
 
-	waitForPort(t, upstream, probeName, 5*time.Second)
-	return server, upstream
+	waitForPort(t, addr, probeName, 5*time.Second)
+	return server, addr
 }
 
 func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
 	t.Helper()
 	deadline := deadline(t, timeout)
-	client := dns.Client{DialTimeout: 100 * time.Millisecond}
+	client := dns.Client{DialTimeout: 100 * time.Millisecond, Net: "tcp"}
 	req := new(dns.Msg)
 	req.SetQuestion(probeName, dns.TypeA)
 

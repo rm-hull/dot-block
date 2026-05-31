@@ -11,7 +11,6 @@ import (
 )
 
 type RoundRobinClient struct {
-	client    *dns.Client
 	upstreams []string
 	pools     map[string]*ConnPool
 	counter   uint32
@@ -74,7 +73,6 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poo
 		pools[upstream] = NewConnPool(metrics, upstream, client, poolSize)
 	}
 	return &RoundRobinClient{
-		client:    &dns.Client{Timeout: timeout},
 		upstreams: upstreams,
 		pools:     pools,
 	}, nil
@@ -101,7 +99,7 @@ func (r *RoundRobinClient) Healthchecks() []checks.Check {
 	for _, upstream := range r.upstreams {
 		check := &DNSCheck{
 			upstream: upstream,
-			client:   &dns.Client{Timeout: 2 * time.Second},
+			pool:     r.pools[upstream],
 		}
 		dnsChecks = append(dnsChecks, check)
 	}
@@ -111,7 +109,7 @@ func (r *RoundRobinClient) Healthchecks() []checks.Check {
 
 type DNSCheck struct {
 	upstream string
-	client   *dns.Client
+	pool     *ConnPool
 }
 
 func (d *DNSCheck) Name() string {
@@ -122,6 +120,6 @@ func (d *DNSCheck) Pass() bool {
 	msg := new(dns.Msg)
 	msg.SetQuestion("google.com.", dns.TypeA)
 
-	_, _, err := d.client.Exchange(msg, d.upstream)
+	_, _, err := d.pool.Exchange(msg)
 	return err == nil
 }
