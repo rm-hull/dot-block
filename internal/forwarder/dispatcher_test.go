@@ -234,10 +234,11 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Assert cache stats
-	stats := dispatcher.cache.Stat()
-	assert.Equal(t, 0, stats.Hits, "Expected 0 cache hit")
-	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+	// Poll for cache miss to be recorded
+	assert.Eventually(t, func() bool {
+		stats := dispatcher.cache.Stat()
+		return stats.Misses == 1 && stats.Hits == 0
+	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache miss and 0 hits")
 
 	// Reset mock for the second request
 	writer = new(MockResponseWriter)
@@ -248,10 +249,11 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Assert cache stats
-	stats = dispatcher.cache.Stat()
-	assert.Equal(t, 1, stats.Hits, "Expected 1 cache hit")
-	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+	// Poll for cache hit to be recorded
+	assert.Eventually(t, func() bool {
+		stats := dispatcher.cache.Stat()
+		return stats.Hits == 1 && stats.Misses == 1
+	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache hit and 1 miss")
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
