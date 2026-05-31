@@ -88,6 +88,7 @@ func main() {
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
 	rootCmd.Flags().StringArrayVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
+	rootCmd.Flags().IntVar(&app.MaxCacheSize, "max-cache-size", 1_000_000, "Maximum number of entries in the DNS cache")
 	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", DEFAULT_DOWNLOADER_CRON_SCHEDULE, "cron spec for reloading blocklist")
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
 	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")

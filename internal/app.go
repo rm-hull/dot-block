@@ -37,8 +37,6 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const CACHE_SIZE = 1_000_000
-
 type App struct {
 	Logger        *slog.Logger `json:"-"`
 	LogLevel      string       `json:"log_level"`
@@ -51,6 +49,7 @@ type App struct {
 	BlockListURLs []string     `json:"blocklist_urls"`
 	AllowedHosts  []string     `json:"allowed_hosts"`
 	MetricsAuth   string       `json:"-"`
+	MaxCacheSize  int          `json:"max_cache_size"`
 	CronSchedule  struct {
 		Downloader  string `json:"downloader"`
 		CacheReaper string `json:"cache_reaper"`
@@ -168,7 +167,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, CACHE_SIZE, app.CacheTtlFloor, app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(dnsClient, blockList, geoIpLookup, app.MaxCacheSize, app.CacheTtlFloor, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
