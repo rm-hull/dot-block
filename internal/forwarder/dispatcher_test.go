@@ -94,6 +94,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -132,6 +133,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -171,6 +173,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -222,6 +225,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -286,6 +290,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	require.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -332,6 +337,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)
@@ -351,6 +357,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)
