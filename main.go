@@ -12,7 +12,7 @@ import (
 )
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
-const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "@every 10m"
+const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "0 3 * * *" // 3:00am every day
 const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *" // 7:05am on the 4th of every month
 
 var DEFAULT_BLOCKLIST_URLS = []string{
