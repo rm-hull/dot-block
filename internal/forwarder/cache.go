@@ -33,12 +33,12 @@ func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
 	}
 
 	go dc.runUpdateWorker()
+	logger.Info("Started DNS cache update worker...")
 
 	return dc
 }
 
 func (dc *DNSCache) runUpdateWorker() {
-	dc.logger.Info("Starting DNS cache update worker...")
 	for update := range dc.updateChan {
 		dc.cache.Set(update.key, update.values, update.ttl)
 	}
