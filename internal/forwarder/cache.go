@@ -57,12 +57,10 @@ func (dc *DNSCache) Close() {
 	close(dc.done)
 }
 
-//go:inline
 func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
 	return dc.cache.Get(key)
 }
 
-//go:inline
 func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
 	select {
 	case <-dc.done:

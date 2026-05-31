@@ -248,7 +248,6 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 	return upstreamReq.Rcode, upstreamResp.Answer, nil
 }
 
-//go:inline
 func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	// Check query type
 	switch q.Qtype {
@@ -294,12 +293,10 @@ func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWri
 	}
 }
 
-//go:inline
 func getCacheKey(q *dns.Question) string {
 	return dns.Fqdn(q.Name) + ":" + getQueryType(q)
 }
 
-//go:inline
 func getQueryType(q *dns.Question) string {
 	return dns.TypeToString[q.Qtype]
 }
