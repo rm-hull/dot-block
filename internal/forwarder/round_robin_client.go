@@ -27,8 +27,8 @@ func NewRoundRobinClient(timeout time.Duration, upstreams ...string) (*RoundRobi
 }
 
 func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
-	n := len(r.upstreams)
-	start := int(atomic.AddUint32(&r.counter, 1) - 1)
+	n := uint32(len(r.upstreams))
+	start := uint32(atomic.AddUint32(&r.counter, 1) - 1)
 
 	var lastErr error
 	for i := range n {
