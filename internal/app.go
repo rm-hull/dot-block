@@ -56,6 +56,7 @@ type App struct {
 		IP2Location string `json:"ip2location"`
 	} `json:"cron_schedule"`
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
+	ConnectionTimeout    time.Duration `json:"connection_timeout"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
 	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
 }
@@ -156,8 +157,7 @@ func (app *App) RunServer() error {
 		}
 	}
 
-	timeout := 3 * time.Second
-	dnsClient, err := forwarder.NewRoundRobinClient(timeout, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(app.ConnectionTimeout, app.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
