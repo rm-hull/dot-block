@@ -94,6 +94,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -132,6 +133,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -171,6 +173,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -222,6 +225,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	assert.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -234,10 +238,11 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Assert cache stats
-	stats := dispatcher.cache.Stat()
-	assert.Equal(t, 0, stats.Hits, "Expected 0 cache hit")
-	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+	// Poll for cache miss to be recorded
+	assert.Eventually(t, func() bool {
+		stats := dispatcher.cache.Stat()
+		return stats.Misses == 1 && stats.Hits == 0
+	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache miss and 0 hits")
 
 	// Reset mock for the second request
 	writer = new(MockResponseWriter)
@@ -248,10 +253,18 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Assert cache stats
-	stats = dispatcher.cache.Stat()
-	assert.Equal(t, 1, stats.Hits, "Expected 1 cache hit")
-	assert.Equal(t, 1, stats.Misses, "Expected 1 cache miss")
+	// Poll for cache hit to be recorded
+	assert.Eventually(t, func() bool {
+		stats := dispatcher.cache.Stat()
+		return stats.Hits == 1 && stats.Misses == 1
+	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache hit and 1 miss")
+
+	// Ensure the cache item is actually retrievable before asserting stats
+	cacheKey := getCacheKey(&req.Question[0])
+	assert.Eventually(t, func() bool {
+		_, ok := dispatcher.cache.Get(cacheKey)
+		return ok // Wait until Get actually finds the item
+	}, 2*time.Second, 10*time.Millisecond, "Cache item not found after first request before second query")
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
@@ -277,6 +290,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 	require.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -300,7 +314,7 @@ func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, -1*time.Second, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
-	assert.Contains(t, err.Error(), "cacheTtlFloor cannot be negative")
+	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
 }
 
 func TestDNSDispatcher_QueryLogging(t *testing.T) {
@@ -323,6 +337,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)
@@ -342,6 +357,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 
 		dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, 1*time.Minute, logger)
 		require.NoError(t, err)
+		t.Cleanup(dispatcher.Close)
 
 		req := new(dns.Msg)
 		req.SetQuestion("google.com.", dns.TypeA)

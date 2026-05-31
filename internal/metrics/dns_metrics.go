@@ -14,19 +14,20 @@ import (
 const TOP_K = 50
 
 type DnsMetrics struct {
-	RequestLatency    prometheus.Histogram
-	ErrorCounts       *prometheus.CounterVec
-	RequestCounts     *prometheus.CounterVec
-	QueryCounts       *prometheus.CounterVec
-	ReplyCounts       *prometheus.CounterVec
-	CountryCounts     *prometheus.CounterVec
-	UniqueClients     *hyperloglog.Sketch
-	TopClients        *SpaceSaver
-	TopDomains        *SpaceSaver
-	TopBlockedDomains *SpaceSaver
-	UpstreamTTLs      *prometheus.HistogramVec
-	UpstreamLatency   *prometheus.HistogramVec
-	CacheReaperCalls  prometheus.Counter
+	RequestLatency      prometheus.Histogram
+	ErrorCounts         *prometheus.CounterVec
+	RequestCounts       *prometheus.CounterVec
+	QueryCounts         *prometheus.CounterVec
+	ReplyCounts         *prometheus.CounterVec
+	CountryCounts       *prometheus.CounterVec
+	UniqueClients       *hyperloglog.Sketch
+	TopClients          *SpaceSaver
+	TopDomains          *SpaceSaver
+	TopBlockedDomains   *SpaceSaver
+	UpstreamTTLs        *prometheus.HistogramVec
+	UpstreamLatency     *prometheus.HistogramVec
+	CacheReaperCalls    prometheus.Counter
+	DroppedCacheUpdates prometheus.Counter
 }
 
 var latencyBuckets = []float64{
@@ -34,7 +35,13 @@ var latencyBuckets = []float64{
 	0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
 }
 
-func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
+type Cache interface {
+	Stat() cache.Stats
+	Len() int
+	OnDrop(func())
+}
+
+func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 	uniqueClients := hyperloglog.New14()
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
@@ -128,6 +135,11 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		Help: "The number of times the cache reaper has been called",
 	})
 
+	droppedCacheUpdates := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dns_cache_dropped_updates_total",
+		Help: "Total number of cache updates dropped because the update channel was full",
+	})
+
 	if err := shouldRegister(
 		requestLatency,
 		errorCounts,
@@ -143,24 +155,28 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 		upstreamTTLs,
 		upstreamLatency,
 		cacheReaperCalls,
+		droppedCacheUpdates,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
 
+	cache.OnDrop(func() { droppedCacheUpdates.Inc() })
+
 	return &DnsMetrics{
-		RequestLatency:    requestLatency,
-		ErrorCounts:       errorCounts,
-		RequestCounts:     requestCounts,
-		QueryCounts:       queryCounts,
-		ReplyCounts:       replyCounts,
-		CountryCounts:     countryCounts,
-		UniqueClients:     uniqueClients,
-		TopClients:        topClients,
-		TopDomains:        topDomains,
-		TopBlockedDomains: topBlockedDomains,
-		UpstreamTTLs:      upstreamTTLs,
-		UpstreamLatency:   upstreamLatency,
-		CacheReaperCalls:  cacheReaperCalls,
+		RequestLatency:      requestLatency,
+		ErrorCounts:         errorCounts,
+		RequestCounts:       requestCounts,
+		QueryCounts:         queryCounts,
+		ReplyCounts:         replyCounts,
+		CountryCounts:       countryCounts,
+		UniqueClients:       uniqueClients,
+		TopClients:          topClients,
+		TopDomains:          topDomains,
+		TopBlockedDomains:   topBlockedDomains,
+		UpstreamTTLs:        upstreamTTLs,
+		UpstreamLatency:     upstreamLatency,
+		CacheReaperCalls:    cacheReaperCalls,
+		DroppedCacheUpdates: droppedCacheUpdates,
 	}, nil
 }
 
