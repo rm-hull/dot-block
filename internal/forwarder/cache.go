@@ -26,7 +26,10 @@ type DNSCache struct {
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
-	logger.Info("Initializing DNS cache", "maxCacheSize", maxSize, "updateBufferSize", CACHE_UPDATE_BUFFER_SIZE)
+	logger.Info("Initializing DNS cache",
+		"max_cache_size", maxSize,
+		"update_buffer_size", CACHE_UPDATE_BUFFER_SIZE)
+
 	c := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 
 	dc := &DNSCache{

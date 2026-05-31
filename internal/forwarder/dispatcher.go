@@ -14,6 +14,8 @@ import (
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
+const NUM_WORKERS = 4
+
 type DNSSource string
 
 const (
@@ -29,6 +31,11 @@ type RequestContext struct {
 	IpAddr    string
 }
 
+type TelemetryEvent struct {
+	ctx     *RequestContext
+	latency float64
+}
+
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
 
 type DNSDispatcher struct {
@@ -40,6 +47,7 @@ type DNSDispatcher struct {
 	geoIpLookup geoblock.GeoIpLookup
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
+	telemetryCh chan TelemetryEvent
 }
 
 func NewDNSDispatcher(
@@ -61,7 +69,7 @@ func NewDNSDispatcher(
 		return nil, errors.Wrap(err, "failed to initialize metrics")
 	}
 
-	return &DNSDispatcher{
+	d := &DNSDispatcher{
 		dnsClient:   dnsClient,
 		defaultTTL:  300, // TODO: pass in
 		ttlFloor:    ttlFloor,
@@ -70,7 +78,15 @@ func NewDNSDispatcher(
 		geoIpLookup: geoIpLookup,
 		metrics:     metrics,
 		logger:      logger,
-	}, nil
+		telemetryCh: make(chan TelemetryEvent, 1024),
+	}
+
+	for range NUM_WORKERS {
+		go d.telemetryWorker()
+	}
+
+	logger.Info("DNS dispatcher initialized", "num_telemetry_workers", NUM_WORKERS)
+	return d, nil
 }
 
 func (d *DNSDispatcher) Close() {
@@ -91,7 +107,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 
 		ctx := &RequestContext{
-			Logger:    d.logger.With("clientIP", ipAddr, "requestId", req.Id, "source", source),
+			Logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
 			Source:    source,
 			StartTime: time.Now(),
 			IpAddr:    ipAddr,
@@ -99,7 +115,11 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 
 		defer func() {
 			duration := time.Since(ctx.StartTime).Seconds()
-			go d.recordTelemetry(ctx, duration)
+			select {
+			case d.telemetryCh <- TelemetryEvent{ctx: ctx, latency: duration}:
+			default:
+				d.metrics.DroppedTelemetry.Inc()
+			}
 		}()
 
 		resp := new(dns.Msg)
@@ -140,6 +160,12 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 
 		d.sendResponse(ctx, writer, resp)
+	}
+}
+
+func (d *DNSDispatcher) telemetryWorker() {
+	for event := range d.telemetryCh {
+		d.recordTelemetry(event.ctx, event.latency)
 	}
 }
 

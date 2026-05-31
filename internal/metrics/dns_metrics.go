@@ -32,20 +32,21 @@ func (s *SafeSketch) Estimate() uint64 {
 }
 
 type DnsMetrics struct {
-	RequestLatency        prometheus.Histogram
-	ErrorCounts           *prometheus.CounterVec
-	RequestCounts         *prometheus.CounterVec
-	QueryCounts           *prometheus.CounterVec
-	ReplyCounts           *prometheus.CounterVec
-	CountryCounts         *prometheus.CounterVec
-	UniqueClients         *SafeSketch
-	TopClients            *SpaceSaver
-	TopDomains            *SpaceSaver
-	TopBlockedDomains     *SpaceSaver
-	UpstreamTTLs          *prometheus.HistogramVec
-	UpstreamLatency       *prometheus.HistogramVec
+	RequestLatency      prometheus.Histogram
+	ErrorCounts         *prometheus.CounterVec
+	RequestCounts       *prometheus.CounterVec
+	QueryCounts         *prometheus.CounterVec
+	ReplyCounts         *prometheus.CounterVec
+	CountryCounts       *prometheus.CounterVec
+	UniqueClients       *SafeSketch
+	TopClients          *SpaceSaver
+	TopDomains          *SpaceSaver
+	TopBlockedDomains   *SpaceSaver
+	UpstreamTTLs        *prometheus.HistogramVec
+	UpstreamLatency     *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
-	DroppedCacheUpdates   prometheus.Counter
+	DroppedCacheUpdates prometheus.Counter
+	DroppedTelemetry    prometheus.Counter
 }
 
 var latencyBuckets = []float64{
@@ -158,6 +159,11 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		Help: "Total number of cache updates dropped because the update channel was full",
 	})
 
+	droppedTelemetry := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dns_dropped_telemetry_total",
+		Help: "Total number of telemetry events dropped because the worker channel was full",
+	})
+
 	if err := shouldRegister(
 		requestLatency,
 		errorCounts,
@@ -174,6 +180,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		upstreamLatency,
 		cacheReaperCalls,
 		droppedCacheUpdates,
+		droppedTelemetry,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -195,6 +202,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		UpstreamLatency:     upstreamLatency,
 		CacheReaperCalls:    cacheReaperCalls,
 		DroppedCacheUpdates: droppedCacheUpdates,
+		DroppedTelemetry:    droppedTelemetry,
 	}, nil
 }
 
