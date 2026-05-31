@@ -3,6 +3,7 @@ package metrics
 import (
 	"fmt"
 	"math"
+	"sync"
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/cockroachdb/errors"
@@ -13,6 +14,23 @@ import (
 
 const TOP_K = 50
 
+type SafeSketch struct {
+	mu     sync.Mutex
+	sketch *hyperloglog.Sketch
+}
+
+func (s *SafeSketch) Insert(data []byte) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sketch.Insert(data)
+}
+
+func (s *SafeSketch) Estimate() uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.sketch.Estimate()
+}
+
 type DnsMetrics struct {
 	RequestLatency    prometheus.Histogram
 	ErrorCounts       *prometheus.CounterVec
@@ -20,7 +38,7 @@ type DnsMetrics struct {
 	QueryCounts       *prometheus.CounterVec
 	ReplyCounts       *prometheus.CounterVec
 	CountryCounts     *prometheus.CounterVec
-	UniqueClients     *hyperloglog.Sketch
+	UniqueClients     *SafeSketch
 	TopClients        *SpaceSaver
 	TopDomains        *SpaceSaver
 	TopBlockedDomains *SpaceSaver
@@ -40,7 +58,7 @@ type Cache interface {
 }
 
 func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
-	uniqueClients := hyperloglog.New14()
+	uniqueClients := &SafeSketch{sketch: hyperloglog.New14()}
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
 	topBlockedDomains := NewSpaceSaver(TOP_K)
