@@ -454,9 +454,9 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 	addr := l.Addr().String()
 
 	server := &dns.Server{
-		Listener:    l,
-		Net:     "tcp",
-		Handler: probeDecorator(probeName, handler),
+		Listener: l,
+		Net:      "tcp",
+		Handler:  probeDecorator(probeName, handler),
 	}
 
 	started := make(chan struct{})

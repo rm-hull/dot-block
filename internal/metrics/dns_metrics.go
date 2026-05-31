@@ -46,7 +46,7 @@ type DnsMetrics struct {
 	UpstreamLatency     *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
 	DroppedCacheUpdates prometheus.Counter
-	DroppedTelemetry  prometheus.Counter
+	DroppedTelemetry    prometheus.Counter
 	PoolEvictions       *prometheus.CounterVec
 }
 
