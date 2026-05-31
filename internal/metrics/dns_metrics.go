@@ -34,7 +34,12 @@ var latencyBuckets = []float64{
 	0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, math.Inf(1),
 }
 
-func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, error) {
+type Cache interface {
+	Stat() cache.Stats
+	Len() int
+}
+
+func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 	uniqueClients := hyperloglog.New14()
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)

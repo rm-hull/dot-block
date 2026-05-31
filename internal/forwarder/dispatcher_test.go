@@ -300,7 +300,7 @@ func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dispatcher, err := NewDNSDispatcher(dnsClient, blockList, mockGeo, 100, -1*time.Second, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
-	assert.Contains(t, err.Error(), "cacheTtlFloor cannot be negative")
+	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
 }
 
 func TestDNSDispatcher_QueryLogging(t *testing.T) {

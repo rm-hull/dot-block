@@ -13,7 +13,7 @@ import (
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
 const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "0 3 * * *" // 3:00am every day
-const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *" // 7:05am on the 4th of every month
+const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *"  // 7:05am on the 4th of every month
 
 var DEFAULT_BLOCKLIST_URLS = []string{
 	"https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt",       // Hagezi Pro blocklist

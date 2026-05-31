@@ -8,7 +8,6 @@ import (
 
 	"github.com/cockroachdb/errors"
 	"github.com/getsentry/sentry-go"
-	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/geoblock"
@@ -33,14 +32,14 @@ type RequestContext struct {
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
 
 type DNSDispatcher struct {
-	dnsClient     *RoundRobinClient
-	defaultTTL    float64
-	cacheTtlFloor time.Duration
-	cache         cache.Cache[string, []dns.RR]
-	blockList     *blocklist.BlockList
-	geoIpLookup   geoblock.GeoIpLookup
-	metrics       *metrics.DnsMetrics
-	logger        *slog.Logger
+	dnsClient   *RoundRobinClient
+	defaultTTL  float64
+	ttlFloor    time.Duration
+	cache       *DNSCache
+	blockList   *blocklist.BlockList
+	geoIpLookup geoblock.GeoIpLookup
+	metrics     *metrics.DnsMetrics
+	logger      *slog.Logger
 }
 
 func NewDNSDispatcher(
@@ -48,29 +47,30 @@ func NewDNSDispatcher(
 	blockList *blocklist.BlockList,
 	geoIpLookup geoblock.GeoIpLookup,
 	maxSize int,
-	cacheTtlFloor time.Duration,
+	ttlFloor time.Duration,
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
 
-	if cacheTtlFloor < 0 {
-		return nil, errors.New("cacheTtlFloor cannot be negative")
+	if ttlFloor < 0 {
+		return nil, errors.New("TTL floor cannot be negative")
 	}
 
-	cache := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
+	cache := NewDNSCache(maxSize, logger)
+
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize")
+		return nil, errors.Wrap(err, "failed to initialize metrics")
 	}
 
 	return &DNSDispatcher{
-		dnsClient:     dnsClient,
-		defaultTTL:    300, // TODO: pass in
-		cacheTtlFloor: cacheTtlFloor,
-		cache:         cache,
-		blockList:     blockList,
-		geoIpLookup:   geoIpLookup,
-		metrics:       metrics,
-		logger:        logger,
+		dnsClient:   dnsClient,
+		defaultTTL:  300, // TODO: pass in
+		ttlFloor:    ttlFloor,
+		cache:       cache,
+		blockList:   blockList,
+		geoIpLookup: geoIpLookup,
+		metrics:     metrics,
+		logger:      logger,
 	}, nil
 }
 
@@ -233,8 +233,8 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			upstreamTTL := answersForQuestion[0].Header().Ttl
 			effectiveTTL := time.Duration(upstreamTTL) * time.Second
 
-			if !d.isFreshnessSensitive(&q) && effectiveTTL < d.cacheTtlFloor {
-				effectiveTTL = d.cacheTtlFloor
+			if !d.isFreshnessSensitive(&q) && effectiveTTL < d.ttlFloor {
+				effectiveTTL = d.ttlFloor
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
