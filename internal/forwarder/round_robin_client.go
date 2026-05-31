@@ -25,15 +25,20 @@ func NewRoundRobinClient(timeout time.Duration, upstreams ...string) (*RoundRobi
 	}, nil
 }
 
-func (r *RoundRobinClient) getNextUpstream() string {
-	n := atomic.AddUint32(&r.counter, 1)
-	return r.upstreams[(int(n)-1)%len(r.upstreams)]
-}
-
 func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
-	upstream := r.getNextUpstream()
-	resp, _, err := r.client.Exchange(msg, upstream)
-	return resp, upstream, err
+	n := uint32(len(r.upstreams))
+	start := uint32(atomic.AddUint32(&r.counter, 1) - 1)
+
+	var lastErr error
+	for i := range n {
+		upstream := r.upstreams[(start+i)%n]
+		resp, _, err := r.client.Exchange(msg, upstream)
+		if err == nil {
+			return resp, upstream, nil
+		}
+		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
+	}
+	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
