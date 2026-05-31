@@ -27,6 +27,7 @@ type RequestContext struct {
 	Logger    *slog.Logger
 	Source    DNSSource
 	StartTime time.Time
+	IpAddr    string
 }
 
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
@@ -84,32 +85,18 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				"error", err)
 
 			ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
-		} else {
-			d.metrics.TopClients.Add(ipAddr)
-			d.metrics.UniqueClients.Insert([]byte(ipAddr))
 		}
 
 		ctx := &RequestContext{
 			Logger:    d.logger.With("clientIP", ipAddr, "requestId", req.Id, "source", source),
 			Source:    source,
 			StartTime: time.Now(),
+			IpAddr:    ipAddr,
 		}
 
 		defer func() {
 			duration := time.Since(ctx.StartTime).Seconds()
-			d.metrics.RequestLatency.Observe(duration)
-			d.metrics.RequestCounts.WithLabelValues("total", string(source)).Inc()
-
-			if ipAddr == "unknown" {
-				return // Skip geolocation if IP is unknown
-			}
-
-			loc, err := d.geoIpLookup.GetAll(ipAddr)
-			if err != nil {
-				ctx.Logger.Warn("failed to get geolocation for client IP", "error", err)
-			} else {
-				d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
-			}
+			go d.recordTelemetry(ctx, duration)
 		}()
 
 		resp := new(dns.Msg)
@@ -150,6 +137,23 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 
 		d.sendResponse(ctx, writer, resp)
+	}
+}
+
+func (d *DNSDispatcher) recordTelemetry(ctx *RequestContext, latency float64) {
+	d.metrics.RequestLatency.Observe(latency)
+	d.metrics.RequestCounts.WithLabelValues("total", string(ctx.Source)).Inc()
+
+	if ctx.IpAddr != "unknown" {
+		d.metrics.TopClients.Add(ctx.IpAddr)
+		d.metrics.UniqueClients.Insert([]byte(ctx.IpAddr))
+
+		loc, err := d.geoIpLookup.GetAll(ctx.IpAddr)
+		if err != nil {
+			ctx.Logger.Warn("failed to get geolocation for client IP", "error", err)
+		} else {
+			d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
+		}
 	}
 }
 
@@ -241,6 +245,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 	return upstreamReq.Rcode, upstreamResp.Answer, nil
 }
 
+//go:inline
 func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	// Check query type
 	switch q.Qtype {
@@ -286,10 +291,12 @@ func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWri
 	}
 }
 
+//go:inline
 func getCacheKey(q *dns.Question) string {
 	return dns.Fqdn(q.Name) + ":" + getQueryType(q)
 }
 
+//go:inline
 func getQueryType(q *dns.Question) string {
 	return dns.TypeToString[q.Qtype]
 }
