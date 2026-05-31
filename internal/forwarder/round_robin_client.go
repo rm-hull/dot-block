@@ -73,7 +73,7 @@ func (p *ConnPool) release(conn *dns.Conn) {
 }
 
 func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
-	conn, err := p.acquire()
+	conn, reused, err := p.acquire()
 	if err != nil {
 		return nil, 0, err
 	}
@@ -81,6 +81,20 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
 	if err != nil {
 		_ = conn.Close() // discard broken conn
+		if reused {
+			// Retry once with a fresh connection if the pooled one was dead
+			conn, err = p.dial()
+			if err != nil {
+				return nil, 0, err
+			}
+			resp, rtt, err = p.client.ExchangeWithConn(msg, conn)
+			if err != nil {
+				_ = conn.Close()
+				return nil, 0, err
+			}
+			p.release(conn)
+			return resp, rtt, nil
+		}
 		return nil, 0, err
 	}
 
