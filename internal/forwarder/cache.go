@@ -65,7 +65,15 @@ func (dc *DNSCache) OnDrop(fn func()) {
 }
 
 func (dc *DNSCache) Get(key string) ([]dns.RR, bool) {
-	return dc.cache.Get(key)
+	rrs, ok := dc.cache.Get(key)
+	if !ok {
+		return nil, false
+	}
+	copied := make([]dns.RR, len(rrs))
+	for i, rr := range rrs {
+		copied[i] = dns.Copy(rr)
+	}
+	return copied, true
 }
 
 func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
