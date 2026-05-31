@@ -449,13 +449,12 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 	t.Helper()
 	probeName := fmt.Sprintf("%s.dns-probe.local.", uuid.New().String())
 
-	l, err := net.Listen("tcp", ":0")
+	l, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := l.Addr().String()
-	_ = l.Close()
 
 	server := &dns.Server{
-		Addr:    addr,
+		Listener:    l,
 		Net:     "tcp",
 		Handler: probeDecorator(probeName, handler),
 	}
@@ -466,7 +465,7 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 	}
 
 	go func() {
-		err := server.ListenAndServe()
+		err := server.ActivateAndServe()
 		if err != nil {
 			// If it's already closed, don't fail the test
 			return
