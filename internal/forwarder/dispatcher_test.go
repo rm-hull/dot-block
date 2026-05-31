@@ -254,6 +254,13 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		stats := dispatcher.cache.Stat()
 		return stats.Hits == 1 && stats.Misses == 1
 	}, 2*time.Second, 10*time.Millisecond, "Expected 1 cache hit and 1 miss")
+
+	// Ensure the cache item is actually retrievable before asserting stats
+	cacheKey := getCacheKey(&req.Question[0])
+	assert.Eventually(t, func() bool {
+		_, ok := dispatcher.cache.Get(cacheKey)
+		return ok // Wait until Get actually finds the item
+	}, 2*time.Second, 10*time.Millisecond, "Cache item not found after first request before second query")
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
