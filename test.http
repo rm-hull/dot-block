@@ -1,3 +1,7 @@
+### Index redirects
+GET http://localhost:8080/
+
+
 ### ACME challenge
 GET http://localhost:8080/.well-known/acme-challenge/abc123XYZ
 

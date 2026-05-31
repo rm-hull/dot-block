@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -344,6 +345,10 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	}
 	serverName := app.AllowedHosts[0]
 	r.GET("/.mobileconfig", mobileconfig.NewHandler(serverName))
+
+	r.GET("/", func(c *gin.Context) {
+		c.Redirect(http.StatusMovedPermanently, "https://github.com/rm-hull/dot-block/blob/main/README.md")
+	})
 
 	return r, nil
 }
