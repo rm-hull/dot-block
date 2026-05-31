@@ -351,19 +351,18 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		_ = server.Shutdown()
 	}()
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
-
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	require.NoError(t, err)
-
 	t.Run("Logging at INFO level (should not contain debug logs)", func(t *testing.T) {
 		logBuf.Reset()
 		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+		cache := NewDNSCache(100, logger)
+		metrics, err := metrics.NewDNSMetrics(cache)
+		assert.NoError(t, err)
+
+		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+		require.NoError(t, err)
 
 		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)
@@ -384,6 +383,13 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
 		mockGeo := new(MockGeoIpLookup)
 		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+
+		cache := NewDNSCache(100, logger)
+		metrics, err := metrics.NewDNSMetrics(cache)
+		assert.NoError(t, err)
+
+		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+		require.NoError(t, err)
 
 		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
 		require.NoError(t, err)

@@ -2,7 +2,6 @@ package forwarder
 
 import (
 	"log/slog"
-	"sync"
 	"time"
 
 	cache "github.com/go-pkgz/expirable-cache/v3"
@@ -22,7 +21,6 @@ type DNSCache struct {
 	logger   *slog.Logger
 	updateCh chan cacheUpdate
 	done     chan struct{}
-	once     sync.Once
 	onDrop   func()
 	lastWarn time.Time
 }
@@ -62,9 +60,7 @@ func (dc *DNSCache) runUpdateWorker() {
 }
 
 func (dc *DNSCache) Close() {
-	dc.once.Do(func() {
-		close(dc.done)
-	})
+	close(dc.done)
 }
 
 func (dc *DNSCache) OnDrop(fn func()) {
