@@ -102,7 +102,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Call the method under test
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
 	// Assert that the response writer was called with a non-nil message
 	assert.NotNil(t, writer.WrittenMsg)
@@ -140,7 +140,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Call the method under test
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
 	// Assert that the response has an RcodeSuccess Rcode
 	assert.NotNil(t, writer.WrittenMsg)
@@ -182,7 +182,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Call the method under test
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
 	// Assert that the response writer was called with a non-nil message
 	assert.NotNil(t, writer.WrittenMsg)
@@ -230,7 +230,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// First request: should be a cache miss and populate the cache
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
@@ -244,7 +244,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Second request: should be a cache hit
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
@@ -285,7 +285,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Call the method under test
-	dispatcher.HandleDNSRequest(writer, req)
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
@@ -329,7 +329,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		writer := new(MockResponseWriter)
 		writer.On("WriteMsg", mock.Anything).Return(nil)
 
-		dispatcher.HandleDNSRequest(writer, req)
+		dispatcher.HandleDNSRequest("test")(writer, req)
 
 		assert.NotContains(t, logBuf.String(), "Query received")
 	})
@@ -348,7 +348,7 @@ func TestDNSDispatcher_QueryLogging(t *testing.T) {
 		writer := new(MockResponseWriter)
 		writer.On("WriteMsg", mock.Anything).Return(nil)
 
-		dispatcher.HandleDNSRequest(writer, req)
+		dispatcher.HandleDNSRequest("test")(writer, req)
 
 		assert.Contains(t, logBuf.String(), "Query received")
 		assert.Contains(t, logBuf.String(), "google.com.")

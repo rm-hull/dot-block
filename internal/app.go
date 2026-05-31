@@ -192,7 +192,7 @@ func (app *App) RunServer() error {
 		return (&dns.Server{
 			Addr:    fmt.Sprintf(":%d", app.DnsPort),
 			Net:     "udp",
-			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
+			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceUDP)),
 		}).ListenAndServe()
 	})
 
@@ -205,7 +205,7 @@ func (app *App) RunServer() error {
 		return (&dns.Server{
 			Addr:    fmt.Sprintf(":%d", app.DnsPort),
 			Net:     "tcp",
-			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest),
+			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceTCP)),
 		}).ListenAndServe()
 	})
 
@@ -243,7 +243,7 @@ func (app *App) RunServer() error {
 			Addr:     dotPort,
 			Net:      "tcp",
 			Listener: listener,
-			Handler:  dns.HandlerFunc(dispatcher.HandleDNSRequest),
+			Handler:  dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoT)),
 		}).ActivateAndServe()
 	})
 

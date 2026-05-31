@@ -82,8 +82,8 @@ func NewDNSMetrics[K comparable, V any](cache cache.Cache[K, V]) (*DnsMetrics, e
 
 	requestCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_request_count",
-		Help: "Counts the number of DNS requests, broken down by type (total, errored, forwarded)",
-	}, []string{"type"})
+		Help: "Counts the number of DNS requests, broken down by type (total, errored, forwarded) and source (UDP, TCP, DoT)",
+	}, []string{"type", "source"})
 
 	queryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_query_count",

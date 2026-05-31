@@ -15,6 +15,22 @@ import (
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
+type DNSSource string
+
+const (
+	SourceUDP DNSSource = "UDP"
+	SourceTCP DNSSource = "TCP"
+	SourceDoT DNSSource = "DoT"
+)
+
+type RequestContext struct {
+	Logger    *slog.Logger
+	Source    DNSSource
+	StartTime *time.Time
+}
+
+type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
+
 type DNSDispatcher struct {
 	dnsClient     *RoundRobinClient
 	defaultTTL    float64
@@ -57,86 +73,99 @@ func NewDNSDispatcher(
 	}, nil
 }
 
-func (d *DNSDispatcher) HandleDNSRequest(writer dns.ResponseWriter, req *dns.Msg) {
-	startTime := time.Now()
-	remoteAddr := writer.RemoteAddr().String()
-	ipAddr, _, err := net.SplitHostPort(remoteAddr)
-	if err != nil {
-		d.logger.Warn("failed to parse client IP from remote address", "remote_addr", remoteAddr, "error", err)
-		ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
-	}
-
-	requestLogger := d.logger.With("clientIP", ipAddr, "requestId", req.Id)
-
-	defer func() {
-		duration := time.Since(startTime).Seconds()
-		d.metrics.RequestLatency.Observe(duration)
-		d.metrics.RequestCounts.WithLabelValues("total").Inc()
-
-		loc, err := d.geoIpLookup.GetAll(ipAddr)
+func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
+	return func(writer dns.ResponseWriter, req *dns.Msg) {
+		startTime := time.Now()
+		remoteAddr := writer.RemoteAddr().String()
+		ipAddr, _, err := net.SplitHostPort(remoteAddr)
 		if err != nil {
-			requestLogger.Warn("failed to get geolocation for client IP", "error", err)
-		} else {
-			d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
-		}
-	}()
+			d.logger.Warn("failed to parse client IP from remote address",
+				"remote_addr", remoteAddr,
+				"source", source,
+				"error", err)
 
-	if err := d.updateClientCount(writer); err != nil {
-		requestLogger.Warn("failed to update client count", "error", err)
-	}
-
-	resp := new(dns.Msg)
-	resp.SetReply(req)
-	resp.Question = req.Question
-
-	unansweredQuestions := make([]dns.Question, 0, len(req.Question))
-
-	for _, q := range req.Question {
-		answers, err := d.processQuestion(requestLogger, &q)
-		if err != nil {
-			resp.Rcode = dns.RcodeServerFailure
-			d.sendResponse(requestLogger, writer, resp)
-			return
+			ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
 		}
 
-		if len(answers) > 0 {
+		ctx := &RequestContext{
+			Logger:    d.logger.With("clientIP", ipAddr, "requestId", req.Id, "source", source),
+			Source:    source,
+			StartTime: &startTime,
+		}
+
+		defer func() {
+			duration := time.Since(startTime).Seconds()
+			d.metrics.RequestLatency.Observe(duration)
+			d.metrics.RequestCounts.WithLabelValues("total", string(source)).Inc()
+
+			loc, err := d.geoIpLookup.GetAll(ipAddr)
+			if err != nil {
+				ctx.Logger.Warn("failed to get geolocation for client IP",
+					"error", err)
+			} else {
+				d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
+			}
+		}()
+
+		if err := d.updateClientCount(writer); err != nil {
+			ctx.Logger.Warn("failed to update client count", "error", err)
+		}
+
+		resp := new(dns.Msg)
+		resp.SetReply(req)
+		resp.Question = req.Question
+
+		unansweredQuestions := make([]dns.Question, 0, len(req.Question))
+
+		for _, q := range req.Question {
+			answers, err := d.processQuestion(ctx, &q)
+			if err != nil {
+				resp.Rcode = dns.RcodeServerFailure
+				d.sendResponse(ctx, writer, resp)
+				return
+			}
+
+			if len(answers) > 0 {
+				resp.Answer = append(resp.Answer, answers...)
+			} else {
+				unansweredQuestions = append(unansweredQuestions, q)
+			}
+		}
+
+		if len(unansweredQuestions) > 0 {
+			rcode, answers, err := d.resolveUpstream(ctx, unansweredQuestions, req)
+			if err != nil {
+				resp.Rcode = rcode
+				d.reportError(ctx, "upstream", err, "qtype", getQueryType(&unansweredQuestions[0]))
+				d.sendResponse(ctx, writer, resp)
+				return
+			}
+
 			resp.Answer = append(resp.Answer, answers...)
-		} else {
-			unansweredQuestions = append(unansweredQuestions, q)
-		}
-	}
-
-	if len(unansweredQuestions) > 0 {
-		rcode, answers, err := d.resolveUpstream(unansweredQuestions, req)
-		if err != nil {
-			resp.Rcode = rcode
-			d.reportError(requestLogger, "upstream", err)
-			d.sendResponse(requestLogger, writer, resp)
-			return
 		}
 
-		resp.Answer = append(resp.Answer, answers...)
-	}
+		if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
+			resp.Rcode = dns.RcodeNameError
+		}
 
-	if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
-		resp.Rcode = dns.RcodeNameError
+		d.sendResponse(ctx, writer, resp)
 	}
-
-	d.sendResponse(requestLogger, writer, resp)
 }
 
-func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Question) ([]dns.RR, error) {
+func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, error) {
 	queryType := getQueryType(q)
-	requestLogger.Debug("Query received", "name", q.Name, "type", queryType)
+	ctx.Logger.Debug("Query received",
+		"name", q.Name,
+		"type", queryType)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
-		d.reportError(requestLogger, "blocklist", err)
+		d.reportError(ctx, "blocklist", err, "qtype", queryType)
 		return nil, err
 	}
 
 	if isBlocked {
-		requestLogger.Debug("Domain blocked", "name", q.Name)
+		ctx.Logger.Debug("Domain blocked", "name", q.Name)
 		d.metrics.TopBlockedDomains.Add(q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
 
@@ -166,13 +195,13 @@ func (d *DNSDispatcher) processQuestion(requestLogger *slog.Logger, q *dns.Quest
 	return nil, nil
 }
 
-func (d *DNSDispatcher) resolveUpstream(unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
+func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
 	upstreamReq := new(dns.Msg)
 	upstreamReq.Id = dns.Id()
 	upstreamReq.RecursionDesired = req.RecursionDesired
 	upstreamReq.Question = unansweredQuestions
 
-	upstreamResp, upstream, err := d.forwardQuery(upstreamReq)
+	upstreamResp, upstream, err := d.forwardQuery(ctx, upstreamReq)
 	if err != nil {
 		return dns.RcodeServerFailure, nil, err
 	}
@@ -242,16 +271,17 @@ func (d *DNSDispatcher) updateClientCount(writer dns.ResponseWriter) error {
 	return nil
 }
 
-func (d *DNSDispatcher) reportError(requestLogger *slog.Logger, errorCategory string, err error) {
-	requestLogger.Error("DNS error", "category", errorCategory, "error", err)
+func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
+	args := append(additionalFields, "category", errorCategory, "error", err)
+	ctx.Logger.Error("DNS error", args...)
 	d.metrics.ErrorCounts.WithLabelValues(errorCategory).Inc()
-	d.metrics.RequestCounts.WithLabelValues("errored").Inc()
+	d.metrics.RequestCounts.WithLabelValues("errored", string(ctx.Source)).Inc()
 	sentry.CaptureException(err)
 }
 
-func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, string, error) {
+func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
 	startTime := time.Now()
-	d.metrics.RequestCounts.WithLabelValues("forwarded").Inc()
+	d.metrics.RequestCounts.WithLabelValues("forwarded", string(ctx.Source)).Inc()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	duration := time.Since(startTime).Seconds()
@@ -259,10 +289,10 @@ func (d *DNSDispatcher) forwardQuery(req *dns.Msg) (*dns.Msg, string, error) {
 	return in, upstream, err
 }
 
-func (d *DNSDispatcher) sendResponse(requestLogger *slog.Logger, writer dns.ResponseWriter, msg *dns.Msg) {
+func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
 	d.metrics.ReplyCounts.WithLabelValues(dns.RcodeToString[msg.Rcode]).Inc()
 	if err := writer.WriteMsg(msg); err != nil {
-		d.reportError(requestLogger, "response", err)
+		d.reportError(ctx, "response", err)
 		return
 	}
 }
