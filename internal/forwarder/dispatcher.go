@@ -56,7 +56,6 @@ func NewDNSDispatcher(
 	}
 
 	cache := NewDNSCache(maxSize, logger)
-
 	metrics, err := metrics.NewDNSMetrics(cache)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize metrics")
@@ -72,6 +71,10 @@ func NewDNSDispatcher(
 		metrics:     metrics,
 		logger:      logger,
 	}, nil
+}
+
+func (d *DNSDispatcher) Close() {
+	d.cache.Close()
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {

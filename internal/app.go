@@ -171,6 +171,8 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
+	defer dispatcher.Close()
+
 	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
 	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
