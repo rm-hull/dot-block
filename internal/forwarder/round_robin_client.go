@@ -16,51 +16,75 @@ type RoundRobinClient struct {
 	counter   uint32
 }
 
+type pooledConn struct {
+	conn       *dns.Conn
+	returnedAt time.Time
+}
+
 type ConnPool struct {
-	conns   chan *dns.Conn
-	addr    string
-	client  *dns.Client
-	metrics *metrics.DnsMetrics
+	conns      chan *pooledConn
+	addr       string
+	client     *dns.Client
+	metrics    *metrics.DnsMetrics
+	maxIdleAge time.Duration
 }
 
 func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int) *ConnPool {
 	return &ConnPool{
-		conns:   make(chan *dns.Conn, poolSize),
-		addr:    addr,
-		client:  client,
-		metrics: metrics,
+		conns:      make(chan *pooledConn, poolSize),
+		addr:       addr,
+		client:     client,
+		metrics:    metrics,
+		maxIdleAge: 8 * time.Second, // Close connections idle for more than 8 seconds
+	}
+}
+
+func (p *ConnPool) dial() (*dns.Conn, error) {
+	conn, err := p.client.Dial(p.addr)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to dial %s", p.addr)
+	}
+	return conn, nil
+}
+
+func (p *ConnPool) acquire() (*dns.Conn, error) {
+	for {
+		select {
+		case pc := <-p.conns:
+			if time.Since(pc.returnedAt) > p.maxIdleAge {
+				_ = pc.conn.Close() // stale, discard and try next
+				continue
+			}
+			return pc.conn, nil
+		default:
+			return p.dial()
+		}
+	}
+}
+
+func (p *ConnPool) release(conn *dns.Conn) {
+	select {
+	case p.conns <- &pooledConn{conn: conn, returnedAt: time.Now()}:
+	default:
+		_ = conn.Close() // pool full, discard
+		p.metrics.PoolEvictions.WithLabelValues(p.addr).Inc()
 	}
 }
 
 func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
-	var conn *dns.Conn
-	select {
-	case conn = <-p.conns:
-		// Reuse existing connection
-	default:
-		// No available connection, create a new one
-		var err error
-		conn, err = p.client.Dial(p.addr)
-		if err != nil {
-			return nil, 0, errors.Wrapf(err, "failed to dial %s", p.addr)
-		}
-	}
+    conn, err := p.acquire()
+    if err != nil {
+        return nil, 0, err
+    }
 
-	resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
-	if err != nil {
-		_ = conn.Close() // Close the connection on error
-		return nil, 0, err
-	}
+    resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
+    if err != nil {
+        _ = conn.Close() // discard broken conn
+        return nil, 0, err
+    }
 
-	// Return the connection to the pool if it's still healthy
-	select {
-	case p.conns <- conn:
-	default:
-		_ = conn.Close() // Pool is full, close the connection
-		p.metrics.PoolEvictions.WithLabelValues(p.addr).Inc()
-	}
-
-	return resp, rtt, nil
+    p.release(conn)
+    return resp, rtt, nil
 }
 
 func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, upstreams ...string) (*RoundRobinClient, error) {
