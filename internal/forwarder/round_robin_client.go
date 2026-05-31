@@ -72,25 +72,30 @@ func (p *ConnPool) release(conn *dns.Conn) {
 }
 
 func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
-    conn, err := p.acquire()
-    if err != nil {
-        return nil, 0, err
-    }
+	conn, err := p.acquire()
+	if err != nil {
+		return nil, 0, err
+	}
 
-    resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
-    if err != nil {
-        _ = conn.Close() // discard broken conn
-        return nil, 0, err
-    }
+	resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
+	if err != nil {
+		_ = conn.Close() // discard broken conn
+		return nil, 0, err
+	}
 
-    p.release(conn)
-    return resp, rtt, nil
+	p.release(conn)
+	return resp, rtt, nil
 }
 
 func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
 	}
+
+	if poolSize < 0 {
+		return nil, errors.New("connection pool size cannot be negative")
+	}
+
 	client := &dns.Client{Timeout: timeout, Net: "tcp"}
 	pools := make(map[string]*ConnPool, len(upstreams))
 	for _, upstream := range upstreams {
