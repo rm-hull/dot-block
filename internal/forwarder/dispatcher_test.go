@@ -418,28 +418,21 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 		Handler: probeDecorator(probeName, handler),
 	}
 
+	started := make(chan struct{})
+	server.NotifyStartedFunc = func() {
+		close(started)
+	}
+
 	go func() {
 		err := server.ListenAndServe()
 		require.NoError(t, err)
 	}()
 
-	// Wait for the server's PacketConn to be initialized and get its address
-	// This loop is necessary because ListenAndServe blocks, but PacketConn
-	// is populated once the listener is active.
 	var upstream string
-	serverReady := make(chan struct{})
-	for range 10 {
-		if server.PacketConn != nil {
-			upstream = server.PacketConn.LocalAddr().String()
-			t.Logf("Mock DNS server listening on: %s", upstream)
-			close(serverReady)
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
 	select {
-	case <-serverReady: // Server is ready, continue
+	case <-started:
+		upstream = server.PacketConn.LocalAddr().String()
+		t.Logf("Mock DNS server listening on: %s", upstream)
 	case <-time.After(5 * time.Second):
 		t.Fatal("Timed out waiting for mock DNS server to become ready")
 	}

@@ -43,7 +43,7 @@ jobs:
           export PATH=$(go env GOPATH)/bin:$PATH
           go install gotest.tools/gotestsum@latest
           mkdir -p ./test-reports/
-          gotestsum --junitfile=./test-reports/junit.xml --format github-actions -- -v -coverprofile=profile.cov -coverpkg=./... ./...
+          gotestsum --junitfile=./test-reports/junit.xml --format github-actions -- -v -race -coverprofile=profile.cov -coverpkg=./... ./...
 
       - name: Collect test results
         if: always()
