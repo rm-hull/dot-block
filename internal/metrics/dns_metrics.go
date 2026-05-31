@@ -46,6 +46,7 @@ type DnsMetrics struct {
 	UpstreamLatency     *prometheus.HistogramVec
 	CacheReaperCalls    prometheus.Counter
 	DroppedCacheUpdates prometheus.Counter
+	DroppedTelemetry  prometheus.Counter
 	PoolEvictions       *prometheus.CounterVec
 }
 
@@ -159,6 +160,11 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		Help: "Total number of cache updates dropped because the update channel was full",
 	})
 
+	droppedTelemetry := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dns_dropped_telemetry_total",
+		Help: "Total number of telemetry events dropped because the worker channel was full",
+	})
+
 	poolEvictions := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_pool_evictions_total",
 		Help: "Total number of connections evicted from the pool due to it being full, broken down by upstream server",
@@ -180,6 +186,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		upstreamLatency,
 		cacheReaperCalls,
 		droppedCacheUpdates,
+		droppedTelemetry,
 		poolEvictions,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
@@ -202,6 +209,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		UpstreamLatency:     upstreamLatency,
 		CacheReaperCalls:    cacheReaperCalls,
 		DroppedCacheUpdates: droppedCacheUpdates,
+		DroppedTelemetry:    droppedTelemetry,
 		PoolEvictions:       poolEvictions,
 	}, nil
 }

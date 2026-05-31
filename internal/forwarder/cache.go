@@ -19,21 +19,24 @@ type cacheUpdate struct {
 type DNSCache struct {
 	cache    cache.Cache[string, []dns.RR]
 	logger   *slog.Logger
-	update   chan cacheUpdate
+	updateCh chan cacheUpdate
 	done     chan struct{}
 	onDrop   func()
 	lastWarn time.Time
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
-	logger.Info("Initializing DNS cache", "maxCacheSize", maxSize, "updateBufferSize", CACHE_UPDATE_BUFFER_SIZE)
+	logger.Info("Initializing DNS cache",
+		"max_cache_size", maxSize,
+		"update_buffer_size", CACHE_UPDATE_BUFFER_SIZE)
+
 	c := cache.NewCache[string, []dns.RR]().WithMaxKeys(maxSize).WithLRU()
 
 	dc := &DNSCache{
-		cache:  c,
-		logger: logger,
-		update: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
-		done:   make(chan struct{}),
+		cache:    c,
+		logger:   logger,
+		updateCh: make(chan cacheUpdate, CACHE_UPDATE_BUFFER_SIZE),
+		done:     make(chan struct{}),
 	}
 
 	go dc.runUpdateWorker()
@@ -45,7 +48,7 @@ func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {
 func (dc *DNSCache) runUpdateWorker() {
 	for {
 		select {
-		case update, ok := <-dc.update:
+		case update, ok := <-dc.updateCh:
 			if !ok {
 				return
 			}
@@ -80,7 +83,7 @@ func (dc *DNSCache) Set(key string, values []dns.RR, ttl time.Duration) {
 	select {
 	case <-dc.done:
 		return
-	case dc.update <- cacheUpdate{key: key, values: values, ttl: ttl}:
+	case dc.updateCh <- cacheUpdate{key: key, values: values, ttl: ttl}:
 	default:
 		if dc.onDrop != nil {
 			dc.onDrop()
