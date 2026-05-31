@@ -122,10 +122,11 @@ DoT Block can be configured using the following command-line flags:
 
 | Flag | Description | Default |
 | :--- | :--- | :--- |
-| `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600` |
 | `--allowed-host` | List of domains used for the CertManager allow policy. | `nil` |
 | `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"` |
-| `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `@every 10m` |
+| `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
+| `--connection-timeout` | Timeout for upstream DNS | `500ms` |
+| `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
 | `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
 | `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |

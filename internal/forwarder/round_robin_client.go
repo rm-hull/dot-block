@@ -1,6 +1,7 @@
 package forwarder
 
 import (
+	"net"
 	"sync/atomic"
 	"time"
 
@@ -25,15 +26,31 @@ func NewRoundRobinClient(timeout time.Duration, upstreams ...string) (*RoundRobi
 	}, nil
 }
 
-func (r *RoundRobinClient) getNextUpstream() string {
-	n := atomic.AddUint32(&r.counter, 1)
-	return r.upstreams[(int(n)-1)%len(r.upstreams)]
+func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
+	n := len(r.upstreams)
+	start := int(atomic.AddUint32(&r.counter, 1) - 1)
+
+	var lastErr error
+	for i := range n {
+		upstream := r.upstreams[(start+i)%n]
+		resp, _, err := r.client.Exchange(msg, upstream)
+		if err == nil {
+			return resp, upstream, nil
+		}
+
+		// Only fall through to next upstream on network/timeout errors, not DNS errors
+		if isTimeoutError(err) {
+			lastErr = errors.Wrapf(err, "timeout from upstream %s", upstream)
+			continue
+		}
+		return nil, "", errors.Wrapf(err, "DNS error from upstream %s", upstream)
+	}
+	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
 }
 
-func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
-	upstream := r.getNextUpstream()
-	resp, _, err := r.client.Exchange(msg, upstream)
-	return resp, upstream, err
+func isTimeoutError(err error) bool {
+	var netErr net.Error
+	return errors.As(err, &netErr) && netErr.Timeout()
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
