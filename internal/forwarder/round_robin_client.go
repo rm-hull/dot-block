@@ -47,7 +47,7 @@ func (p *ConnPool) dial() (*dns.Conn, error) {
 	return conn, nil
 }
 
-func (p *ConnPool) acquire() (*dns.Conn, error) {
+func (p *ConnPool) acquire() (*dns.Conn, bool, error) {
 	for {
 		select {
 		case pc := <-p.conns:
@@ -55,9 +55,10 @@ func (p *ConnPool) acquire() (*dns.Conn, error) {
 				_ = pc.conn.Close() // stale, discard and try next
 				continue
 			}
-			return pc.conn, nil
+			return pc.conn, true, nil
 		default:
-			return p.dial()
+			conn, err := p.dial()
+			return conn, false, err
 		}
 	}
 }
