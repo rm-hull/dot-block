@@ -1,8 +1,8 @@
 name: Gemini PR Code Review
 
 on:
-  issue_comment:
-    types: [created]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
@@ -11,43 +11,26 @@ permissions:
 
 jobs:
   code-review:
-    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/review') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: "25"
 
-      - name: Run pi agent for PR Review
-        id: pi_agent
-        uses: cv/pi-action@v1
+      - uses: shaftoe/pi-coding-agent-action@v2
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: google
           model: gemma-4-31b-it
-          api_key: ${{ secrets.GEMINI_API_KEY }}
+          token: ${{ secrets.GEMINI_API_KEY }}
           prompt: |
-            # Code Review for PR #{{number}}: {{title}}
-
-            ## Description
-            {{body}}
-
-            ## Review Request
-            {{task}}
-
-            ## Changes
-            ```diff
-            {{diff}}
-            ```
-
-            ## Review Guidelines
-            - Check for security vulnerabilities
-            - Verify test coverage
-            - Ensure code follows our style guide
-            - Flag any performance concerns
-            - Suggest improvements where applicable
-
-            Please provide a thorough code review.
+            Review this pull request. Before starting, use get_issue_or_pr_thread to
+            fetch any existing review comments so you don't duplicate feedback that
+            has already been given. Focus on issues, bugs, and security concerns.
+            Post your findings as a PR review when done.
