@@ -8,11 +8,11 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 -   **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
 -   **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
 -   **High Performance:** Built with Go for speed and efficiency.
--   **Caching:** Caches DNS responses to speed up subsequent lookups.
+-   **Intelligent Caching:** Caches DNS responses to speed up subsequent lookups with configurable TTL flooring.
 -   **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
 -   **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
--   **Prometheus Metrics:** Exports detailed metrics for monitoring.
--   **Error Reporting (Sentry):** Integrates with Sentry for real-time error tracking and reporting.
+-   **Advanced Observability:** Exports detailed Prometheus metrics including upstream health, failure reasons, and cache effectiveness.
+-   **Noise-Reduced Error Reporting:** Integrates with Sentry, with intelligent filtering to avoid logging protocol-valid negative responses (like NXDOMAIN or NOTIMP) as errors.
 -   **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
 
 ## Getting Started
@@ -123,7 +123,7 @@ DoT Block can be configured using the following command-line flags:
 | Flag | Description | Default |
 | :--- | :--- | :--- |
 | `--allowed-host` | List of domains used for the CertManager allow policy. | `nil` |
-| `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"` |
+| `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt` |
 | `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
 | `--connection-pool-size` | Number of connections to maintain in pool for each upstream server | `10` |
 | `--connection-timeout` | Timeout for upstream DNS connections | `500ms` |
