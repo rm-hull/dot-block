@@ -99,6 +99,68 @@ func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGe
 	return dispatcher, mockGeo, blockList, logger
 }
 
+func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
+	// A server that answers for google.com and fails or times out for others? 
+	// Or just a standard server. Let's make it a standard one.
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeSuccess)
+		
+		if r.Question[0].Name == "google.com." {
+			aRecord := &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   dns.Fqdn("google.com."),
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    3600,
+				},
+				A: []byte{142, 251, 29, 101},
+			}
+			m.Answer = append(m.Answer, aRecord)
+		}
+		
+		_ = w.WriteMsg(m)
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+
+	req := new(dns.Msg)
+	req.Question = []dns.Question{
+		{Name: "google.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET},
+		{Name: "ads.0xbt.net.", Qtype: dns.TypeA, Qclass: dns.ClassINET}, // Blocked
+	}
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	
+	// Should have 2 answers: google.com A record and ads.0xbt.net SOA record
+	assert.Len(t, writer.WrittenMsg.Answer, 2)
+	
+	foundA := false
+	foundSOA := false
+	for _, rr := range writer.WrittenMsg.Answer {
+		if _, ok := rr.(*dns.A); ok {
+			foundA = true
+		} else if _, ok := rr.(*dns.SOA); ok {
+			foundSOA = true
+		}
+	}
+	assert.True(t, foundA, "A record for google.com. not found")
+	assert.True(t, foundSOA, "SOA record for ads.0xbt.net. not found")
+}
+
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 	defer func() {
