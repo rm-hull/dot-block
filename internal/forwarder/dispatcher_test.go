@@ -77,29 +77,36 @@ func (m *MockResponseWriter) TsigTimersOnly(b bool) {
 func (m *MockResponseWriter) Hijack() {
 }
 
-func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
+func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
+	t.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
-	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
-
-	defer func() {
-		err := server.Shutdown()
-		assert.NoError(t, err)
-	}()
 
 	cache := NewDNSCache(100, logger)
 	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
+
+	return dispatcher, mockGeo, blockList, logger
+}
+
+func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -116,8 +123,6 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
 		// shouldn't call upstream
 		t.Fail()
@@ -128,19 +133,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
-
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	assert.NoError(t, err)
-
-	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
-
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-	assert.NoError(t, err)
-	t.Cleanup(dispatcher.Close)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -163,8 +156,6 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 
 	defer func() {
@@ -172,19 +163,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
-
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	assert.NoError(t, err)
-
-	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
-
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-	assert.NoError(t, err)
-	t.Cleanup(dispatcher.Close)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -219,8 +198,6 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, dnsRecord("example.com.", dns.TypeA, []byte{93, 184, 216, 34}))
 
 	defer func() {
@@ -228,19 +205,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
-
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	assert.NoError(t, err)
-
-	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
-
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-	assert.NoError(t, err)
-	t.Cleanup(dispatcher.Close)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -271,8 +236,6 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 }
 
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
 		m.SetReply(r)                   // Set reply based on the request
@@ -285,19 +248,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
-	assert.NoError(t, err)
-
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
-	assert.NoError(t, err)
-
-	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
-
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-	require.NoError(t, err)
-	t.Cleanup(dispatcher.Close)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
