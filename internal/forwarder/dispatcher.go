@@ -280,10 +280,11 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
 		// Propagate the upstream response Rcode if not successful
-		return upstreamResp.Rcode, nil, errors.NewWithDepthf(0,
+		err := errors.NewWithDepthf(0,
 			"upstream resolver (%s) returned Rcode: %s for query: %s",
 			upstream, dns.RcodeToString[upstreamResp.Rcode], unansweredQuestions[0].Name,
 		)
+		return upstreamResp.Rcode, nil, &RcodeError{Rcode: upstreamResp.Rcode, Err: err}
 	}
 
 	// Group answers by question for efficient lookup
@@ -332,11 +333,14 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 var freshnessSensitive = []string{"ocsp", "crl", "pki"}
 
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
-	args := append(additionalFields, "category", errorCategory, "error", err)
-	ctx.Logger.Error("DNS error", args...)
+	if ShouldLog(err) {
+		args := append(additionalFields, "category", errorCategory, "error", err)
+		ctx.Logger.Error("DNS error", args...)
+		sentry.CaptureException(err)
+	}
+
 	d.metrics.ErrorCounts.WithLabelValues(errorCategory).Inc()
 	d.metrics.RequestCounts.WithLabelValues("errored", string(ctx.Source)).Inc()
-	sentry.CaptureException(err)
 }
 
 func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
