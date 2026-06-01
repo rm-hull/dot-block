@@ -92,6 +92,20 @@ func (d *DNSDispatcher) Close() {
 	close(d.done)
 }
 
+func isReservedTLD(name string) bool {
+	n := strings.ToLower(name)
+	return strings.HasSuffix(n, ".invalid.") ||
+		strings.HasSuffix(n, ".localhost.") ||
+		strings.HasSuffix(n, ".local.") ||
+		strings.HasSuffix(n, ".test.") ||
+		strings.HasSuffix(n, ".example.") ||
+		strings.HasSuffix(n, ".internal.")
+}
+
+func isReservedLocalhost(name string) bool {
+	return strings.ToLower(name) == "localhost."
+}
+
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 	return func(writer dns.ResponseWriter, req *dns.Msg) {
 		remoteAddr := writer.RemoteAddr().String()
@@ -128,9 +142,15 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 		for _, q := range req.Question {
-			answers, err := d.processQuestion(ctx, &q)
+			answers, rcode, err := d.processQuestion(ctx, &q)
 			if err != nil {
 				resp.Rcode = dns.RcodeServerFailure
+				d.sendResponse(ctx, writer, resp)
+				return
+			}
+
+			if rcode != dns.RcodeSuccess {
+				resp.Rcode = rcode
 				d.sendResponse(ctx, writer, resp)
 				return
 			}
@@ -139,8 +159,6 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				resp.Answer = append(resp.Answer, answers...)
 			} else if !isDNSSDQuery(q.Name) {
 				unansweredQuestions = append(unansweredQuestions, q)
-			} else {
-				resp.Rcode = dns.RcodeNameError
 			}
 		}
 
@@ -195,7 +213,7 @@ func (d *DNSDispatcher) recordTelemetry(ctx *RequestContext, latency float64) {
 	}
 }
 
-func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, error) {
+func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
 	queryType := getQueryType(q)
 	ctx.Logger.Debug("Query received",
 		"name", q.Name,
@@ -204,7 +222,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
 		d.reportError(ctx, "blocklist", err, "qtype", queryType)
-		return nil, err
+		return nil, dns.RcodeServerFailure, err
 	}
 
 	if isBlocked {
@@ -226,23 +244,43 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 			Expire:  604800,
 			Minttl:  uint32(d.defaultTTL),
 		}
-		return []dns.RR{soa}, nil
+		return []dns.RR{soa}, dns.RcodeSuccess, nil
+	}
+
+	if isReservedLocalhost(q.Name) {
+		ctx.Logger.Debug("Answering localhost loopback", "name", q.Name)
+		a := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   q.Name,
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    uint32(d.defaultTTL),
+			},
+			A: net.ParseIP("127.0.0.1"),
+		}
+		return []dns.RR{a}, dns.RcodeSuccess, nil
+	}
+
+	if isReservedTLD(q.Name) {
+		ctx.Logger.Debug("Blocking reserved TLD", "name", q.Name)
+		return nil, dns.RcodeNameError, nil
 	}
 
 	if isDNSSDQuery(q.Name) {
 		ctx.Logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
 		d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
-		return nil, nil // Returning empty answers with default Rcode (which should be NXDOMAIN if nothing else is added)
+		return nil, dns.RcodeNameError, nil
 	}
 
 	d.metrics.TopDomains.Add(q.Name)
 	d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
-		return cachedRRs, nil
+		return cachedRRs, dns.RcodeSuccess, nil
 	}
 
-	return nil, nil
+	return nil, dns.RcodeSuccess, nil
 }
+
 
 func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
 	upstreamReq := new(dns.Msg)

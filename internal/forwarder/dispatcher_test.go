@@ -537,3 +537,44 @@ func deadline(t *testing.T, timeout time.Duration) time.Time {
 	}
 	return time.Now().Add(timeout)
 }
+
+func TestDNSDispatcher_ReservedTLDs(t *testing.T) {
+	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53")
+
+	tests := []struct {
+		name     string
+		expected int // Expected Rcode
+	}{
+		{"example.invalid.", dns.RcodeNameError},
+		{"localhost.", dns.RcodeSuccess},
+		{"test.local.", dns.RcodeNameError},
+		{"my.test.", dns.RcodeNameError},
+		{"my.example.", dns.RcodeNameError},
+		{"my.internal.", dns.RcodeNameError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := new(dns.Msg)
+			req.Question = []dns.Question{
+				{Name: tt.name, Qtype: dns.TypeA, Qclass: dns.ClassINET},
+			}
+
+			writer := new(MockResponseWriter)
+			writer.On("WriteMsg", mock.Anything).Return(nil)
+
+			dispatcher.HandleDNSRequest("test")(writer, req)
+
+			assert.NotNil(t, writer.WrittenMsg)
+			assert.Equal(t, tt.expected, writer.WrittenMsg.Rcode, "Rcode mismatch for %s", tt.name)
+
+			if tt.name == "localhost." {
+				assert.Len(t, writer.WrittenMsg.Answer, 1)
+				a := writer.WrittenMsg.Answer[0].(*dns.A)
+				assert.Equal(t, "127.0.0.1", a.A.String())
+			} else {
+				assert.Len(t, writer.WrittenMsg.Answer, 0)
+			}
+		})
+	}
+}
