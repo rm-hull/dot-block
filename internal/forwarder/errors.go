@@ -24,6 +24,9 @@ func (e *RcodeError) ShouldLog() bool {
 }
 
 func ShouldLog(err error) bool {
+	if err == nil {
+		return false
+	}
 	var loggable interface{ ShouldLog() bool }
 	if errors.As(err, &loggable) {
 		return loggable.ShouldLog()
