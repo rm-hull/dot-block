@@ -139,6 +139,8 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				resp.Answer = append(resp.Answer, answers...)
 			} else if !isDNSSDQuery(q.Name) {
 				unansweredQuestions = append(unansweredQuestions, q)
+			} else {
+				resp.Rcode = dns.RcodeNameError
 			}
 		}
 
@@ -154,7 +156,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			resp.Answer = append(resp.Answer, answers...)
 		}
 
-		if len(resp.Answer) == 0 {
+		if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
 			resp.Rcode = dns.RcodeNameError
 		}
 
