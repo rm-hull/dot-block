@@ -137,7 +137,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 
 			if len(answers) > 0 {
 				resp.Answer = append(resp.Answer, answers...)
-			} else {
+			} else if !isDNSSDQuery(q.Name) {
 				unansweredQuestions = append(unansweredQuestions, q)
 			}
 		}
@@ -154,7 +154,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			resp.Answer = append(resp.Answer, answers...)
 		}
 
-		if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
+		if len(resp.Answer) == 0 {
 			resp.Rcode = dns.RcodeNameError
 		}
 
@@ -225,6 +225,12 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 			Minttl:  uint32(d.defaultTTL),
 		}
 		return []dns.RR{soa}, nil
+	}
+
+	if isDNSSDQuery(q.Name) {
+		ctx.Logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
+		d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
+		return nil, nil // Returning empty answers with default Rcode (which should be NXDOMAIN if nothing else is added)
 	}
 
 	d.metrics.TopDomains.Add(q.Name)
@@ -332,4 +338,16 @@ func getCacheKey(q *dns.Question) string {
 
 func getQueryType(q *dns.Question) string {
 	return dns.TypeToString[q.Qtype]
+}
+
+func isDNSSDQuery(name string) bool {
+	// RFC 6763: <service>._dns-sd._udp.<domain>
+	// Common labels: b, db, r, dr, lb
+	// We want to match: *. _dns-sd._udp.*
+	// We want to avoid: _services._dns-sd._udp.*
+	lower := strings.ToLower(name)
+	if !strings.Contains(lower, "._dns-sd._udp.") {
+		return false
+	}
+	return !strings.HasPrefix(lower, "_services.")
 }
