@@ -12,7 +12,10 @@ type RcodeError struct {
 }
 
 func (e *RcodeError) Error() string {
-	return e.Err.Error()
+	if e.Err != nil {
+		return e.Err.Error()
+	}
+	return "dns rcode error: " + dns.RcodeToString[e.Rcode]
 }
 
 func (e *RcodeError) Unwrap() error {
