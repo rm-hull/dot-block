@@ -23,7 +23,7 @@ func (e *RcodeError) Unwrap() error {
 }
 
 func (e *RcodeError) ShouldLog() bool {
-	return e.Rcode != dns.RcodeNameError
+	return e.Rcode != dns.RcodeNameError && e.Rcode != dns.RcodeNotImplemented
 }
 
 func ShouldLog(err error) bool {
