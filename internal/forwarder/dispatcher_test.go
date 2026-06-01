@@ -343,6 +343,32 @@ func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
 }
 
+func TestDNSDispatcher_HandleDNSRequest_DNSSD_NXDOMAIN(t *testing.T) {
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		// This should not be called
+		t.Errorf("Upstream DNS was called for blocked DNS-SD request: %s", m.Question[0].Name)
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+
+	req := new(dns.Msg)
+	req.SetQuestion("db._dns-sd._udp.0.68.168.192.in-addr.arpa.", dns.TypePTR)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	// Assert that the response has NXDOMAIN
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode, "should return NXDOMAIN")
+}
 func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	var logBuf bytes.Buffer
 
