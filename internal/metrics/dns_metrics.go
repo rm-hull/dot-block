@@ -49,6 +49,7 @@ type DnsMetrics struct {
 	DroppedTelemetry    prometheus.Counter
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
+	PooledConnDeaths    *prometheus.CounterVec
 }
 
 var latencyBuckets = []float64{
@@ -176,6 +177,11 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		Help: "Total number of upstream server failures, broken down by server and reason",
 	}, []string{"ip_addr", "reason"})
 
+	pooledConnDeaths := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_pooled_connection_deaths_total",
+		Help: "Total number of pooled connections found to be dead during acquisition, broken down by upstream server",
+	}, []string{"ip_addr"})
+
 	if err := shouldRegister(
 		requestLatency,
 		errorCounts,
@@ -195,6 +201,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		droppedTelemetry,
 		poolEvictions,
 		upstreamFailures,
+		pooledConnDeaths,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -219,6 +226,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		DroppedTelemetry:    droppedTelemetry,
 		PoolEvictions:       poolEvictions,
 		UpstreamFailures:    upstreamFailures,
+		PooledConnDeaths:    pooledConnDeaths,
 	}, nil
 }
 
