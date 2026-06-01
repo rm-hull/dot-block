@@ -43,7 +43,7 @@ jobs:
           GEMINI_CLI_TRUST_WORKSPACE: true
         with:
           gemini_api_key: ${{ secrets.GEMINI_API_KEY }}
-          gemini_model: gemini-3.1-flash-lite
+          gemini_model: gemma-4-31b-it
           prompt: |
             You are helping iterate on an existing Pull Request.
             The user has left a comment asking for changes.
