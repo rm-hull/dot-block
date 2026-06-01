@@ -100,13 +100,13 @@ func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGe
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
-	// A server that answers for google.com and fails or times out for others? 
+	// A server that answers for google.com and fails or times out for others?
 	// Or just a standard server. Let's make it a standard one.
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.SetRcode(r, dns.RcodeSuccess)
-		
+
 		if r.Question[0].Name == "google.com." {
 			aRecord := &dns.A{
 				Hdr: dns.RR_Header{
@@ -119,7 +119,7 @@ func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
 			}
 			m.Answer = append(m.Answer, aRecord)
 		}
-		
+
 		_ = w.WriteMsg(m)
 	})
 
@@ -144,10 +144,10 @@ func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
 
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	
+
 	// Should have 2 answers: google.com A record and ads.0xbt.net SOA record
 	assert.Len(t, writer.WrittenMsg.Answer, 2)
-	
+
 	foundA := false
 	foundSOA := false
 	for _, rr := range writer.WrittenMsg.Answer {

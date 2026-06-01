@@ -92,20 +92,6 @@ func (d *DNSDispatcher) Close() {
 	close(d.done)
 }
 
-func isReservedTLD(name string) bool {
-	n := strings.ToLower(name)
-	return strings.HasSuffix(n, ".invalid.") ||
-		strings.HasSuffix(n, ".localhost.") ||
-		strings.HasSuffix(n, ".local.") ||
-		strings.HasSuffix(n, ".test.") ||
-		strings.HasSuffix(n, ".example.") ||
-		strings.HasSuffix(n, ".internal.")
-}
-
-func isReservedLocalhost(name string) bool {
-	return strings.ToLower(name) == "localhost."
-}
-
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 	return func(writer dns.ResponseWriter, req *dns.Msg) {
 		remoteAddr := writer.RemoteAddr().String()
@@ -281,7 +267,6 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	return nil, dns.RcodeSuccess, nil
 }
 
-
 func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
 	upstreamReq := new(dns.Msg)
 	upstreamReq.Id = dns.Id()
@@ -390,4 +375,20 @@ func isDNSSDQuery(name string) bool {
 		return false
 	}
 	return !strings.HasPrefix(lower, "_services.")
+}
+
+var reservedTLDs = []string{".invalid.", ".localhost.", ".local.", ".test.", ".example.", ".internal."}
+
+func isReservedTLD(name string) bool {
+	n := strings.ToLower(name)
+	for _, tld := range reservedTLDs {
+		if strings.HasSuffix(n, tld) {
+			return true
+		}
+	}
+	return false
+}
+
+func isReservedLocalhost(name string) bool {
+	return strings.ToLower(name) == "localhost."
 }
