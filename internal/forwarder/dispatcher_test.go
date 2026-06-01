@@ -77,9 +77,11 @@ func (m *MockResponseWriter) TsigTimersOnly(b bool) {
 func (m *MockResponseWriter) Hijack() {
 }
 
-func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
+func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
 	t.Helper()
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 
 	cache := NewDNSCache(100, logger)
@@ -128,7 +130,7 @@ func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -168,7 +170,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -195,7 +197,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -225,7 +227,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -267,7 +269,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -310,7 +312,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -354,7 +356,7 @@ func TestDNSDispatcher_HandleDNSRequest_DNSSD_NXDOMAIN(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
 
 	req := new(dns.Msg)
 	req.SetQuestion("db._dns-sd._udp.0.68.168.192.in-addr.arpa.", dns.TypePTR)
@@ -369,69 +371,100 @@ func TestDNSDispatcher_HandleDNSRequest_DNSSD_NXDOMAIN(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode, "should return NXDOMAIN")
 }
-func TestDNSDispatcher_QueryLogging(t *testing.T) {
+func TestDNSDispatcher_HandleDNSRequest_UpstreamNXDOMAIN_NoLogError(t *testing.T) {
 	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError}))
 
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeNameError) // NXDOMAIN
+		_ = w.WriteMsg(m)
+	})
 	defer func() {
 		_ = server.Shutdown()
 	}()
 
-	t.Run("Logging at INFO level (should not contain debug logs)", func(t *testing.T) {
-		logBuf.Reset()
-		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
-		mockGeo := new(MockGeoIpLookup)
-		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
 
-		cache := NewDNSCache(100, logger)
-		metrics, err := metrics.NewDNSMetrics(cache)
-		assert.NoError(t, err)
+	req := new(dns.Msg)
+	req.SetQuestion("nonexistent.example.com.", dns.TypeA)
 
-		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
-		require.NoError(t, err)
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
 
-		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-		require.NoError(t, err)
-		t.Cleanup(dispatcher.Close)
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
-		req := new(dns.Msg)
-		req.SetQuestion("google.com.", dns.TypeA)
-		writer := new(MockResponseWriter)
-		writer.On("WriteMsg", mock.Anything).Return(nil)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode)
 
-		dispatcher.HandleDNSRequest("test")(writer, req)
+	// Verify that no ERROR log was written
+	assert.Empty(t, logBuf.String(), "should not log NXDOMAIN as ERROR")
+}
 
-		assert.NotContains(t, logBuf.String(), "Query received")
+func TestDNSDispatcher_HandleDNSRequest_UpstreamNOTIMP_NoLogError(t *testing.T) {
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeNotImplemented) // NOTIMP
+		_ = w.WriteMsg(m)
 	})
+	defer func() {
+		_ = server.Shutdown()
+	}()
 
-	t.Run("Logging at DEBUG level", func(t *testing.T) {
-		logBuf.Reset()
-		logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelDebug}))
-		mockGeo := new(MockGeoIpLookup)
-		mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
 
-		cache := NewDNSCache(100, logger)
-		metrics, err := metrics.NewDNSMetrics(cache)
-		assert.NoError(t, err)
+	req := new(dns.Msg)
+	req.SetQuestion("notimp.example.com.", dns.TypeA)
 
-		dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
-		require.NoError(t, err)
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
 
-		dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
-		require.NoError(t, err)
-		t.Cleanup(dispatcher.Close)
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
 
-		req := new(dns.Msg)
-		req.SetQuestion("google.com.", dns.TypeA)
-		writer := new(MockResponseWriter)
-		writer.On("WriteMsg", mock.Anything).Return(nil)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeNotImplemented, writer.WrittenMsg.Rcode)
 
-		dispatcher.HandleDNSRequest("test")(writer, req)
+	// Verify that no ERROR log was written
+	assert.Empty(t, logBuf.String(), "should not log NOTIMP as ERROR")
+}
 
-		assert.Contains(t, logBuf.String(), "Query received")
-		assert.Contains(t, logBuf.String(), "google.com.")
+func TestDNSDispatcher_HandleDNSRequest_UpstreamSERVFAIL_LogError(t *testing.T) {
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeServerFailure) // SERVFAIL
+		_ = w.WriteMsg(m)
 	})
+	defer func() {
+		_ = server.Shutdown()
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
+
+	req := new(dns.Msg)
+	req.SetQuestion("error.example.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeServerFailure, writer.WrittenMsg.Rcode)
+
+	// Verify that an ERROR log was written
+	assert.Contains(t, logBuf.String(), "level=ERROR", "should log SERVFAIL as ERROR")
 }
 
 func dnsRecord(addr string, rrtype uint16, ip []byte) dns.HandlerFunc {
@@ -539,7 +572,7 @@ func deadline(t *testing.T, timeout time.Duration) time.Time {
 }
 
 func TestDNSDispatcher_ReservedTLDs(t *testing.T) {
-	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53")
+	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53", nil)
 
 	tests := []struct {
 		name     string
