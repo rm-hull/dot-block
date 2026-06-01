@@ -86,7 +86,7 @@ func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGe
 	metrics, err := metrics.NewDNSMetrics(cache)
 	require.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
 	require.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
@@ -333,7 +333,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	metrics, err := metrics.NewDNSMetrics(cache)
 	assert.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, "8.8.8.8:53")
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 	mockGeo := new(MockGeoIpLookup)
 
@@ -388,7 +388,7 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamNXDOMAIN_NoLogError(t *testing.T
 	metrics, err := metrics.NewDNSMetrics(cache)
 	require.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
 	require.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
@@ -433,7 +433,7 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamSERVFAIL_LogError(t *testing.T) 
 	metrics, err := metrics.NewDNSMetrics(cache)
 	require.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, upstream)
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
 	require.NoError(t, err)
 
 	mockGeo := new(MockGeoIpLookup)
