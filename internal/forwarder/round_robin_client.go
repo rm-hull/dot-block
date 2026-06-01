@@ -1,6 +1,8 @@
 package forwarder
 
 import (
+	"log/slog"
+	"net"
 	"sync/atomic"
 	"time"
 
@@ -14,6 +16,7 @@ type RoundRobinClient struct {
 	upstreams []string
 	pools     map[string]*ConnPool
 	counter   uint32
+	logger    *slog.Logger
 }
 
 type pooledConn struct {
@@ -82,6 +85,7 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	if err != nil {
 		_ = conn.Close() // discard broken conn
 		if reused {
+			p.metrics.UpstreamFailures.WithLabelValues(p.addr, "pooled_conn_death").Inc()
 			// Retry once with a fresh connection if the pooled one was dead
 			conn, err = p.dial()
 			if err != nil {
@@ -102,7 +106,7 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	return resp, rtt, nil
 }
 
-func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, upstreams ...string) (*RoundRobinClient, error) {
+func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
 	}
@@ -119,6 +123,7 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poo
 	return &RoundRobinClient{
 		upstreams: upstreams,
 		pools:     pools,
+		logger:    logger,
 	}, nil
 }
 
@@ -133,9 +138,29 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 		if err == nil {
 			return resp, upstream, nil
 		}
+
+		reason := getFailureReason(err)
+		r.pools[upstream].metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
+		r.logger.Debug("upstream failure", "upstream", upstream, "reason", reason, "error", err)
+
 		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
 	}
 	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
+}
+
+func getFailureReason(err error) string {
+	if err == nil {
+		return "none"
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) && netErr.Timeout() {
+		return "timeout"
+	}
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return "network_error"
+	}
+	return "other"
 }
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
