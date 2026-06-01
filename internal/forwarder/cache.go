@@ -14,7 +14,6 @@ type cacheUpdate struct {
 	key    string
 	values []dns.RR
 	ttl    time.Duration
-	syncCh chan struct{}
 }
 
 type DNSCache struct {
