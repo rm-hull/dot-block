@@ -99,6 +99,68 @@ func setupDispatcherTest(t *testing.T, upstream string) (*DNSDispatcher, *MockGe
 	return dispatcher, mockGeo, blockList, logger
 }
 
+func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
+	// A server that answers for google.com and fails or times out for others?
+	// Or just a standard server. Let's make it a standard one.
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeSuccess)
+
+		if r.Question[0].Name == "google.com." {
+			aRecord := &dns.A{
+				Hdr: dns.RR_Header{
+					Name:   dns.Fqdn("google.com."),
+					Rrtype: dns.TypeA,
+					Class:  dns.ClassINET,
+					Ttl:    3600,
+				},
+				A: []byte{142, 251, 29, 101},
+			}
+			m.Answer = append(m.Answer, aRecord)
+		}
+
+		_ = w.WriteMsg(m)
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+
+	req := new(dns.Msg)
+	req.Question = []dns.Question{
+		{Name: "google.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET},
+		{Name: "ads.0xbt.net.", Qtype: dns.TypeA, Qclass: dns.ClassINET}, // Blocked
+	}
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+
+	// Should have 2 answers: google.com A record and ads.0xbt.net SOA record
+	assert.Len(t, writer.WrittenMsg.Answer, 2)
+
+	foundA := false
+	foundSOA := false
+	for _, rr := range writer.WrittenMsg.Answer {
+		if _, ok := rr.(*dns.A); ok {
+			foundA = true
+		} else if _, ok := rr.(*dns.SOA); ok {
+			foundSOA = true
+		}
+	}
+	assert.True(t, foundA, "A record for google.com. not found")
+	assert.True(t, foundSOA, "SOA record for ads.0xbt.net. not found")
+}
+
 func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 	defer func() {
@@ -263,7 +325,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
 }
 
-func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
+func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 
@@ -281,6 +343,32 @@ func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
 }
 
+func TestDNSDispatcher_HandleDNSRequest_DNSSD_NXDOMAIN(t *testing.T) {
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		// This should not be called
+		t.Errorf("Upstream DNS was called for blocked DNS-SD request: %s", m.Question[0].Name)
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream)
+
+	req := new(dns.Msg)
+	req.SetQuestion("db._dns-sd._udp.0.68.168.192.in-addr.arpa.", dns.TypePTR)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Call the method under test
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	// Assert that the response has NXDOMAIN
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode, "should return NXDOMAIN")
+}
 func TestDNSDispatcher_QueryLogging(t *testing.T) {
 	var logBuf bytes.Buffer
 
@@ -448,4 +536,45 @@ func deadline(t *testing.T, timeout time.Duration) time.Time {
 		return d.Add(-time.Second)
 	}
 	return time.Now().Add(timeout)
+}
+
+func TestDNSDispatcher_ReservedTLDs(t *testing.T) {
+	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53")
+
+	tests := []struct {
+		name     string
+		expected int // Expected Rcode
+	}{
+		{"example.invalid.", dns.RcodeNameError},
+		{"localhost.", dns.RcodeSuccess},
+		{"test.local.", dns.RcodeNameError},
+		{"my.test.", dns.RcodeNameError},
+		{"my.example.", dns.RcodeNameError},
+		{"my.internal.", dns.RcodeNameError},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := new(dns.Msg)
+			req.Question = []dns.Question{
+				{Name: tt.name, Qtype: dns.TypeA, Qclass: dns.ClassINET},
+			}
+
+			writer := new(MockResponseWriter)
+			writer.On("WriteMsg", mock.Anything).Return(nil)
+
+			dispatcher.HandleDNSRequest("test")(writer, req)
+
+			assert.NotNil(t, writer.WrittenMsg)
+			assert.Equal(t, tt.expected, writer.WrittenMsg.Rcode, "Rcode mismatch for %s", tt.name)
+
+			if tt.name == "localhost." {
+				assert.Len(t, writer.WrittenMsg.Answer, 1)
+				a := writer.WrittenMsg.Answer[0].(*dns.A)
+				assert.Equal(t, "127.0.0.1", a.A.String())
+			} else {
+				assert.Len(t, writer.WrittenMsg.Answer, 0)
+			}
+		})
+	}
 }
