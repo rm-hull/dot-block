@@ -17,6 +17,7 @@ type RoundRobinClient struct {
 	pools     map[string]*ConnPool
 	counter   uint32
 	logger    *slog.Logger
+	metrics   *metrics.DnsMetrics
 }
 
 type pooledConn struct {
@@ -124,6 +125,7 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poo
 		upstreams: upstreams,
 		pools:     pools,
 		logger:    logger,
+		metrics:   metrics,
 	}, nil
 }
 
@@ -140,7 +142,7 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 		}
 
 		reason := getFailureReason(err)
-		r.pools[upstream].metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
+		r.metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
 		r.logger.Debug("upstream failure", "upstream", upstream, "reason", reason, "error", err)
 
 		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
