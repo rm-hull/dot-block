@@ -253,6 +253,9 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
+	// Sync cache worker
+	dispatcher.cache.Sync()
+
 	// Poll for cache miss to be recorded
 	assert.Eventually(t, func() bool {
 		stats := dispatcher.cache.Stat()
@@ -267,6 +270,9 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	dispatcher.HandleDNSRequest("test")(writer, req)
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+
+	// Sync cache worker
+	dispatcher.cache.Sync()
 
 	// Poll for cache hit to be recorded
 	assert.Eventually(t, func() bool {
