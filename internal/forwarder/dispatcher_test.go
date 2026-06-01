@@ -325,7 +325,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	assert.Equal(t, dns.RcodeRefused, writer.WrittenMsg.Rcode)
 }
 
-func TestNewDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
+func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 
