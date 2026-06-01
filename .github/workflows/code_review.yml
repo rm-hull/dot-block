@@ -30,9 +30,24 @@ jobs:
           model: gemma-4-31b-it
           api_key: ${{ secrets.GEMINI_API_KEY }}
           prompt: |
-            You are a helpful and precise code review assistant. A user has requested a code review by
-            commenting "/review" on a pull request. Please analyze the changes in the pull request and
-            provide constructive feedback, suggestions for improvement, and identify any potential
-            issues or bugs in the code. Be sure to consider code quality, readability, performance,
-            and adherence to best practices in your review.
-          pr_number: ${{ github.event.issue.id }}
+            # Code Review for PR #{{number}}: {{title}}
+
+            ## Description
+            {{body}}
+
+            ## Review Request
+            {{task}}
+
+            ## Changes
+            ```diff
+            {{diff}}
+            ```
+
+            ## Review Guidelines
+            - Check for security vulnerabilities
+            - Verify test coverage
+            - Ensure code follows our style guide
+            - Flag any performance concerns
+            - Suggest improvements where applicable
+
+            Please provide a thorough code review.
