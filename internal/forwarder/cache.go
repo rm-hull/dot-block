@@ -53,12 +53,6 @@ func (dc *DNSCache) runUpdateWorker() {
 			if !ok {
 				return
 			}
-			if update.key == "__sync__" {
-				if update.syncCh != nil {
-					close(update.syncCh)
-				}
-				continue
-			}
 			dc.cache.Set(update.key, update.values, update.ttl)
 		case <-dc.done:
 			return
@@ -68,12 +62,6 @@ func (dc *DNSCache) runUpdateWorker() {
 
 func (dc *DNSCache) Close() {
 	close(dc.done)
-}
-
-func (dc *DNSCache) Sync() {
-	syncCh := make(chan struct{})
-	dc.updateCh <- cacheUpdate{key: "__sync__", syncCh: syncCh}
-	<-syncCh
 }
 
 func (dc *DNSCache) OnDrop(fn func()) {
