@@ -1,0 +1,38 @@
+name: Gemini PR Code Review
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  code-review:
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, '/review') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "25"
+
+      - name: Run pi agent for PR Review
+        id: pi_agent
+        uses: cv/pi-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          provider: google
+          model: gemma-4-31b-it
+          api_key: ${{ secrets.GEMINI_API_KEY }}
+          prompt: |
+            You are a helpful and precise code review assistant. A user has requested a code review by
+            commenting "/review" on a pull request. Please analyze the changes in the pull request and
+            provide constructive feedback, suggestions for improvement, and identify any potential
+            issues or bugs in the code. Be sure to consider code quality, readability, performance,
+            and adherence to best practices in your review.
+          pr_number: ${{ github.event.issue.id }}
