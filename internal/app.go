@@ -164,7 +164,7 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
-	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ConnectionTimeout, app.ConnectionPoolSize, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ConnectionTimeout, app.ConnectionPoolSize, app.Logger, app.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
