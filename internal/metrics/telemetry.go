@@ -2,14 +2,14 @@ package metrics
 
 import "time"
 
-type QueryCountInfo struct {
-	QueryType string
-	Blocked   bool
+type queryCountInfo struct {
+	queryType string
+	blocked   bool
 }
 
-type UpstreamTTLInfo struct {
-	QueryType string
-	TTL       float64
+type upstreamTTLInfo struct {
+	queryType string
+	ttl       float64
 }
 
 type TelemetryData struct {
@@ -18,10 +18,10 @@ type TelemetryData struct {
 	startTime       time.Time
 	blockedDomains  []string
 	domains         []string
-	queryCounts     []QueryCountInfo
-	upstreamTTLs    []UpstreamTTLInfo
+	queryCounts     []queryCountInfo
+	upstreamTTLs    []upstreamTTLInfo
 	errorCategory   string
-	requestTypes    []string
+	forwarded       bool
 	upstream        string
 	upstreamLatency float64
 	requestLatency  float64
@@ -40,9 +40,8 @@ func NewTelemetryData(startTime time.Time, source string, ipAddr string) *Teleme
 		ipAddr:         ipAddr,
 		blockedDomains: []string{},
 		domains:        []string{},
-		queryCounts:    []QueryCountInfo{},
-		upstreamTTLs:   []UpstreamTTLInfo{},
-		requestTypes:   []string{},
+		queryCounts:    []queryCountInfo{},
+		upstreamTTLs:   []upstreamTTLInfo{},
 	}
 }
 
@@ -55,19 +54,19 @@ func (t *TelemetryData) AddDomain(domain string) {
 }
 
 func (t *TelemetryData) AddQueryCount(queryType string, blocked bool) {
-	t.queryCounts = append(t.queryCounts, QueryCountInfo{QueryType: queryType, Blocked: blocked})
+	t.queryCounts = append(t.queryCounts, queryCountInfo{queryType: queryType, blocked: blocked})
 }
 
 func (t *TelemetryData) AddUpstreamTTL(queryType string, ttl float64) {
-	t.upstreamTTLs = append(t.upstreamTTLs, UpstreamTTLInfo{QueryType: queryType, TTL: ttl})
+	t.upstreamTTLs = append(t.upstreamTTLs, upstreamTTLInfo{queryType: queryType, ttl: ttl})
 }
 
 func (t *TelemetryData) SetErrorCategory(category string) {
 	t.errorCategory = category
 }
 
-func (t *TelemetryData) AddRequestType(requestType string) {
-	t.requestTypes = append(t.requestTypes, requestType)
+func (t *TelemetryData) Forwarded() {
+	t.forwarded = true
 }
 
 func (t *TelemetryData) SetUpstream(upstream string, latency float64) {
@@ -82,6 +81,12 @@ func (t *TelemetryData) SetRcode(rcode string) {
 func (t *TelemetryData) Record(metrics *DnsMetrics) {
 	metrics.RequestLatency.Observe(t.requestLatency)
 	metrics.RequestCounts.WithLabelValues("total", t.source).Inc()
+	if t.forwarded {
+		metrics.RequestCounts.WithLabelValues("forwarded", t.source).Inc()
+	}
+	if t.errorCategory != "" {
+		metrics.RequestCounts.WithLabelValues("errored", t.source).Inc()
+	}
 
 	if t.ipAddr != "" && t.ipAddr != "unknown" {
 		metrics.TopClients.Add(t.ipAddr)
@@ -94,10 +99,10 @@ func (t *TelemetryData) Record(metrics *DnsMetrics) {
 
 	for _, qc := range t.queryCounts {
 		isBlocked := "false"
-		if qc.Blocked {
+		if qc.blocked {
 			isBlocked = "true"
 		}
-		metrics.QueryCounts.WithLabelValues(qc.QueryType, isBlocked).Inc()
+		metrics.QueryCounts.WithLabelValues(qc.queryType, isBlocked).Inc()
 	}
 	for _, domain := range t.blockedDomains {
 		metrics.TopBlockedDomains.Add(domain)
@@ -106,13 +111,10 @@ func (t *TelemetryData) Record(metrics *DnsMetrics) {
 		metrics.TopDomains.Add(domain)
 	}
 	for _, upstreamTTL := range t.upstreamTTLs {
-		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.QueryType).Observe(upstreamTTL.TTL)
+		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.queryType).Observe(upstreamTTL.ttl)
 	}
 	if t.errorCategory != "" {
 		metrics.ErrorCounts.WithLabelValues(t.errorCategory).Inc()
-	}
-	for _, rt := range t.requestTypes {
-		metrics.RequestCounts.WithLabelValues(rt, t.source).Inc()
 	}
 	if t.upstream != "" {
 		metrics.UpstreamLatency.WithLabelValues(t.upstream).Observe(t.upstreamLatency)

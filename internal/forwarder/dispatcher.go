@@ -309,12 +309,11 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 	}
 
 	ctx.telemetry.SetErrorCategory(errorCategory)
-	ctx.telemetry.AddRequestType("errored")
 }
 
 func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
 	startTime := time.Now()
-	ctx.telemetry.AddRequestType("forwarded")
+	ctx.telemetry.Forwarded()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	duration := time.Since(startTime).Seconds()
