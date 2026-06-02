@@ -86,6 +86,7 @@ func (t *TelemetryData) Record(metrics *DnsMetrics) {
 	}
 	if t.errorCategory != "" {
 		metrics.RequestCounts.WithLabelValues("errored", t.source).Inc()
+		metrics.ErrorCounts.WithLabelValues(t.errorCategory).Inc()
 	}
 
 	if t.ipAddr != "" && t.ipAddr != "unknown" {
@@ -112,9 +113,6 @@ func (t *TelemetryData) Record(metrics *DnsMetrics) {
 	}
 	for _, upstreamTTL := range t.upstreamTTLs {
 		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.queryType).Observe(upstreamTTL.ttl)
-	}
-	if t.errorCategory != "" {
-		metrics.ErrorCounts.WithLabelValues(t.errorCategory).Inc()
 	}
 	if t.upstream != "" {
 		metrics.UpstreamLatency.WithLabelValues(t.upstream).Observe(t.upstreamLatency)
