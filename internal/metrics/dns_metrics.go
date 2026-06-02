@@ -25,15 +25,48 @@ type UpstreamTTLInfo struct {
 }
 
 type TelemetryData struct {
-	BlockedDomains  []string
-	Domains         []string
-	QueryCounts     []QueryCountInfo
-	UpstreamTTL     *UpstreamTTLInfo
-	ErrorCategory   string
-	RequestTypes    []string
-	Upstream        string
-	UpstreamLatency float64
-	Rcode           string
+	blockedDomains  []string
+	domains         []string
+	queryCounts     []QueryCountInfo
+	upstreamTTL     *UpstreamTTLInfo
+	errorCategory   string
+	requestTypes    []string
+	upstream        string
+	upstreamLatency float64
+	rcode           string
+}
+
+func (t *TelemetryData) AddBlockedDomain(domain string) {
+	t.blockedDomains = append(t.blockedDomains, domain)
+}
+
+func (t *TelemetryData) AddDomain(domain string) {
+	t.domains = append(t.domains, domain)
+}
+
+func (t *TelemetryData) AddQueryCount(queryType string, blocked bool) {
+	t.queryCounts = append(t.queryCounts, QueryCountInfo{QueryType: queryType, Blocked: blocked})
+}
+
+func (t *TelemetryData) SetUpstreamTTL(queryType string, ttl float64) {
+	t.upstreamTTL = &UpstreamTTLInfo{QueryType: queryType, TTL: ttl}
+}
+
+func (t *TelemetryData) SetErrorCategory(category string) {
+	t.errorCategory = category
+}
+
+func (t *TelemetryData) AddRequestType(requestType string) {
+	t.requestTypes = append(t.requestTypes, requestType)
+}
+
+func (t *TelemetryData) SetUpstream(upstream string, latency float64) {
+	t.upstream = upstream
+	t.upstreamLatency = latency
+}
+
+func (t *TelemetryData) SetRcode(rcode string) {
+	t.rcode = rcode
 }
 
 // GeoIpLookup is an interface for looking up geolocation information.
@@ -73,29 +106,29 @@ func (m *DnsMetrics) RecordTelemetry(data *TelemetryData, latency float64, sourc
 		}
 	}
 
-	for _, qc := range data.QueryCounts {
+	for _, qc := range data.queryCounts {
 		m.QueryCounts.WithLabelValues(qc.QueryType, fmt.Sprintf("%t", qc.Blocked)).Inc()
 	}
-	for _, domain := range data.BlockedDomains {
+	for _, domain := range data.blockedDomains {
 		m.TopBlockedDomains.Add(domain)
 	}
-	for _, domain := range data.Domains {
+	for _, domain := range data.domains {
 		m.TopDomains.Add(domain)
 	}
-	if data.UpstreamTTL != nil {
-		m.UpstreamTTLs.WithLabelValues(data.UpstreamTTL.QueryType).Observe(data.UpstreamTTL.TTL)
+	if data.upstreamTTL != nil {
+		m.UpstreamTTLs.WithLabelValues(data.upstreamTTL.QueryType).Observe(data.upstreamTTL.TTL)
 	}
-	if data.ErrorCategory != "" {
-		m.ErrorCounts.WithLabelValues(data.ErrorCategory).Inc()
+	if data.errorCategory != "" {
+		m.ErrorCounts.WithLabelValues(data.errorCategory).Inc()
 	}
-	for _, rt := range data.RequestTypes {
+	for _, rt := range data.requestTypes {
 		m.RequestCounts.WithLabelValues(rt, source).Inc()
 	}
-	if data.Upstream != "" {
-		m.UpstreamLatency.WithLabelValues(data.Upstream).Observe(data.UpstreamLatency)
+	if data.upstream != "" {
+		m.UpstreamLatency.WithLabelValues(data.upstream).Observe(data.upstreamLatency)
 	}
-	if data.Rcode != "" {
-		m.ReplyCounts.WithLabelValues(data.Rcode).Inc()
+	if data.rcode != "" {
+		m.ReplyCounts.WithLabelValues(data.rcode).Inc()
 	}
 }
 

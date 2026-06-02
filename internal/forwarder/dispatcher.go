@@ -206,8 +206,8 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 
 	if isBlocked {
 		ctx.Logger.Debug("Domain blocked", "name", q.Name)
-		ctx.telemetry.BlockedDomains = append(ctx.telemetry.BlockedDomains, q.Name)
-		ctx.telemetry.QueryCounts = append(ctx.telemetry.QueryCounts, metrics.QueryCountInfo{QueryType: queryType, Blocked: true})
+		ctx.telemetry.AddBlockedDomain(q.Name)
+		ctx.telemetry.AddQueryCount(queryType, true)
 
 		soa := &dns.SOA{
 			Hdr: dns.RR_Header{
@@ -247,12 +247,12 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 
 	if isDNSSDQuery(q.Name) {
 		ctx.Logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
-		ctx.telemetry.QueryCounts = append(ctx.telemetry.QueryCounts, metrics.QueryCountInfo{QueryType: queryType, Blocked: false})
+		ctx.telemetry.AddQueryCount(queryType, false)
 		return nil, dns.RcodeNameError, nil
 	}
 
-	ctx.telemetry.Domains = append(ctx.telemetry.Domains, q.Name)
-	ctx.telemetry.QueryCounts = append(ctx.telemetry.QueryCounts, metrics.QueryCountInfo{QueryType: queryType, Blocked: false})
+	ctx.telemetry.AddDomain(q.Name)
+	ctx.telemetry.AddQueryCount(queryType, false)
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		return cachedRRs, dns.RcodeSuccess, nil
 	}
@@ -299,7 +299,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
-			ctx.telemetry.UpstreamTTL = &metrics.UpstreamTTLInfo{QueryType: getQueryType(&q), TTL: float64(upstreamTTL)}
+			ctx.telemetry.SetUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
 
@@ -332,23 +332,22 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 		sentry.CaptureException(err)
 	}
 
-	ctx.telemetry.ErrorCategory = errorCategory
-	ctx.telemetry.RequestTypes = append(ctx.telemetry.RequestTypes, "errored")
+	ctx.telemetry.SetErrorCategory(errorCategory)
+	ctx.telemetry.AddRequestType("errored")
 }
 
 func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
 	startTime := time.Now()
-	ctx.telemetry.RequestTypes = append(ctx.telemetry.RequestTypes, "forwarded")
+	ctx.telemetry.AddRequestType("forwarded")
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	duration := time.Since(startTime).Seconds()
-	ctx.telemetry.Upstream = upstream
-	ctx.telemetry.UpstreamLatency = duration
+	ctx.telemetry.SetUpstream(upstream, duration)
 	return in, upstream, err
 }
 
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
-	ctx.telemetry.Rcode = dns.RcodeToString[msg.Rcode]
+	ctx.telemetry.SetRcode(dns.RcodeToString[msg.Rcode])
 	if err := writer.WriteMsg(msg); err != nil {
 		d.reportError(ctx, "response", err)
 		return
