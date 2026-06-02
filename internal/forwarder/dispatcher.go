@@ -24,16 +24,6 @@ const (
 	SourceDoT DNSSource = "DoT"
 )
 
-type queryCountInfo struct {
-	queryType string
-	blocked   bool
-}
-
-type upstreamTTLInfo struct {
-	queryType string
-	ttl       float64
-}
-
 type RequestContext struct {
 	Logger    *slog.Logger
 	Source    DNSSource
