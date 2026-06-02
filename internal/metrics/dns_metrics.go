@@ -14,6 +14,28 @@ import (
 
 const TOP_K = 50
 
+type QueryCountInfo struct {
+	QueryType string
+	Blocked   bool
+}
+
+type UpstreamTTLInfo struct {
+	QueryType string
+	TTL       float64
+}
+
+type TelemetryData struct {
+	BlockedDomains  []string
+	Domains         []string
+	QueryCounts     []QueryCountInfo
+	UpstreamTTL     *UpstreamTTLInfo
+	ErrorCategory   string
+	RequestTypes    []string
+	Upstream        string
+	UpstreamLatency float64
+	Rcode           string
+}
+
 type SafeSketch struct {
 	mu     sync.Mutex
 	sketch *hyperloglog.Sketch
@@ -29,6 +51,44 @@ func (s *SafeSketch) Estimate() uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sketch.Estimate()
+}
+
+func (m *DnsMetrics) RecordTelemetry(data *TelemetryData, latency float64, source string, ipAddr string, countryCode string) {
+	m.RequestLatency.Observe(latency)
+	m.RequestCounts.WithLabelValues("total", source).Inc()
+
+	if ipAddr != "" && ipAddr != "unknown" {
+		m.TopClients.Add(ipAddr)
+		m.UniqueClients.Insert([]byte(ipAddr))
+		if countryCode != "" {
+			m.CountryCounts.WithLabelValues(countryCode).Inc()
+		}
+	}
+
+	for _, qc := range data.QueryCounts {
+		m.QueryCounts.WithLabelValues(qc.QueryType, fmt.Sprintf("%t", qc.Blocked)).Inc()
+	}
+	for _, domain := range data.BlockedDomains {
+		m.TopBlockedDomains.Add(domain)
+	}
+	for _, domain := range data.Domains {
+		m.TopDomains.Add(domain)
+	}
+	if data.UpstreamTTL != nil {
+		m.UpstreamTTLs.WithLabelValues(data.UpstreamTTL.QueryType).Observe(data.UpstreamTTL.TTL)
+	}
+	if data.ErrorCategory != "" {
+		m.ErrorCounts.WithLabelValues(data.ErrorCategory).Inc()
+	}
+	for _, rt := range data.RequestTypes {
+		m.RequestCounts.WithLabelValues(rt, source).Inc()
+	}
+	if data.Upstream != "" {
+		m.UpstreamLatency.WithLabelValues(data.Upstream).Observe(data.UpstreamLatency)
+	}
+	if data.Rcode != "" {
+		m.ReplyCounts.WithLabelValues(data.Rcode).Inc()
+	}
 }
 
 type DnsMetrics struct {
