@@ -36,6 +36,11 @@ type TelemetryData struct {
 	Rcode           string
 }
 
+// GeoIpLookup is an interface for looking up geolocation information.
+type GeoIpLookup interface {
+	GetAll(ipAddress string) (string, error)
+}
+
 type SafeSketch struct {
 	mu     sync.Mutex
 	sketch *hyperloglog.Sketch
@@ -53,15 +58,18 @@ func (s *SafeSketch) Estimate() uint64 {
 	return s.sketch.Estimate()
 }
 
-func (m *DnsMetrics) RecordTelemetry(data *TelemetryData, latency float64, source string, ipAddr string, countryCode string) {
+func (m *DnsMetrics) RecordTelemetry(data *TelemetryData, latency float64, source string, ipAddr string) {
 	m.RequestLatency.Observe(latency)
 	m.RequestCounts.WithLabelValues("total", source).Inc()
 
 	if ipAddr != "" && ipAddr != "unknown" {
 		m.TopClients.Add(ipAddr)
 		m.UniqueClients.Insert([]byte(ipAddr))
-		if countryCode != "" {
-			m.CountryCounts.WithLabelValues(countryCode).Inc()
+
+		if m.geoIpLookup != nil {
+			if countryCode, err := m.geoIpLookup.GetAll(ipAddr); err == nil && countryCode != "" {
+				m.CountryCounts.WithLabelValues(countryCode).Inc()
+			}
 		}
 	}
 
@@ -110,6 +118,7 @@ type DnsMetrics struct {
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
 	PooledConnDeaths    *prometheus.CounterVec
+	geoIpLookup         GeoIpLookup
 }
 
 var latencyBuckets = []float64{
@@ -123,7 +132,7 @@ type Cache interface {
 	OnDrop(func())
 }
 
-func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
+func NewDNSMetrics(cache Cache, geoIpLookup GeoIpLookup) (*DnsMetrics, error) {
 	uniqueClients := &SafeSketch{sketch: hyperloglog.New14()}
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
@@ -287,6 +296,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		PoolEvictions:       poolEvictions,
 		UpstreamFailures:    upstreamFailures,
 		PooledConnDeaths:    pooledConnDeaths,
+		geoIpLookup:         geoIpLookup,
 	}, nil
 }
 

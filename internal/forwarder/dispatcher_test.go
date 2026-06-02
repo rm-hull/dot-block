@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -24,9 +23,9 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) GetAll(ipAddress string) (ip2location.IP2Locationrecord, error) {
+func (m *MockGeoIpLookup) GetAll(ipAddress string) (string, error) {
 	args := m.Called(ipAddress)
-	return args.Get(0).(ip2location.IP2Locationrecord), args.Error(1)
+	return args.String(0), args.Error(1)
 }
 
 func (m *MockGeoIpLookup) Reopen() error {
@@ -85,16 +84,16 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*D
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 
 	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("GetAll", mock.Anything).Return("", nil)
+
+	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	require.NoError(t, err)
 
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
 	require.NoError(t, err)
 
-	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
-
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -332,14 +331,16 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
 
 	cache := NewDNSCache(100, logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("GetAll", mock.Anything).Return("", nil)
+
+	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	assert.NoError(t, err)
 
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
-	mockGeo := new(MockGeoIpLookup)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, mockGeo, -1*time.Second, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, -1*time.Second, logger)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")

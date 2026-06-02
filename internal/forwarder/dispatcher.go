@@ -10,7 +10,6 @@ import (
 	"github.com/getsentry/sentry-go"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
-	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
@@ -58,7 +57,6 @@ type DNSDispatcher struct {
 	ttlFloor    time.Duration
 	cache       *DNSCache
 	blockList   *blocklist.BlockList
-	geoIpLookup geoblock.GeoIpLookup
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	telemetryCh chan TelemetryEvent
@@ -70,7 +68,6 @@ func NewDNSDispatcher(
 	metrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
-	geoIpLookup geoblock.GeoIpLookup,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
 ) (*DNSDispatcher, error) {
@@ -85,7 +82,6 @@ func NewDNSDispatcher(
 		ttlFloor:    ttlFloor,
 		cache:       cache,
 		blockList:   blockList,
-		geoIpLookup: geoIpLookup,
 		metrics:     metrics,
 		logger:      logger,
 		telemetryCh: make(chan TelemetryEvent, TELEMETRY_BUFFER_SIZE),
@@ -189,26 +185,11 @@ func (d *DNSDispatcher) telemetryWorker() {
 			if !ok {
 				return
 			}
-			
-			countryCode := ""
-			if event.ctx.IpAddr != "unknown" && event.ctx.IpAddr != "" {
-				loc, err := d.geoIpLookup.GetAll(event.ctx.IpAddr)
-				if err != nil {
-					event.ctx.Logger.Warn("failed to get geolocation for client IP", "error", err)
-				} else {
-					countryCode = loc.Country_short
-				}
-			}
-
-			d.metrics.RecordTelemetry(event.ctx.telemetry, event.latency, string(event.ctx.Source), event.ctx.IpAddr, countryCode)
+			d.metrics.RecordTelemetry(event.ctx.telemetry, event.latency, string(event.ctx.Source), event.ctx.IpAddr)
 		case <-d.done:
 			return
 		}
 	}
-}
-
-func (d *DNSDispatcher) recordTelemetry(ctx *RequestContext, latency float64) {
-	// This method is no longer used.
 }
 
 func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
