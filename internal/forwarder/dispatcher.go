@@ -1,6 +1,7 @@
 package forwarder
 
 import (
+	"fmt"
 	"log/slog"
 	"net"
 	"strings"
@@ -25,11 +26,32 @@ const (
 	SourceDoT DNSSource = "DoT"
 )
 
+type queryCountInfo struct {
+	queryType string
+	blocked   bool
+}
+
+type upstreamTTLInfo struct {
+	queryType string
+	ttl       float64
+}
+
 type RequestContext struct {
 	Logger    *slog.Logger
 	Source    DNSSource
 	StartTime time.Time
 	IpAddr    string
+
+	// Metrics collection
+	blockedDomains  []string
+	domains         []string
+	queryCounts     []queryCountInfo
+	upstreamTTL     *upstreamTTLInfo
+	errorCategory   string
+	requestTypes    []string
+	upstream        string
+	upstreamLatency float64
+	rcode           string
 }
 
 type TelemetryEvent struct {
@@ -197,6 +219,31 @@ func (d *DNSDispatcher) recordTelemetry(ctx *RequestContext, latency float64) {
 			d.metrics.CountryCounts.WithLabelValues(loc.Country_short).Inc()
 		}
 	}
+
+	for _, qc := range ctx.queryCounts {
+		d.metrics.QueryCounts.WithLabelValues(qc.queryType, fmt.Sprintf("%t", qc.blocked)).Inc()
+	}
+	for _, domain := range ctx.blockedDomains {
+		d.metrics.TopBlockedDomains.Add(domain)
+	}
+	for _, domain := range ctx.domains {
+		d.metrics.TopDomains.Add(domain)
+	}
+	if ctx.upstreamTTL != nil {
+		d.metrics.UpstreamTTLs.WithLabelValues(ctx.upstreamTTL.queryType).Observe(ctx.upstreamTTL.ttl)
+	}
+	if ctx.errorCategory != "" {
+		d.metrics.ErrorCounts.WithLabelValues(ctx.errorCategory).Inc()
+	}
+	for _, rt := range ctx.requestTypes {
+		d.metrics.RequestCounts.WithLabelValues(rt, string(ctx.Source)).Inc()
+	}
+	if ctx.upstream != "" {
+		d.metrics.UpstreamLatency.WithLabelValues(ctx.upstream).Observe(ctx.upstreamLatency)
+	}
+	if ctx.rcode != "" {
+		d.metrics.ReplyCounts.WithLabelValues(ctx.rcode).Inc()
+	}
 }
 
 func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
@@ -213,8 +260,8 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 
 	if isBlocked {
 		ctx.Logger.Debug("Domain blocked", "name", q.Name)
-		d.metrics.TopBlockedDomains.Add(q.Name)
-		d.metrics.QueryCounts.WithLabelValues(queryType, "true").Inc()
+		ctx.blockedDomains = append(ctx.blockedDomains, q.Name)
+		ctx.queryCounts = append(ctx.queryCounts, queryCountInfo{queryType, true})
 
 		soa := &dns.SOA{
 			Hdr: dns.RR_Header{
@@ -254,12 +301,12 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 
 	if isDNSSDQuery(q.Name) {
 		ctx.Logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
-		d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
+		ctx.queryCounts = append(ctx.queryCounts, queryCountInfo{queryType, false})
 		return nil, dns.RcodeNameError, nil
 	}
 
-	d.metrics.TopDomains.Add(q.Name)
-	d.metrics.QueryCounts.WithLabelValues(queryType, "false").Inc()
+	ctx.domains = append(ctx.domains, q.Name)
+	ctx.queryCounts = append(ctx.queryCounts, queryCountInfo{queryType, false})
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		return cachedRRs, dns.RcodeSuccess, nil
 	}
@@ -306,7 +353,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
-			d.metrics.UpstreamTTLs.WithLabelValues(getQueryType(&q)).Observe(float64(upstreamTTL))
+			ctx.upstreamTTL = &upstreamTTLInfo{getQueryType(&q), float64(upstreamTTL)}
 		}
 	}
 
@@ -340,21 +387,23 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 	}
 
 	d.metrics.ErrorCounts.WithLabelValues(errorCategory).Inc()
-	d.metrics.RequestCounts.WithLabelValues("errored", string(ctx.Source)).Inc()
+	ctx.errorCategory = errorCategory
+	ctx.requestTypes = append(ctx.requestTypes, "errored")
 }
 
 func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
 	startTime := time.Now()
-	d.metrics.RequestCounts.WithLabelValues("forwarded", string(ctx.Source)).Inc()
+	ctx.requestTypes = append(ctx.requestTypes, "forwarded")
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	duration := time.Since(startTime).Seconds()
-	d.metrics.UpstreamLatency.WithLabelValues(upstream).Observe(duration)
+	ctx.upstream = upstream
+	ctx.upstreamLatency = duration
 	return in, upstream, err
 }
 
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
-	d.metrics.ReplyCounts.WithLabelValues(dns.RcodeToString[msg.Rcode]).Inc()
+	ctx.rcode = dns.RcodeToString[msg.Rcode]
 	if err := writer.WriteMsg(msg); err != nil {
 		d.reportError(ctx, "response", err)
 		return
