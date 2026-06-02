@@ -8,6 +8,7 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/cockroachdb/errors"
 	cache "github.com/go-pkgz/expirable-cache/v3"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -50,6 +51,7 @@ type DnsMetrics struct {
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
 	PooledConnDeaths    *prometheus.CounterVec
+	geoIpLookup         geoblock.GeoIpLookup
 }
 
 var latencyBuckets = []float64{
@@ -63,7 +65,7 @@ type Cache interface {
 	OnDrop(func())
 }
 
-func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
+func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, error) {
 	uniqueClients := &SafeSketch{sketch: hyperloglog.New14()}
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
@@ -227,6 +229,7 @@ func NewDNSMetrics(cache Cache) (*DnsMetrics, error) {
 		PoolEvictions:       poolEvictions,
 		UpstreamFailures:    upstreamFailures,
 		PooledConnDeaths:    pooledConnDeaths,
+		geoIpLookup:         geoIpLookup,
 	}, nil
 }
 

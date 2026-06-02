@@ -160,7 +160,7 @@ func (app *App) RunServer() error {
 	}
 
 	cache := forwarder.NewDNSCache(app.MaxCacheSize, app.Logger)
-	metrics, err := metrics.NewDNSMetrics(cache)
+	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
@@ -174,7 +174,7 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, geoIpLookup, app.CacheTtlFloor, app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, app.CacheTtlFloor, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
