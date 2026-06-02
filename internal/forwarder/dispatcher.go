@@ -25,18 +25,8 @@ const (
 )
 
 type RequestContext struct {
-	Logger    *slog.Logger
-	Source    DNSSource
-	StartTime time.Time
-	IpAddr    string
-
-	// Metrics collection
 	telemetry *metrics.TelemetryData
-}
-
-type TelemetryEvent struct {
-	ctx     *RequestContext
-	latency float64
+	logger    *slog.Logger
 }
 
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
@@ -49,13 +39,13 @@ type DNSDispatcher struct {
 	blockList   *blocklist.BlockList
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
-	telemetryCh chan TelemetryEvent
+	telemetryCh chan *metrics.TelemetryData
 	done        chan struct{}
 }
 
 func NewDNSDispatcher(
 	cache *DNSCache,
-	metrics *metrics.DnsMetrics,
+	dnsMetrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
 	ttlFloor time.Duration,
@@ -72,9 +62,9 @@ func NewDNSDispatcher(
 		ttlFloor:    ttlFloor,
 		cache:       cache,
 		blockList:   blockList,
-		metrics:     metrics,
+		metrics:     dnsMetrics,
 		logger:      logger,
-		telemetryCh: make(chan TelemetryEvent, TELEMETRY_BUFFER_SIZE),
+		telemetryCh: make(chan *metrics.TelemetryData, TELEMETRY_BUFFER_SIZE),
 		done:        make(chan struct{}),
 	}
 
@@ -105,17 +95,13 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 
 		ctx := &RequestContext{
-			Logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
-			Source:    source,
-			StartTime: time.Now(),
-			IpAddr:    ipAddr,
-			telemetry: &metrics.TelemetryData{},
+			logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
+			telemetry: metrics.NewTelemetryData(time.Now(), string(source), ipAddr),
 		}
 
 		defer func() {
-			duration := time.Since(ctx.StartTime).Seconds()
 			select {
-			case d.telemetryCh <- TelemetryEvent{ctx: ctx, latency: duration}:
+			case d.telemetryCh <- ctx.telemetry.Finished():
 			default:
 				d.metrics.DroppedTelemetry.Inc()
 			}
@@ -171,11 +157,11 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 func (d *DNSDispatcher) telemetryWorker() {
 	for {
 		select {
-		case event, ok := <-d.telemetryCh:
+		case telemetry, ok := <-d.telemetryCh:
 			if !ok {
 				return
 			}
-			d.metrics.RecordTelemetry(event.ctx.telemetry, event.latency, string(event.ctx.Source), event.ctx.IpAddr)
+			telemetry.Record(d.metrics)
 		case <-d.done:
 			return
 		}
@@ -184,7 +170,7 @@ func (d *DNSDispatcher) telemetryWorker() {
 
 func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
 	queryType := getQueryType(q)
-	ctx.Logger.Debug("Query received",
+	ctx.logger.Debug("Query received",
 		"name", q.Name,
 		"type", queryType)
 
@@ -195,7 +181,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isBlocked {
-		ctx.Logger.Debug("Domain blocked", "name", q.Name)
+		ctx.logger.Debug("Domain blocked", "name", q.Name)
 		ctx.telemetry.AddBlockedDomain(q.Name)
 		ctx.telemetry.AddQueryCount(queryType, true)
 
@@ -217,7 +203,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedLocalhost(q.Name) {
-		ctx.Logger.Debug("Answering localhost loopback", "name", q.Name)
+		ctx.logger.Debug("Answering localhost loopback", "name", q.Name)
 		a := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   q.Name,
@@ -231,12 +217,12 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedTLD(q.Name) {
-		ctx.Logger.Debug("Blocking reserved TLD", "name", q.Name)
+		ctx.logger.Debug("Blocking reserved TLD", "name", q.Name)
 		return nil, dns.RcodeNameError, nil
 	}
 
 	if isDNSSDQuery(q.Name) {
-		ctx.Logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
+		ctx.logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
 		ctx.telemetry.AddQueryCount(queryType, false)
 		return nil, dns.RcodeNameError, nil
 	}
@@ -289,7 +275,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
-			ctx.telemetry.SetUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
+			ctx.telemetry.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
 
@@ -318,7 +304,7 @@ var freshnessSensitive = []string{"ocsp", "crl", "pki"}
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	if ShouldLog(err) {
 		args := append(additionalFields, "category", errorCategory, "error", err)
-		ctx.Logger.Error("DNS error", args...)
+		ctx.logger.Error("DNS error", args...)
 		sentry.CaptureException(err)
 	}
 

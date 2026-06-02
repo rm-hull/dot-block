@@ -101,9 +101,6 @@ func (app *App) RunServer() error {
 		return errors.Wrap(err, "failed to open geoblock database")
 	}
 
-	// Wrap GeoIpLookup to satisfy the metrics.GeoIpLookup interface
-	metricsGeoIpLookup := geoIpLookupWrapper{geoIpLookup}
-
 	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
 	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
 		return errors.Wrap(err, "failed to create IP2Location updater cron job")
@@ -163,7 +160,7 @@ func (app *App) RunServer() error {
 	}
 
 	cache := forwarder.NewDNSCache(app.MaxCacheSize, app.Logger)
-	metrics, err := metrics.NewDNSMetrics(cache, metricsGeoIpLookup)
+	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
@@ -399,16 +396,4 @@ func newStructuredLoggingConfig() *sloggin.Config {
 	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics"))
 
 	return &config
-}
-
-type geoIpLookupWrapper struct {
-	lookup geoblock.GeoIpLookup
-}
-
-func (w geoIpLookupWrapper) GetAll(ipAddress string) (string, error) {
-	record, err := w.lookup.GetAll(ipAddress)
-	if err != nil {
-		return "", err
-	}
-	return record.Country_short, nil
 }

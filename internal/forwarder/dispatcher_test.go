@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -23,9 +24,9 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) GetAll(ipAddress string) (string, error) {
+func (m *MockGeoIpLookup) GetAll(ipAddress string) (ip2location.IP2Locationrecord, error) {
 	args := m.Called(ipAddress)
-	return args.String(0), args.Error(1)
+	return args.Get(0).(ip2location.IP2Locationrecord), args.Error(1)
 }
 
 func (m *MockGeoIpLookup) Reopen() error {
@@ -85,7 +86,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*D
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return("", nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	require.NoError(t, err)
@@ -332,7 +333,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return("", nil)
+	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
 
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	assert.NoError(t, err)

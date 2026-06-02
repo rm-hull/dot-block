@@ -8,71 +8,12 @@ import (
 	"github.com/axiomhq/hyperloglog"
 	"github.com/cockroachdb/errors"
 	cache "github.com/go-pkgz/expirable-cache/v3"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
 
 const TOP_K = 50
-
-type QueryCountInfo struct {
-	QueryType string
-	Blocked   bool
-}
-
-type UpstreamTTLInfo struct {
-	QueryType string
-	TTL       float64
-}
-
-type TelemetryData struct {
-	blockedDomains  []string
-	domains         []string
-	queryCounts     []QueryCountInfo
-	upstreamTTL     *UpstreamTTLInfo
-	errorCategory   string
-	requestTypes    []string
-	upstream        string
-	upstreamLatency float64
-	rcode           string
-}
-
-func (t *TelemetryData) AddBlockedDomain(domain string) {
-	t.blockedDomains = append(t.blockedDomains, domain)
-}
-
-func (t *TelemetryData) AddDomain(domain string) {
-	t.domains = append(t.domains, domain)
-}
-
-func (t *TelemetryData) AddQueryCount(queryType string, blocked bool) {
-	t.queryCounts = append(t.queryCounts, QueryCountInfo{QueryType: queryType, Blocked: blocked})
-}
-
-func (t *TelemetryData) SetUpstreamTTL(queryType string, ttl float64) {
-	t.upstreamTTL = &UpstreamTTLInfo{QueryType: queryType, TTL: ttl}
-}
-
-func (t *TelemetryData) SetErrorCategory(category string) {
-	t.errorCategory = category
-}
-
-func (t *TelemetryData) AddRequestType(requestType string) {
-	t.requestTypes = append(t.requestTypes, requestType)
-}
-
-func (t *TelemetryData) SetUpstream(upstream string, latency float64) {
-	t.upstream = upstream
-	t.upstreamLatency = latency
-}
-
-func (t *TelemetryData) SetRcode(rcode string) {
-	t.rcode = rcode
-}
-
-// GeoIpLookup is an interface for looking up geolocation information.
-type GeoIpLookup interface {
-	GetAll(ipAddress string) (string, error)
-}
 
 type SafeSketch struct {
 	mu     sync.Mutex
@@ -89,47 +30,6 @@ func (s *SafeSketch) Estimate() uint64 {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.sketch.Estimate()
-}
-
-func (m *DnsMetrics) RecordTelemetry(data *TelemetryData, latency float64, source string, ipAddr string) {
-	m.RequestLatency.Observe(latency)
-	m.RequestCounts.WithLabelValues("total", source).Inc()
-
-	if ipAddr != "" && ipAddr != "unknown" {
-		m.TopClients.Add(ipAddr)
-		m.UniqueClients.Insert([]byte(ipAddr))
-
-		if m.geoIpLookup != nil {
-			if countryCode, err := m.geoIpLookup.GetAll(ipAddr); err == nil && countryCode != "" {
-				m.CountryCounts.WithLabelValues(countryCode).Inc()
-			}
-		}
-	}
-
-	for _, qc := range data.queryCounts {
-		m.QueryCounts.WithLabelValues(qc.QueryType, fmt.Sprintf("%t", qc.Blocked)).Inc()
-	}
-	for _, domain := range data.blockedDomains {
-		m.TopBlockedDomains.Add(domain)
-	}
-	for _, domain := range data.domains {
-		m.TopDomains.Add(domain)
-	}
-	if data.upstreamTTL != nil {
-		m.UpstreamTTLs.WithLabelValues(data.upstreamTTL.QueryType).Observe(data.upstreamTTL.TTL)
-	}
-	if data.errorCategory != "" {
-		m.ErrorCounts.WithLabelValues(data.errorCategory).Inc()
-	}
-	for _, rt := range data.requestTypes {
-		m.RequestCounts.WithLabelValues(rt, source).Inc()
-	}
-	if data.upstream != "" {
-		m.UpstreamLatency.WithLabelValues(data.upstream).Observe(data.upstreamLatency)
-	}
-	if data.rcode != "" {
-		m.ReplyCounts.WithLabelValues(data.rcode).Inc()
-	}
 }
 
 type DnsMetrics struct {
@@ -151,7 +51,7 @@ type DnsMetrics struct {
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
 	PooledConnDeaths    *prometheus.CounterVec
-	geoIpLookup         GeoIpLookup
+	geoIpLookup         geoblock.GeoIpLookup
 }
 
 var latencyBuckets = []float64{
@@ -165,7 +65,7 @@ type Cache interface {
 	OnDrop(func())
 }
 
-func NewDNSMetrics(cache Cache, geoIpLookup GeoIpLookup) (*DnsMetrics, error) {
+func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, error) {
 	uniqueClients := &SafeSketch{sketch: hyperloglog.New14()}
 	topClients := NewSpaceSaver(TOP_K)
 	topDomains := NewSpaceSaver(TOP_K)
