@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 31 May 2026 20:59 BST
+# Last modified: 03 June 2026 07:33 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
@@ -50,5 +50,6 @@ unified.adsafeprotected.com
 usersync.gumgum.com
 video.quantcount.com
 vtrk.dv.tech
+whoeverbeyond.com
 widgets.outbrain.com
 x.bidswitch.net
