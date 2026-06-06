@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"time"
 
@@ -62,6 +63,34 @@ type App struct {
 	ConnectionPoolSize   int           `json:"connection_pool_size"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
 	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
+}
+
+func (app *App) LogValue() slog.Value {
+	m := make(map[string]any)
+	v := reflect.ValueOf(app).Elem()
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+
+		name := field.Name
+		if tag != "" {
+			name = strings.Split(tag, ",")[0]
+		}
+
+		val := v.Field(i)
+		if dur, ok := val.Interface().(time.Duration); ok {
+			m[name] = dur.String()
+		} else {
+			m[name] = val.Interface()
+		}
+	}
+
+	return slog.Any("temp", m).Value
 }
 
 func (app *App) RunServer() error {
