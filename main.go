@@ -44,17 +44,18 @@ func parseLogLevel(level string) slog.Level {
 
 func main() {
 	var logLevelVar slog.LevelVar
-	logger := slog.New(
-		logging.NewSentryHandler(
-			logging.NewTracingHandler(
-				slog.NewJSONHandler(
-					os.Stderr,
-					&slog.HandlerOptions{
-						Level:       &logLevelVar,
-						ReplaceAttr: logging.ReplaceAttr}))))
-						
-	app := internal.App{Logger: logger}
-	logging.BridgeStandardLog(app.Logger)
+
+	handler := logging.NewSentryHandler(
+		logging.NewTracingHandler(
+			slog.NewJSONHandler(
+				os.Stderr,
+				&slog.HandlerOptions{
+					Level:       &logLevelVar,
+					AddSource:   true,
+					ReplaceAttr: logging.ReplaceAttr})))
+
+	app := internal.App{Logger: slog.New(handler)}
+	logging.BridgeStandardLog(handler)
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
 	var dnsPort, dotPort int

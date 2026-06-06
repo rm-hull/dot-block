@@ -1,14 +1,16 @@
 package logging
 
 import (
+	"context"
 	"log"
 	"log/slog"
 	"runtime"
+	"time"
 )
 
 // slogWriter implements io.Writer to bridge standard log output to slog.
 type slogWriter struct {
-	logger *slog.Logger
+	handler slog.Handler
 }
 
 func (w *slogWriter) Write(p []byte) (n int, err error) {
@@ -26,23 +28,15 @@ func (w *slogWriter) Write(p []byte) (n int, err error) {
 	var pcs [1]uintptr
 	runtime.Callers(3, pcs[:])
 
-	frame, ok := runtime.CallersFrames(pcs[:]).Next()
-	if !ok {
-		w.logger.Info(msg)
-		return len(p), nil
-	}
-
-	w.logger.Info(msg,
-		"source_file", frame.File,
-		"source_line", frame.Line,
-	)
+	r := slog.NewRecord(time.Now(), slog.LevelInfo, msg, pcs[0])
+	_ = w.handler.Handle(context.Background(), r)
 
 	return len(p), nil
 }
 
-// BridgeStandardLog redirects the global standard log package to use the provided slog.Logger.
-func BridgeStandardLog(logger *slog.Logger) {
-	log.SetOutput(&slogWriter{logger: logger})
+// BridgeStandardLog redirects the global standard log package to use the provided slog.Handler.
+func BridgeStandardLog(handler slog.Handler) {
+	log.SetOutput(&slogWriter{handler: handler})
 	// Remove flags because slog handles timestamps and other metadata.
 	log.SetFlags(0)
 }

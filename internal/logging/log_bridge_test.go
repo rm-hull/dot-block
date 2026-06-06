@@ -1,42 +1,33 @@
 package logging
 
 import (
-	"context"
+	"bytes"
+	"fmt"
+	"log"
 	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-type testHandler struct {
-	lastRecord slog.Record
-}
-
-func (h *testHandler) Enabled(ctx context.Context, level slog.Level) bool { return true }
-func (h *testHandler) Handle(ctx context.Context, r slog.Record) error {
-	h.lastRecord = r
-	return nil
-}
-func (h *testHandler) WithAttrs(attrs []slog.Attr) slog.Handler { return h }
-func (h *testHandler) WithGroup(name string) slog.Handler       { return h }
-
 func TestBridgeStandardLog_SourceReporting(t *testing.T) {
-	handler := &testHandler{}
+	var buf bytes.Buffer
+	handler := slog.NewJSONHandler(&buf, &slog.HandlerOptions{AddSource: true})
 	logger := slog.New(handler)
 
-	writer := &slogWriter{logger: logger}
-	writer.Write([]byte("test message\n"))
+	// TEST 1: Direct logger call
+	logger.Info("direct call", "key", "val")
+	output1 := buf.String()
+	buf.Reset()
+	fmt.Printf("Direct call output: %s\n", output1)
+	assert.Contains(t, output1, "key")
+	assert.Contains(t, output1, "val")
 
-	record := handler.lastRecord
-	assert.Equal(t, "test message", record.Message)
-
-	var foundFile bool
-	record.Attrs(func(a slog.Attr) bool {
-		if a.Key == "source_file" {
-			foundFile = true
-		}
-		return true
-	})
-
-	assert.True(t, foundFile, "source_file attribute missing")
+	// TEST 2: Bridge call
+	BridgeStandardLog(handler)
+	log.Println("test bridged message")
+	output2 := buf.String()
+	fmt.Printf("Bridged call output: %s\n", output2)
+	assert.Contains(t, output2, "test bridged message")
+	assert.Contains(t, output2, "source")
 }
