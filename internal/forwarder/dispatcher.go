@@ -13,8 +13,10 @@ import (
 	"github.com/rm-hull/dot-block/internal/metrics"
 )
 
-const NUM_WORKERS = 4
-const TELEMETRY_BUFFER_SIZE = 1024
+const (
+	NUM_WORKERS           = 4
+	TELEMETRY_BUFFER_SIZE = 1024
+)
 
 type DNSSource string
 
@@ -22,6 +24,11 @@ const (
 	SourceUDP DNSSource = "UDP"
 	SourceTCP DNSSource = "TCP"
 	SourceDoT DNSSource = "DoT"
+)
+
+var (
+	freshnessSensitive = []string{"ocsp", "crl", "pki"}
+	reservedTLDs       = []string{".invalid.", ".localhost.", ".local.", ".test.", ".example.", ".internal."}
 )
 
 type RequestContext struct {
@@ -299,8 +306,6 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	return false
 }
 
-var freshnessSensitive = []string{"ocsp", "crl", "pki"}
-
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	if ShouldLog(err) {
 		args := append(additionalFields, "category", errorCategory, "error", err, "latency", ctx.telemetry.Latency())
@@ -348,8 +353,6 @@ func isDNSSDQuery(name string) bool {
 	}
 	return !strings.HasPrefix(lower, "_services.")
 }
-
-var reservedTLDs = []string{".invalid.", ".localhost.", ".local.", ".test.", ".example.", ".internal."}
 
 func isReservedTLD(name string) bool {
 	n := strings.ToLower(name)
