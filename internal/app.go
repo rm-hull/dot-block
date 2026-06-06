@@ -427,7 +427,7 @@ func sentryErrorHandler(logger *slog.Logger) gin.HandlerFunc {
 				if hub != nil {
 					hub.CaptureException(e.Err)
 				} else {
-					logger.Error("Gin error", "error", e.Err)
+					logger.ErrorContext(c, "Gin error", "error", e.Err)
 				}
 			}
 		}
