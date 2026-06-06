@@ -3,20 +3,23 @@ package logging
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/getsentry/sentry-go"
 )
 
-// SentryHandler wraps an existing slog.Handler and forwards logs with level ERROR or higher to Sentry.
+// SentryHandler wraps an existing slog.Handler and forwards logs with a specific level or higher to Sentry.
 type SentryHandler struct {
-	next  slog.Handler
-	attrs []slog.Attr
+	next     slog.Handler
+	attrs    []slog.Attr
+	minLevel slog.Level
 }
 
 // NewSentryHandler creates a new SentryHandler that wraps the provided handler.
-func NewSentryHandler(next slog.Handler) *SentryHandler {
-	return &SentryHandler{next: next}
+func NewSentryHandler(minLevel slog.Level, next slog.Handler) *SentryHandler {
+	return &SentryHandler{
+		next:     next,
+		minLevel: minLevel,
+	}
 }
 
 func (h *SentryHandler) Enabled(ctx context.Context, level slog.Level) bool {
@@ -24,61 +27,60 @@ func (h *SentryHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
-	if r.Level >= slog.LevelError {
-		event := h.createSentryEvent(r)
-		if hub := sentry.GetHubFromContext(ctx); hub != nil {
-			hub.CaptureEvent(event)
-		} else {
-			sentry.CaptureEvent(event)
+	if r.Level >= h.minLevel {
+		hub := sentry.GetHubFromContext(ctx)
+		if hub == nil {
+			hub = sentry.CurrentHub()
 		}
+
+		hub.WithScope(func(scope *sentry.Scope) {
+			scope.SetLevel(mapSlogLevel(r.Level))
+
+			extra := h.extractAttributes(r)
+			scope.SetContext("extra", extra)
+
+			if err, ok := extra["error"].(error); ok {
+				hub.CaptureException(err)
+			} else {
+				hub.CaptureMessage(r.Message)
+			}
+		})
 	}
 	return h.next.Handle(ctx, r)
 }
 
-// createSentryEvent converts a slog.Record into a sentry.Event.
-func (h *SentryHandler) createSentryEvent(r slog.Record) *sentry.Event {
-	event := sentry.NewEvent()
-	event.Message = r.Message
-	event.Level = sentry.LevelError
-
-	if r.Level > slog.LevelError {
-		event.Level = sentry.LevelFatal
+func mapSlogLevel(l slog.Level) sentry.Level {
+	switch {
+	case l <= slog.LevelDebug:
+		return sentry.LevelDebug
+	case l <= slog.LevelInfo:
+		return sentry.LevelInfo
+	case l <= slog.LevelWarn:
+		return sentry.LevelWarning
+	case l <= slog.LevelError:
+		return sentry.LevelError
+	default:
+		return sentry.LevelFatal
 	}
+}
 
+// extractAttributes collects attributes from the handler and the record,
+// applying consistent value processing (e.g., for time.Duration).
+func (h *SentryHandler) extractAttributes(r slog.Record) map[string]any {
 	extra := make(map[string]any)
-	var err error
-
-	formatVal := func(v slog.Value) any {
-		val := v.Any()
-		if dur, ok := val.(time.Duration); ok {
-			return dur.String()
-		}
-		return val
-	}
 
 	// Add accumulated attributes from the handler
 	for _, a := range h.attrs {
-		extra[a.Key] = formatVal(a.Value)
+		extra[a.Key] = processValue(a.Value.Any(), 0)
 	}
 
 	// Add record attributes
 	r.Attrs(func(a slog.Attr) bool {
-		val := formatVal(a.Value)
-		if a.Key == "error" {
-			if e, ok := val.(error); ok {
-				err = e
-			}
-		}
-		extra[a.Key] = val
+		extra[a.Key] = processValue(a.Value.Any(), 0)
 		return true
 	})
 
-	if err != nil {
-		event.SetException(err, 10)
-	}
-	event.Contexts = map[string]sentry.Context{"extra": extra}
-
-	return event
+	return extra
 }
 
 func (h *SentryHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
@@ -86,14 +88,16 @@ func (h *SentryHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	newAttrs = append(newAttrs, h.attrs...)
 	newAttrs = append(newAttrs, attrs...)
 	return &SentryHandler{
-		next:  h.next.WithAttrs(attrs),
-		attrs: newAttrs,
+		next:     h.next.WithAttrs(attrs),
+		attrs:    newAttrs,
+		minLevel: h.minLevel,
 	}
 }
 
 func (h *SentryHandler) WithGroup(name string) slog.Handler {
 	return &SentryHandler{
-		next:  h.next.WithGroup(name),
-		attrs: h.attrs,
+		next:     h.next.WithGroup(name),
+		attrs:    h.attrs,
+		minLevel: h.minLevel,
 	}
 }

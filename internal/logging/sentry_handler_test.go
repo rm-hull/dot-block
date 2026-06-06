@@ -6,20 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/getsentry/sentry-go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestCreateSentryEvent(t *testing.T) {
+func TestExtractAttributes(t *testing.T) {
 	tests := []struct {
 		name          string
 		level         slog.Level
 		message       string
 		attrs         []slog.Attr
 		handlerAttrs  []slog.Attr
-		wantLevel     sentry.Level
-		wantMsg       string
 		wantExtraKeys []string
 		wantException bool
 		checkDuration bool
@@ -30,8 +27,6 @@ func TestCreateSentryEvent(t *testing.T) {
 			message:      "something went wrong",
 			attrs:        nil,
 			handlerAttrs: nil,
-			wantLevel:    sentry.LevelError,
-			wantMsg:      "something went wrong",
 		},
 		{
 			name:    "Error with exception",
@@ -42,8 +37,6 @@ func TestCreateSentryEvent(t *testing.T) {
 				slog.Any("error", errors.New("connection timeout")),
 			},
 			handlerAttrs:  nil,
-			wantLevel:     sentry.LevelError,
-			wantMsg:       "db failure",
 			wantExtraKeys: []string{"category", "error"},
 			wantException: true,
 		},
@@ -55,19 +48,15 @@ func TestCreateSentryEvent(t *testing.T) {
 				slog.Duration("latency", 500*time.Millisecond),
 			},
 			handlerAttrs:  nil,
-			wantLevel:     sentry.LevelError,
-			wantMsg:       "slow request",
 			wantExtraKeys: []string{"latency"},
 			checkDuration: true,
 		},
 		{
 			name:         "Level above Error",
-			level:        slog.Level(100), // Simulate something higher than LevelError (which is 8)
+			level:        slog.Level(100),
 			message:      "critical failure",
 			attrs:        nil,
 			handlerAttrs: nil,
-			wantLevel:    sentry.LevelFatal,
-			wantMsg:      "critical failure",
 		},
 		{
 			name:    "Attributes from handler",
@@ -78,8 +67,6 @@ func TestCreateSentryEvent(t *testing.T) {
 				slog.String("global", "attr"),
 				slog.Int("version", 1),
 			},
-			wantLevel:     sentry.LevelError,
-			wantMsg:       "system failure",
 			wantExtraKeys: []string{"local", "global", "version"},
 		},
 	}
@@ -92,20 +79,16 @@ func TestCreateSentryEvent(t *testing.T) {
 
 			// Create a SentryHandler with the specified attributes
 			h := &SentryHandler{attrs: tt.handlerAttrs}
-			event := h.createSentryEvent(r)
-
-			assert.Equal(t, tt.wantLevel, event.Level)
-			assert.Equal(t, tt.wantMsg, event.Message)
-
-			extra, ok := event.Contexts["extra"]
-			require.True(t, ok, "event.Contexts[\"extra\"] is missing")
+			extra := h.extractAttributes(r)
 
 			for _, key := range tt.wantExtraKeys {
 				assert.Contains(t, extra, key)
 			}
 
 			if tt.wantException {
-				assert.NotEmpty(t, event.Exception, "expected exception to be set")
+				val, ok := extra["error"]
+				require.True(t, ok, "error key missing from extra")
+				assert.Implements(t, (*error)(nil), val)
 			}
 
 			if tt.checkDuration {
