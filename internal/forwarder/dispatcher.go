@@ -96,6 +96,12 @@ func (d *DNSDispatcher) Close() {
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 	return func(writer dns.ResponseWriter, req *dns.Msg) {
+
+		if req == nil {
+			d.logger.Warn("received nil DNS request", "source", source)
+			return
+		}
+
 		remoteAddr := writer.RemoteAddr().String()
 		ipAddr, _, err := net.SplitHostPort(remoteAddr)
 		if err != nil {

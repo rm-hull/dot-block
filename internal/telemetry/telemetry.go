@@ -31,6 +31,9 @@ func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) 
 		otlptracegrpc.WithEndpoint(endpoint),
 		otlptracegrpc.WithInsecure(),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create OTLP exporter: %w", err)
+	}
 
 	// Define the resource attributes for the service
 	res, err := resource.New(ctx,
