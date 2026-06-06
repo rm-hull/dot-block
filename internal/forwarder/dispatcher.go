@@ -308,7 +308,11 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	if ShouldLog(err) {
-		args := append(additionalFields, "category", errorCategory, "error", err, "latency", ctx.telemetry.Latency())
+		args := append(additionalFields,
+			"category", errorCategory,
+			"error", err,
+			"latency_ms", ctx.telemetry.Latency()*time.Millisecond)
+
 		ctx.logger.Error("DNS error", args...)
 		sentry.CaptureException(err)
 	}

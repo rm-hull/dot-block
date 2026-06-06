@@ -29,12 +29,12 @@ type TelemetryData struct {
 }
 
 func (t *TelemetryData) Finished() *TelemetryData {
-	t.requestLatency = t.Latency()
+	t.requestLatency = t.Latency().Hours()
 	return t
 }
 
-func (t *TelemetryData) Latency() float64 {
-	return time.Since(t.startTime).Seconds()
+func (t *TelemetryData) Latency() time.Duration {
+	return time.Since(t.startTime)
 }
 
 func NewTelemetryData(startTime time.Time, source string, ipAddr string) *TelemetryData {
