@@ -21,10 +21,10 @@ var DEFAULT_BLOCKLIST_URLS = []string{
 }
 
 var DEFAULT_UPSTREAM_DNS = []string{
-	"8.8.8.8:53", // Google
-	"8.8.4.4:53",
-	"1.1.1.1:53", // Cloudflare
-	"1.0.0.1:53",
+	"8.8.8.8", // Google
+	"8.8.4.4",
+	"1.1.1.1", // Cloudflare
+	"1.0.0.1",
 }
 
 func parseLogLevel(level string) slog.Level {
@@ -91,7 +91,9 @@ func main() {
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
 	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")
 	rootCmd.Flags().DurationVar(&app.CacheTtlFloor, "cache-ttl-floor", 3600*time.Second, "Minimum TTL for cached entries")
-	rootCmd.Flags().DurationVar(&app.ConnectionTimeout, "connection-timeout", 500*time.Millisecond, "Timeout for upstream DNS queries")
+	rootCmd.Flags().DurationVar(&app.ReadTimeout, "read-timeout", 300*time.Millisecond, "Timeout for reading upstream DNS queries")
+	rootCmd.Flags().DurationVar(&app.WriteTimeout, "write-timeout", 500*time.Millisecond, "Timeout for writing upstream DNS queries")
+	rootCmd.Flags().DurationVar(&app.DialTimeout, "dial-timeout", 300*time.Millisecond, "Timeout for establishing connections to upstream servers")
 	rootCmd.Flags().IntVar(&app.ConnectionPoolSize, "connection-pool-size", 10, "Number of connections to maintain in pool for each upstream server")
 	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
 	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")

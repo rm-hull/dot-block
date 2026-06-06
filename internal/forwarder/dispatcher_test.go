@@ -91,7 +91,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*D
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	require.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, upstream)
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, 1, logger, upstream)
 	require.NoError(t, err)
 
 	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger)
@@ -338,7 +338,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	assert.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 1, logger, "8.8.8.8:53")
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, 1, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
 	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, -1*time.Second, logger)

@@ -350,7 +350,7 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 		args := append(additionalFields,
 			"category", errorCategory,
 			"error", err,
-			"latency_ms", ctx.telemetry.Latency()*time.Millisecond)
+			"latency", ctx.telemetry.Latency().String())
 
 		ctx.logger.ErrorContext(ctx.ctx, "DNS error", args...)
 		sentry.CaptureException(err)
