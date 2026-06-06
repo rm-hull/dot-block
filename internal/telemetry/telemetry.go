@@ -3,7 +3,9 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
+	"strconv"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -15,7 +17,7 @@ import (
 )
 
 // InitTracer initializes the global TracerProvider and returns a shutdown function.
-func InitTracer(serviceName string) (func(context.Context) error, error) {
+func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
 	// Read OTLP endpoint from environment variable or use default
@@ -43,11 +45,22 @@ func InitTracer(serviceName string) (func(context.Context) error, error) {
 		return nil, fmt.Errorf("failed to create resource: %w", err)
 	}
 
+	// Sampling ratio from environment variable (0.0 to 1.0)
+	samplingRatio := 0.01
+	if val := os.Getenv("OTEL_SAMPLING_RATIO"); val != "" {
+		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
+			samplingRatio = parsed
+		}
+	}
+
 	// Create the TracerProvider
 	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.ParentBased(sdktrace.TraceIDRatioBased(samplingRatio))),
 		sdktrace.WithBatcher(exporter),
 		sdktrace.WithResource(res),
 	)
+
+	logger.Info("OTEL tracing initialized", "endpoint", endpoint, "sampling_ratio", samplingRatio)
 
 	// Set the global TracerProvider and TextMapPropagator
 	otel.SetTracerProvider(tp)

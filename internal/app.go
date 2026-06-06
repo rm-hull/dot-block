@@ -100,7 +100,7 @@ func (app *App) RunServer() error {
 	godx.Diagnostics(app.Logger)
 	app.Logger.Info("Configuation on startup", "app", app)
 
-	shutdownTracer, err := telemetry.InitTracer("dot-block")
+	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block")
 	if err != nil {
 		app.Logger.Error("failed to initialize tracing", "error", err)
 	} else {
