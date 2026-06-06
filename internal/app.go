@@ -422,13 +422,8 @@ func sentryErrorHandler(logger *slog.Logger) gin.HandlerFunc {
 		c.Next()
 
 		if len(c.Errors) > 0 {
-			hub := sentrygin.GetHubFromContext(c)
 			for _, e := range c.Errors {
-				if hub != nil {
-					hub.CaptureException(e.Err)
-				} else {
-					logger.ErrorContext(c, "Gin error", "error", e.Err)
-				}
+				logger.ErrorContext(c.Request.Context(), "Gin error", "error", e.Err)
 			}
 		}
 	}

@@ -10,7 +10,8 @@ import (
 
 // SentryHandler wraps an existing slog.Handler and forwards logs with level ERROR or higher to Sentry.
 type SentryHandler struct {
-	next slog.Handler
+	next  slog.Handler
+	attrs []slog.Attr
 }
 
 // NewSentryHandler creates a new SentryHandler that wraps the provided handler.
@@ -23,8 +24,8 @@ func (h *SentryHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
-	if r.Level >= slog.LevelWarn {
-		event := createSentryEvent(r)
+	if r.Level >= slog.LevelError {
+		event := h.createSentryEvent(r)
 		if hub := sentry.GetHubFromContext(ctx); hub != nil {
 			hub.CaptureEvent(event)
 		} else {
@@ -35,7 +36,7 @@ func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 // createSentryEvent converts a slog.Record into a sentry.Event.
-func createSentryEvent(r slog.Record) *sentry.Event {
+func (h *SentryHandler) createSentryEvent(r slog.Record) *sentry.Event {
 	event := sentry.NewEvent()
 	event.Message = r.Message
 	event.Level = sentry.LevelError
@@ -47,12 +48,22 @@ func createSentryEvent(r slog.Record) *sentry.Event {
 	extra := make(map[string]any)
 	var err error
 
-	r.Attrs(func(a slog.Attr) bool {
-		val := a.Value.Any()
+	formatVal := func(v slog.Value) any {
+		val := v.Any()
 		if dur, ok := val.(time.Duration); ok {
-			val = dur.String()
+			return dur.String()
 		}
+		return val
+	}
 
+	// Add accumulated attributes from the handler
+	for _, a := range h.attrs {
+		extra[a.Key] = formatVal(a.Value)
+	}
+
+	// Add record attributes
+	r.Attrs(func(a slog.Attr) bool {
+		val := formatVal(a.Value)
 		if a.Key == "error" {
 			if e, ok := val.(error); ok {
 				err = e
@@ -63,7 +74,7 @@ func createSentryEvent(r slog.Record) *sentry.Event {
 	})
 
 	if err != nil {
-		event.SetException(err, 1)
+		event.SetException(err, 10)
 	}
 	event.Contexts = map[string]sentry.Context{"extra": extra}
 
@@ -71,9 +82,18 @@ func createSentryEvent(r slog.Record) *sentry.Event {
 }
 
 func (h *SentryHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &SentryHandler{next: h.next.WithAttrs(attrs)}
+	newAttrs := make([]slog.Attr, 0, len(h.attrs)+len(attrs))
+	newAttrs = append(newAttrs, h.attrs...)
+	newAttrs = append(newAttrs, attrs...)
+	return &SentryHandler{
+		next:  h.next.WithAttrs(attrs),
+		attrs: newAttrs,
+	}
 }
 
 func (h *SentryHandler) WithGroup(name string) slog.Handler {
-	return &SentryHandler{next: h.next.WithGroup(name)}
+	return &SentryHandler{
+		next:  h.next.WithGroup(name),
+		attrs: h.attrs,
+	}
 }

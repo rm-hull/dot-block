@@ -1,11 +1,9 @@
 package logging
 
 import (
-	"context"
 	"log"
 	"log/slog"
 	"runtime"
-	"time"
 )
 
 // slogWriter implements io.Writer to bridge standard log output to slog.
@@ -18,17 +16,27 @@ func (w *slogWriter) Write(p []byte) (n int, err error) {
 	if len(msg) > 0 && msg[len(msg)-1] == '\n' {
 		msg = msg[:len(msg)-1]
 	}
-	// Skip callers to find the actual log initiator.
-	// 1: runtime.Callers
-	// 2: w.Write
-	// 3: log.Logger.Output
-	// 4: log.Printf (or similar)
-	// 5: Actual caller
+
+	// Find the caller PC.
+	// The call stack is:
+	// 0: runtime.Callers
+	// 1: slogWriter.Write
+	// 2: log.Output (standard logger)
+	// 3: The actual call site (e.g. log.Println)
 	var pcs [1]uintptr
-	runtime.Callers(5, pcs[:])
-	pc := pcs[0]
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, msg, pc)
-	_ = w.logger.Handler().Handle(context.Background(), r)
+	runtime.Callers(3, pcs[:])
+
+	frame, ok := runtime.CallersFrames(pcs[:]).Next()
+	if !ok {
+		w.logger.Info(msg)
+		return len(p), nil
+	}
+
+	w.logger.Info(msg,
+		"source_file", frame.File,
+		"source_line", frame.Line,
+	)
+
 	return len(p), nil
 }
 

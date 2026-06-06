@@ -13,23 +13,25 @@ import (
 
 func TestCreateSentryEvent(t *testing.T) {
 	tests := []struct {
-		name           string
-		level          slog.Level
-		message        string
-		attrs          []slog.Attr
-		wantLevel      sentry.Level
-		wantMsg        string
-		wantExtraKeys  []string
-		wantException  bool
-		checkDuration  bool
+		name          string
+		level         slog.Level
+		message       string
+		attrs         []slog.Attr
+		handlerAttrs  []slog.Attr
+		wantLevel     sentry.Level
+		wantMsg       string
+		wantExtraKeys []string
+		wantException bool
+		checkDuration bool
 	}{
 		{
-			name:      "Simple error",
-			level:     slog.LevelError,
-			message:   "something went wrong",
-			attrs:     nil,
-			wantLevel: sentry.LevelError,
-			wantMsg:    "something went wrong",
+			name:         "Simple error",
+			level:        slog.LevelError,
+			message:      "something went wrong",
+			attrs:        nil,
+			handlerAttrs: nil,
+			wantLevel:    sentry.LevelError,
+			wantMsg:      "something went wrong",
 		},
 		{
 			name:    "Error with exception",
@@ -39,7 +41,8 @@ func TestCreateSentryEvent(t *testing.T) {
 				slog.String("category", "database"),
 				slog.Any("error", errors.New("connection timeout")),
 			},
-			wantLevel:    sentry.LevelError,
+			handlerAttrs:  nil,
+			wantLevel:     sentry.LevelError,
 			wantMsg:       "db failure",
 			wantExtraKeys: []string{"category", "error"},
 			wantException: true,
@@ -51,18 +54,33 @@ func TestCreateSentryEvent(t *testing.T) {
 			attrs: []slog.Attr{
 				slog.Duration("latency", 500*time.Millisecond),
 			},
-			wantLevel:    sentry.LevelError,
+			handlerAttrs:  nil,
+			wantLevel:     sentry.LevelError,
 			wantMsg:       "slow request",
 			wantExtraKeys: []string{"latency"},
 			checkDuration: true,
 		},
 		{
-			name:      "Level above Error",
-			level:     slog.Level(100), // Simulate something higher than LevelError (which is 8)
-			message:   "critical failure",
-			attrs:     nil,
-			wantLevel: sentry.LevelFatal,
-			wantMsg:    "critical failure",
+			name:         "Level above Error",
+			level:        slog.Level(100), // Simulate something higher than LevelError (which is 8)
+			message:      "critical failure",
+			attrs:        nil,
+			handlerAttrs: nil,
+			wantLevel:    sentry.LevelFatal,
+			wantMsg:      "critical failure",
+		},
+		{
+			name:    "Attributes from handler",
+			level:   slog.LevelError,
+			message: "system failure",
+			attrs:   []slog.Attr{slog.String("local", "attr")},
+			handlerAttrs: []slog.Attr{
+				slog.String("global", "attr"),
+				slog.Int("version", 1),
+			},
+			wantLevel:     sentry.LevelError,
+			wantMsg:       "system failure",
+			wantExtraKeys: []string{"local", "global", "version"},
 		},
 	}
 
@@ -72,7 +90,9 @@ func TestCreateSentryEvent(t *testing.T) {
 			r := slog.NewRecord(time.Now(), tt.level, tt.message, 0)
 			r.AddAttrs(tt.attrs...)
 
-			event := createSentryEvent(r)
+			// Create a SentryHandler with the specified attributes
+			h := &SentryHandler{attrs: tt.handlerAttrs}
+			event := h.createSentryEvent(r)
 
 			assert.Equal(t, tt.wantLevel, event.Level)
 			assert.Equal(t, tt.wantMsg, event.Message)
