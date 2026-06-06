@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/getsentry/sentry-go"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -314,7 +313,6 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 			"latency", ctx.telemetry.Latency().String())
 
 		ctx.logger.Error("DNS error", args...)
-		sentry.CaptureException(err)
 	}
 
 	ctx.telemetry.SetErrorCategory(errorCategory)

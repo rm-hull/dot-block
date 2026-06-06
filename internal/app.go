@@ -350,7 +350,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		gin.Recovery(),
 		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
 		prometheus.Instrument(),
-		sentryErrorHandler(),
+		sentryErrorHandler(app.Logger),
 	)
 
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
@@ -403,7 +403,7 @@ func (app *App) environment() string {
 	return "PRODUCTION"
 }
 
-func sentryErrorHandler() gin.HandlerFunc {
+func sentryErrorHandler(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
@@ -413,7 +413,7 @@ func sentryErrorHandler() gin.HandlerFunc {
 				if hub != nil {
 					hub.CaptureException(e.Err)
 				} else {
-					sentry.CaptureException(e.Err)
+					logger.Error("Gin error", "error", e.Err)
 				}
 			}
 		}
