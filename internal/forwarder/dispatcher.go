@@ -210,6 +210,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		d.reportError(ctx, "blocklist", err, "qtype", queryType)
 		return nil, dns.RcodeServerFailure, err
 	}
