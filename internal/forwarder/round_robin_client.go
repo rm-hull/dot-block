@@ -26,20 +26,20 @@ type pooledConn struct {
 }
 
 type ConnPool struct {
-	conns       chan *pooledConn
-	addr        string
-	client      *dns.Client
-	metrics     *metrics.DnsMetrics
-	maxIdleAge  time.Duration
+	conns      chan *pooledConn
+	addr       string
+	client     *dns.Client
+	metrics    *metrics.DnsMetrics
+	maxIdleAge time.Duration
 }
 
 func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int) *ConnPool {
 	return &ConnPool{
-		conns:       make(chan *pooledConn, poolSize),
-		addr:        addr,
-		client:      client,
-		metrics:     metrics,
-		maxIdleAge:  8 * time.Second, // Close connections idle for more than 8 seconds
+		conns:      make(chan *pooledConn, poolSize),
+		addr:       addr,
+		client:     client,
+		metrics:    metrics,
+		maxIdleAge: 8 * time.Second, // Close connections idle for more than 8 seconds
 	}
 }
 

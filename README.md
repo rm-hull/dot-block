@@ -12,6 +12,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 -   **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
 -   **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
 -   **Advanced Observability:** Exports detailed Prometheus metrics including upstream health, failure reasons, and cache effectiveness.
+-   **Distributed Tracing:** Integrates with OpenTelemetry (OTel), providing end-to-end traces of DNS requests and correlating them with logs via `trace_id` and `span_id`.
 -   **Noise-Reduced Error Reporting:** Integrates with Sentry, with intelligent filtering to avoid logging protocol-valid negative responses (like NXDOMAIN or NOTIMP) as errors.
 -   **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
 
@@ -152,6 +153,8 @@ DoT Block can be configured using the following command-line flags:
 | `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | No |
 | `IP2LOCATION_TOKEN` | IP2Location token for downloading geoIP locations. | Yes |
 | `SENTRY_DSN` | DSN for Sentry error reporting. | No |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (e.g. `localhost:4317`). | No |
+| `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0). Defaults to `0.01` (1%). | No |
 
 ## Grafana Dashboard
 

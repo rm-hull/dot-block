@@ -45,10 +45,10 @@ func parseLogLevel(level string) slog.Level {
 func main() {
 	var logLevelVar slog.LevelVar
 	app := internal.App{
-		Logger: slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Logger: slog.New(logging.NewTracingHandler(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
 			Level:       &logLevelVar,
 			ReplaceAttr: logging.ReplaceAttr,
-		})),
+		}))),
 	}
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
