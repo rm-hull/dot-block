@@ -119,7 +119,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			trace.WithAttributes(
 				attribute.String("client_ip", ipAddr),
 				attribute.String("source", string(source)),
-				attribute.Int("dns_id", int(req.Id)),
+				attribute.Int("request_id", int(req.Id)),
 			),
 		)
 		defer span.End()
