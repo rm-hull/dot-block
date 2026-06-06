@@ -76,7 +76,7 @@ func (app *App) LogValue() slog.Value {
 
 func structToMap(obj any) any {
 	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 
