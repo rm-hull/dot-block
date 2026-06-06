@@ -31,24 +31,27 @@ type ConnPool struct {
 	client     *dns.Client
 	metrics    *metrics.DnsMetrics
 	maxIdleAge time.Duration
+	dialTimeout time.Duration
 }
 
-func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int) *ConnPool {
+func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int, dialTimeout time.Duration) *ConnPool {
 	return &ConnPool{
 		conns:      make(chan *pooledConn, poolSize),
 		addr:       addr,
 		client:     client,
 		metrics:    metrics,
 		maxIdleAge: 8 * time.Second, // Close connections idle for more than 8 seconds
+		dialTimeout: dialTimeout,
 	}
 }
 
 func (p *ConnPool) dial() (*dns.Conn, error) {
-	conn, err := p.client.Dial(p.addr)
+	d := net.Dialer{Timeout: p.dialTimeout}
+	conn, err := d.Dial("tcp", p.addr)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial %s", p.addr)
 	}
-	return conn, nil
+	return &dns.Conn{Conn: conn}, nil
 }
 
 func (p *ConnPool) acquire() (*dns.Conn, bool, error) {
@@ -87,18 +90,6 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 		_ = conn.Close() // discard broken conn
 		if reused {
 			p.metrics.PooledConnDeaths.WithLabelValues(p.addr).Inc()
-			// Retry once with a fresh connection if the pooled one was dead
-			conn, err = p.dial()
-			if err != nil {
-				return nil, 0, err
-			}
-			resp, rtt, err = p.client.ExchangeWithConn(msg, conn)
-			if err != nil {
-				_ = conn.Close()
-				return nil, 0, err
-			}
-			p.release(conn)
-			return resp, rtt, nil
 		}
 		return nil, 0, err
 	}
@@ -107,7 +98,7 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	return resp, rtt, nil
 }
 
-func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poolSize int, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
+func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, dialTimeout time.Duration, poolSize int, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
 	}
@@ -116,10 +107,10 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, timeout time.Duration, poo
 		return nil, errors.New("connection pool size cannot be negative")
 	}
 
-	client := &dns.Client{Timeout: timeout, Net: "tcp"}
+	client := &dns.Client{Timeout: readTimeout, Net: "tcp"}
 	pools := make(map[string]*ConnPool, len(upstreams))
 	for _, upstream := range upstreams {
-		pools[upstream] = NewConnPool(metrics, upstream, client, poolSize)
+		pools[upstream] = NewConnPool(metrics, upstream, client, poolSize, dialTimeout)
 	}
 	return &RoundRobinClient{
 		upstreams: upstreams,
