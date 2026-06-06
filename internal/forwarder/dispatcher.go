@@ -198,9 +198,9 @@ func (d *DNSDispatcher) telemetryWorker() {
 	}
 }
 
-func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
+func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
 	tracer := telemetry.GetTracer("dns-dispatcher")
-	_, span := tracer.Start(ctx.ctx, "processQuestion",
+	_, span := tracer.Start(requestCtx.ctx, "processQuestion",
 		trace.WithAttributes(
 			attribute.String("dns.name", q.Name),
 			attribute.String("dns.type", getQueryType(q)),
@@ -209,7 +209,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	defer span.End()
 
 	queryType := getQueryType(q)
-	ctx.logger.DebugContext(ctx.ctx, "Query received",
+	requestCtx.logger.DebugContext(requestCtx.ctx, "Query received",
 		"name", q.Name,
 		"type", queryType)
 
@@ -217,14 +217,14 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		d.reportError(ctx, "blocklist", err, "qtype", queryType)
+		d.reportError(requestCtx, "blocklist", err, "qtype", queryType)
 		return nil, dns.RcodeServerFailure, err
 	}
 
 	if isBlocked {
-		ctx.logger.DebugContext(ctx.ctx, "Domain blocked", "name", q.Name)
-		ctx.telemetry.AddBlockedDomain(q.Name)
-		ctx.telemetry.AddQueryCount(queryType, true)
+		requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name)
+		requestCtx.telemetry.AddBlockedDomain(q.Name)
+		requestCtx.telemetry.AddQueryCount(queryType, true)
 		span.SetAttributes(attribute.Bool("dns.blocked", true))
 
 		soa := &dns.SOA{
@@ -245,7 +245,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedLocalhost(q.Name) {
-		ctx.logger.DebugContext(ctx.ctx, "Answering localhost loopback", "name", q.Name)
+		requestCtx.logger.DebugContext(requestCtx.ctx, "Answering localhost loopback", "name", q.Name)
 		a := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   q.Name,
@@ -259,18 +259,18 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedTLD(q.Name) {
-		ctx.logger.DebugContext(ctx.ctx, "Blocking reserved TLD", "name", q.Name)
+		requestCtx.logger.DebugContext(requestCtx.ctx, "Blocking reserved TLD", "name", q.Name)
 		return nil, dns.RcodeNameError, nil
 	}
 
 	if isDNSSDQuery(q.Name) {
-		ctx.logger.DebugContext(ctx.ctx, "Short-circuiting DNS-SD query", "name", q.Name)
-		ctx.telemetry.AddQueryCount(queryType, false)
+		requestCtx.logger.DebugContext(requestCtx.ctx, "Short-circuiting DNS-SD query", "name", q.Name)
+		requestCtx.telemetry.AddQueryCount(queryType, false)
 		return nil, dns.RcodeNameError, nil
 	}
 
-	ctx.telemetry.AddDomain(q.Name)
-	ctx.telemetry.AddQueryCount(queryType, false)
+	requestCtx.telemetry.AddDomain(q.Name)
+	requestCtx.telemetry.AddQueryCount(queryType, false)
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		return cachedRRs, dns.RcodeSuccess, nil
@@ -279,9 +279,9 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	return nil, dns.RcodeSuccess, nil
 }
 
-func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
+func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
 	tracer := telemetry.GetTracer("dns-dispatcher")
-	_, span := tracer.Start(ctx.ctx, "resolveUpstream",
+	_, span := tracer.Start(requestCtx.ctx, "resolveUpstream",
 		trace.WithAttributes(
 			attribute.Int("dns.unanswered_count", len(unansweredQuestions)),
 		),
@@ -293,7 +293,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 	upstreamReq.RecursionDesired = req.RecursionDesired
 	upstreamReq.Question = unansweredQuestions
 
-	upstreamResp, upstream, err := d.forwardQuery(ctx, upstreamReq)
+	upstreamResp, upstream, err := d.forwardQuery(requestCtx, upstreamReq)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -329,7 +329,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
-			ctx.telemetry.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
+			requestCtx.telemetry.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
 
@@ -353,26 +353,26 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	return false
 }
 
-func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
+func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	if ShouldLog(err) {
 		args := append(additionalFields,
 			"category", errorCategory,
 			"error", err,
-			"latency", ctx.telemetry.Latency().String())
+			"latency", requestCtx.telemetry.Latency().String())
 
-		ctx.logger.ErrorContext(ctx.ctx, "DNS error", args...)
+		requestCtx.logger.ErrorContext(requestCtx.ctx, "DNS error", args...)
 	}
 
-	ctx.telemetry.SetErrorCategory(errorCategory)
+	requestCtx.telemetry.SetErrorCategory(errorCategory)
 }
 
-func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
+func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
 	tracer := telemetry.GetTracer("dns-dispatcher")
-	_, span := tracer.Start(ctx.ctx, "forwardQuery")
+	_, span := tracer.Start(requestCtx.ctx, "forwardQuery")
 	defer span.End()
 
 	startTime := time.Now()
-	ctx.telemetry.Forwarded()
+	requestCtx.telemetry.Forwarded()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	if err != nil {
@@ -381,7 +381,7 @@ func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Ms
 	}
 
 	duration := time.Since(startTime).Seconds()
-	ctx.telemetry.SetUpstream(upstream, duration)
+	requestCtx.telemetry.SetUpstream(upstream, duration)
 	span.SetAttributes(attribute.String("dns.upstream", upstream))
 
 	return in, upstream, err

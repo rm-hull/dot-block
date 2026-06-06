@@ -23,9 +23,13 @@ func (h *SentryHandler) Enabled(ctx context.Context, level slog.Level) bool {
 }
 
 func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
-	if r.Level >= slog.LevelError {
+	if r.Level >= slog.LevelWarn {
 		event := createSentryEvent(r)
-		sentry.CaptureEvent(event)
+		if hub := sentry.GetHubFromContext(ctx); hub != nil {
+			hub.CaptureEvent(event)
+		} else {
+			sentry.CaptureEvent(event)
+		}
 	}
 	return h.next.Handle(ctx, r)
 }
