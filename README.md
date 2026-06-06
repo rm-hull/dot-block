@@ -126,7 +126,9 @@ DoT Block can be configured using the following command-line flags:
 | `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt` |
 | `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
 | `--connection-pool-size` | Number of connections to maintain in pool for each upstream server | `10` |
-| `--connection-timeout` | Timeout for upstream DNS connections | `500ms` |
+| `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
+| `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `300ms` |
+| `--write-timeout` | Timeout for waiting for requests from upstream DNS servers | `500ms` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
 | `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
@@ -139,7 +141,7 @@ DoT Block can be configured using the following command-line flags:
 | `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 | `--require-proxy-protocol` | Require PROXY protocol header for DoT connections. | `false` |
 | `--trusted-proxies` | Comma-separated list of trusted proxy IP addresses or CIDR ranges. | `nil` |
-| `--upstream` | Upstream DNS resolvers to forward queries to. | `8.8.8.8:53`, `8.8.4.4:53`, `1.1.1.1:53`, `1.0.0.1:53`, `9.9.9.9:53`, `149.112.112.112:53` |
+| `--upstreams` | Upstream DNS resolvers to forward queries to. (Port 53 is assumed if omitted) | `8.8.8.8`, `8.8.4.4`, `1.1.1.1`, `1.0.0.1`, `9.9.9.9`, `149.112.112.112` |
 
 ### Environment Variables
 

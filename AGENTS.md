@@ -13,6 +13,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 
 ## Development Principles
 - **Test-First:** Always verify existing behavior with tests and write failing tests before implementing changes.
+- **Doc-Sync:** Whenever a feature, flag, or default value is changed, update the corresponding documentation (e.g., `README.md`) immediately.
 
 ## Development Workflow
 ### Run (Dev Mode)
