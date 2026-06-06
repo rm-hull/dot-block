@@ -59,6 +59,7 @@ type App struct {
 	} `json:"cron_schedule"`
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
 	ReadTimeout          time.Duration `json:"read_timeout"`
+	WriteTimeout         time.Duration `json:"write_timeout"`
 	DialTimeout          time.Duration `json:"dial_timeout"`
 	ConnectionPoolSize   int           `json:"connection_pool_size"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
@@ -194,7 +195,7 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
-	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ReadTimeout, app.DialTimeout, app.ConnectionPoolSize, app.Logger, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ReadTimeout, app.WriteTimeout, app.DialTimeout, app.ConnectionPoolSize, app.Logger, app.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}

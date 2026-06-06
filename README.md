@@ -128,6 +128,7 @@ DoT Block can be configured using the following command-line flags:
 | `--connection-pool-size` | Number of connections to maintain in pool for each upstream server | `10` |
 | `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
 | `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `300ms` |
+| `--write-timeout` | Timeout for waiting for requests from upstream DNS servers | `500ms` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
 | `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
