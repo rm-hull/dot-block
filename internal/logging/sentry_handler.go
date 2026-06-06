@@ -23,30 +23,38 @@ func (h *SentryHandler) Enabled(ctx context.Context, level slog.Level) bool {
 
 func (h *SentryHandler) Handle(ctx context.Context, r slog.Record) error {
 	if r.Level >= slog.LevelError {
+		event := sentry.NewEvent()
+		event.Message = r.Message
+		event.Level = sentry.LevelError
+
+		if r.Level > slog.LevelError {
+			event.Level = sentry.LevelFatal
+		}
+
+		extra := make(map[string]any)
 		var err error
-		attrs := make(map[string]any)
+
 		r.Attrs(func(a slog.Attr) bool {
+			val := a.Value.Any()
+			if dur, ok := val.(time.Duration); ok {
+				val = dur.String()
+			}
+
 			if a.Key == "error" {
-				if e, ok := a.Value.Any().(error); ok {
+				if e, ok := val.(error); ok {
 					err = e
 				}
 			}
-			attrs[a.Key] = a.Value.Any()
+			extra[a.Key] = val
 			return true
 		})
 
 		if err != nil {
-			// If we found an error attribute, capture it as an exception
-			sentry.CaptureException(err)
-		} else {
-			// Otherwise, capture the log message
-			sentry.CaptureMessage(r.Message)
+			event.Exception = sentry.NewException(err)
 		}
-		
-		// We can also add the attributes as extra data to the event
-		// Note: sentry.CaptureException/Message are high-level. 
-		// To add extra data, we'd need to use sentry.NewEvent().
-		// But for most cases, this is sufficient.
+		event.Extra = extra
+
+		sentry.CaptureEvent(event)
 	}
 	return h.next.Handle(ctx, r)
 }
