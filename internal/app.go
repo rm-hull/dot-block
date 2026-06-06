@@ -107,7 +107,9 @@ func (app *App) RunServer() error {
 		app.Logger.Error("failed to initialize tracing", "error", err)
 	} else {
 		defer func() {
-			if err := shutdownTracer(context.Background()); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := shutdownTracer(ctx); err != nil {
 				app.Logger.Error("failed to shutdown tracer", "error", err)
 			}
 		}()

@@ -51,6 +51,11 @@ func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) 
 		sdktrace.WithResource(res),
 	)
 
+	// Read OTLP endpoint from environment variable or use default
+	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "localhost:4317"
+	}
 	logger.Info("OTEL tracing initialized", "endpoint", endpoint, "sampling_ratio", samplingRatio)
 
 	// Set the global TracerProvider and TextMapPropagator
