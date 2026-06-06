@@ -20,17 +20,8 @@ import (
 func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
-	// Read OTLP endpoint from environment variable or use default
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
-	if endpoint == "" {
-		endpoint = "localhost:4317"
-	}
-
-	// Configure the OTLP exporter
-	exporter, err := otlptracegrpc.New(ctx,
-		otlptracegrpc.WithEndpoint(endpoint),
-		otlptracegrpc.WithInsecure(),
-	)
+	// Configure the OTLP exporter using standard environment variables
+	exporter, err := otlptracegrpc.New(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create OTLP exporter: %w", err)
 	}
