@@ -297,6 +297,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 	upstreamResp, upstream, err := d.forwardQuery(ctx, upstreamReq)
 	if err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return dns.RcodeServerFailure, nil, err
 	}
 
@@ -378,6 +379,7 @@ func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Ms
 
 	if err != nil {
 		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 	}
 
 	duration := time.Since(startTime).Seconds()
