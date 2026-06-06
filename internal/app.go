@@ -31,6 +31,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/mobileconfig"
+	"github.com/rm-hull/dot-block/internal/telemetry"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
 	sloggin "github.com/samber/slog-gin"
@@ -101,7 +102,20 @@ func (app *App) RunServer() error {
 	godx.Diagnostics(app.Logger)
 	app.Logger.Info("Configuation on startup", "app", app)
 
-	err := sentry.Init(sentry.ClientOptions{
+	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block")
+	if err != nil {
+		app.Logger.Error("failed to initialize tracing", "error", err)
+	} else {
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := shutdownTracer(ctx); err != nil {
+				app.Logger.Error("failed to shutdown tracer", "error", err)
+			}
+		}()
+	}
+
+	err = sentry.Init(sentry.ClientOptions{
 		Dsn:         os.Getenv("SENTRY_DSN"),
 		Debug:       app.DevMode,
 		Release:     versioninfo.Revision[:7],

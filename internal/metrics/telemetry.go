@@ -29,7 +29,7 @@ type TelemetryData struct {
 }
 
 func (t *TelemetryData) Finished() *TelemetryData {
-	t.requestLatency = t.Latency().Hours()
+	t.requestLatency = t.Latency().Seconds()
 	return t
 }
 
