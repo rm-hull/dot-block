@@ -89,6 +89,7 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	if err != nil {
 		_ = conn.Close() // discard broken conn
 		if reused {
+			// Dont retry on a failed pooled connection, just move onto the next, but do record the failure
 			p.metrics.PooledConnDeaths.WithLabelValues(p.addr).Inc()
 		}
 		return nil, 0, err
