@@ -140,7 +140,7 @@ DoT Block can be configured using the following command-line flags:
 | `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 | `--require-proxy-protocol` | Require PROXY protocol header for DoT connections. | `false` |
 | `--trusted-proxies` | Comma-separated list of trusted proxy IP addresses or CIDR ranges. | `nil` |
-| `--upstream` | Upstream DNS resolvers to forward queries to. | `8.8.8.8:53`, `8.8.4.4:53`, `1.1.1.1:53`, `1.0.0.1:53`, `9.9.9.9:53`, `149.112.112.112:53` |
+| `--upstreams` | Upstream DNS resolvers to forward queries to. (Port 53 is assumed if omitted) | `8.8.8.8`, `8.8.4.4`, `1.1.1.1`, `1.0.0.1`, `9.9.9.9`, `149.112.112.112` |
 
 ### Environment Variables
 

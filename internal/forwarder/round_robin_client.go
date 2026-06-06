@@ -26,21 +26,21 @@ type pooledConn struct {
 }
 
 type ConnPool struct {
-	conns      chan *pooledConn
-	addr       string
-	client     *dns.Client
-	metrics    *metrics.DnsMetrics
-	maxIdleAge time.Duration
+	conns       chan *pooledConn
+	addr        string
+	client      *dns.Client
+	metrics     *metrics.DnsMetrics
+	maxIdleAge  time.Duration
 	dialTimeout time.Duration
 }
 
 func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int, dialTimeout time.Duration) *ConnPool {
 	return &ConnPool{
-		conns:      make(chan *pooledConn, poolSize),
-		addr:       addr,
-		client:     client,
-		metrics:    metrics,
-		maxIdleAge: 8 * time.Second, // Close connections idle for more than 8 seconds
+		conns:       make(chan *pooledConn, poolSize),
+		addr:        addr,
+		client:      client,
+		metrics:     metrics,
+		maxIdleAge:  8 * time.Second, // Close connections idle for more than 8 seconds
 		dialTimeout: dialTimeout,
 	}
 }
@@ -98,6 +98,25 @@ func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
 	return resp, rtt, nil
 }
 
+func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
+	addr := upstream
+	if _, _, err := net.SplitHostPort(addr); err != nil {
+		addr = net.JoinHostPort(addr, "53")
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to resolve upstream %s", addr)
+	}
+
+	resolvedAddr := tcpAddr.String()
+	if resolvedAddr != addr {
+		logger.Info("Resolved upstream", "fqdn", upstream, "ip_addr", resolvedAddr)
+	}
+
+	return resolvedAddr, nil
+}
+
 func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, dialTimeout time.Duration, poolSize int, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
@@ -110,8 +129,13 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, dialTimeout t
 	client := &dns.Client{Timeout: readTimeout, Net: "tcp"}
 	pools := make(map[string]*ConnPool, len(upstreams))
 	for _, upstream := range upstreams {
-		pools[upstream] = NewConnPool(metrics, upstream, client, poolSize, dialTimeout)
+		resolvedAddr, err := resolveUpstream(logger, upstream)
+		if err != nil {
+			return nil, err
+		}
+		pools[upstream] = NewConnPool(metrics, resolvedAddr, client, poolSize, dialTimeout)
 	}
+
 	return &RoundRobinClient{
 		upstreams: upstreams,
 		pools:     pools,

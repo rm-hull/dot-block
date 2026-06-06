@@ -21,10 +21,10 @@ var DEFAULT_BLOCKLIST_URLS = []string{
 }
 
 var DEFAULT_UPSTREAM_DNS = []string{
-	"8.8.8.8:53", // Google
-	"8.8.4.4:53",
-	"1.1.1.1:53", // Cloudflare
-	"1.0.0.1:53",
+	"8.8.8.8", // Google
+	"8.8.4.4",
+	"1.1.1.1", // Cloudflare
+	"1.0.0.1",
 }
 
 func parseLogLevel(level string) slog.Level {
