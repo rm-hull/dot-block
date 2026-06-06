@@ -303,7 +303,7 @@ var freshnessSensitive = []string{"ocsp", "crl", "pki"}
 
 func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, err error, additionalFields ...any) {
 	if ShouldLog(err) {
-		args := append(additionalFields, "category", errorCategory, "error", err)
+		args := append(additionalFields, "category", errorCategory, "error", err, "latency", ctx.telemetry.Latency())
 		ctx.logger.Error("DNS error", args...)
 		sentry.CaptureException(err)
 	}
