@@ -1,6 +1,7 @@
 package forwarder
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"strings"
@@ -11,6 +12,9 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
+	"github.com/rm-hull/dot-block/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -32,6 +36,7 @@ var (
 )
 
 type RequestContext struct {
+	ctx       context.Context
 	telemetry *metrics.TelemetryData
 	logger    *slog.Logger
 }
@@ -101,14 +106,26 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
 		}
 
-		ctx := &RequestContext{
+		// Start root span for the request
+		tracer := telemetry.GetTracer("dns-dispatcher")
+		ctx, span := tracer.Start(context.Background(), "HandleDNSRequest",
+			trace.WithAttributes(
+				attribute.String("client_ip", ipAddr),
+				attribute.String("source", string(source)),
+				attribute.Int("dns_id", int(req.Id)),
+			),
+		)
+		defer span.End()
+
+		requestCtx := &RequestContext{
+			ctx:       ctx,
 			logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
 			telemetry: metrics.NewTelemetryData(time.Now(), string(source), ipAddr),
 		}
 
 		defer func() {
 			select {
-			case d.telemetryCh <- ctx.telemetry.Finished():
+			case d.telemetryCh <- requestCtx.telemetry.Finished():
 			default:
 				d.metrics.DroppedTelemetry.Inc()
 			}
@@ -121,16 +138,16 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 		for _, q := range req.Question {
-			answers, rcode, err := d.processQuestion(ctx, &q)
+			answers, rcode, err := d.processQuestion(requestCtx, &q)
 			if err != nil {
 				resp.Rcode = dns.RcodeServerFailure
-				d.sendResponse(ctx, writer, resp)
+				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
 
 			if rcode != dns.RcodeSuccess {
 				resp.Rcode = rcode
-				d.sendResponse(ctx, writer, resp)
+				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
 
@@ -142,11 +159,11 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 
 		if len(unansweredQuestions) > 0 {
-			rcode, answers, err := d.resolveUpstream(ctx, unansweredQuestions, req)
+			rcode, answers, err := d.resolveUpstream(requestCtx, unansweredQuestions, req)
 			if err != nil {
 				resp.Rcode = rcode
-				d.reportError(ctx, "upstream", err, "qtype", getQueryType(&unansweredQuestions[0]))
-				d.sendResponse(ctx, writer, resp)
+				d.reportError(requestCtx, "upstream", err, "qtype", getQueryType(&unansweredQuestions[0]))
+				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
 
@@ -157,7 +174,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			resp.Rcode = dns.RcodeNameError
 		}
 
-		d.sendResponse(ctx, writer, resp)
+		d.sendResponse(requestCtx, writer, resp)
 	}
 }
 
@@ -176,21 +193,32 @@ func (d *DNSDispatcher) telemetryWorker() {
 }
 
 func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([]dns.RR, int, error) {
+	tracer := telemetry.GetTracer("dns-dispatcher")
+	_, span := tracer.Start(ctx.ctx, "processQuestion",
+		trace.WithAttributes(
+			attribute.String("dns.name", q.Name),
+			attribute.String("dns.type", getQueryType(q)),
+		),
+	)
+	defer span.End()
+
 	queryType := getQueryType(q)
-	ctx.logger.Debug("Query received",
+	ctx.logger.DebugContext(ctx.ctx, "Query received",
 		"name", q.Name,
 		"type", queryType)
 
 	isBlocked, err := d.blockList.IsBlocked(q.Name)
 	if err != nil {
+		span.RecordError(err)
 		d.reportError(ctx, "blocklist", err, "qtype", queryType)
 		return nil, dns.RcodeServerFailure, err
 	}
 
 	if isBlocked {
-		ctx.logger.Debug("Domain blocked", "name", q.Name)
+		ctx.logger.DebugContext(ctx.ctx, "Domain blocked", "name", q.Name)
 		ctx.telemetry.AddBlockedDomain(q.Name)
 		ctx.telemetry.AddQueryCount(queryType, true)
+		span.SetAttributes(attribute.Bool("dns.blocked", true))
 
 		soa := &dns.SOA{
 			Hdr: dns.RR_Header{
@@ -210,7 +238,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedLocalhost(q.Name) {
-		ctx.logger.Debug("Answering localhost loopback", "name", q.Name)
+		ctx.logger.DebugContext(ctx.ctx, "Answering localhost loopback", "name", q.Name)
 		a := &dns.A{
 			Hdr: dns.RR_Header{
 				Name:   q.Name,
@@ -224,12 +252,12 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	}
 
 	if isReservedTLD(q.Name) {
-		ctx.logger.Debug("Blocking reserved TLD", "name", q.Name)
+		ctx.logger.DebugContext(ctx.ctx, "Blocking reserved TLD", "name", q.Name)
 		return nil, dns.RcodeNameError, nil
 	}
 
 	if isDNSSDQuery(q.Name) {
-		ctx.logger.Debug("Short-circuiting DNS-SD query", "name", q.Name)
+		ctx.logger.DebugContext(ctx.ctx, "Short-circuiting DNS-SD query", "name", q.Name)
 		ctx.telemetry.AddQueryCount(queryType, false)
 		return nil, dns.RcodeNameError, nil
 	}
@@ -237,6 +265,7 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 	ctx.telemetry.AddDomain(q.Name)
 	ctx.telemetry.AddQueryCount(queryType, false)
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
+		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		return cachedRRs, dns.RcodeSuccess, nil
 	}
 
@@ -244,6 +273,14 @@ func (d *DNSDispatcher) processQuestion(ctx *RequestContext, q *dns.Question) ([
 }
 
 func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
+	tracer := telemetry.GetTracer("dns-dispatcher")
+	_, span := tracer.Start(ctx.ctx, "resolveUpstream",
+		trace.WithAttributes(
+			attribute.Int("dns.unanswered_count", len(unansweredQuestions)),
+		),
+	)
+	defer span.End()
+
 	upstreamReq := new(dns.Msg)
 	upstreamReq.Id = dns.Id()
 	upstreamReq.RecursionDesired = req.RecursionDesired
@@ -251,6 +288,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 
 	upstreamResp, upstream, err := d.forwardQuery(ctx, upstreamReq)
 	if err != nil {
+		span.RecordError(err)
 		return dns.RcodeServerFailure, nil, err
 	}
 
@@ -260,6 +298,7 @@ func (d *DNSDispatcher) resolveUpstream(ctx *RequestContext, unansweredQuestions
 			"upstream resolver (%s) returned Rcode: %s for query: %s",
 			upstream, dns.RcodeToString[upstreamResp.Rcode], unansweredQuestions[0].Name,
 		)
+		span.SetAttributes(attribute.Int("dns.upstream_rcode", upstreamResp.Rcode))
 		return upstreamResp.Rcode, nil, &RcodeError{Rcode: upstreamResp.Rcode, Err: err}
 	}
 
@@ -313,7 +352,7 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 			"error", err,
 			"latency_ms", ctx.telemetry.Latency()*time.Millisecond)
 
-		ctx.logger.Error("DNS error", args...)
+		ctx.logger.ErrorContext(ctx.ctx, "DNS error", args...)
 		sentry.CaptureException(err)
 	}
 
@@ -321,12 +360,22 @@ func (d *DNSDispatcher) reportError(ctx *RequestContext, errorCategory string, e
 }
 
 func (d *DNSDispatcher) forwardQuery(ctx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
+	tracer := telemetry.GetTracer("dns-dispatcher")
+	_, span := tracer.Start(ctx.ctx, "forwardQuery")
+	defer span.End()
+
 	startTime := time.Now()
 	ctx.telemetry.Forwarded()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
+	if err != nil {
+		span.RecordError(err)
+	}
+
 	duration := time.Since(startTime).Seconds()
 	ctx.telemetry.SetUpstream(upstream, duration)
+	span.SetAttributes(attribute.String("dns.upstream", upstream))
+
 	return in, upstream, err
 }
 
