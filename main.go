@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"strings"
@@ -80,7 +81,7 @@ func main() {
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
 			}
 
-			return app.RunServer()
+			return app.RunServer(context.Background())
 		},
 	}
 

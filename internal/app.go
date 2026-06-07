@@ -41,19 +41,20 @@ import (
 )
 
 type App struct {
-	Logger        *slog.Logger `json:"-"`
-	LogLevel      string       `json:"log_level"`
-	DevMode       bool         `json:"dev_mode"`
-	DataDir       string       `json:"data_dir"`
-	HttpPort      int          `json:"http_port"`
-	DnsPort       int          `json:"dns_port"`
-	DotPort       int          `json:"dot_port"`
-	Upstreams     []string     `json:"upstreams"`
-	BlockListURLs []string     `json:"blocklist_urls"`
-	AllowedHosts  []string     `json:"allowed_hosts"`
-	MetricsAuth   string       `json:"-"`
-	MaxCacheSize  int          `json:"max_cache_size"`
-	CronSchedule  struct {
+	Logger             *slog.Logger `json:"-"`
+	LogLevel           string       `json:"log_level"`
+	DevMode            bool         `json:"dev_mode"`
+	DataDir            string       `json:"data_dir"`
+	HttpPort           int          `json:"http_port"`
+	DnsPort            int          `json:"dns_port"`
+	DotPort            int          `json:"dot_port"`
+	Upstreams          []string     `json:"upstreams"`
+	BlockListURLs      []string     `json:"blocklist_urls"`
+	AllowedHosts       []string     `json:"allowed_hosts"`
+	MetricsAuth        string       `json:"-"`
+	MaxCacheSize       int          `json:"max_cache_size"`
+	DisableIp2Location bool         `json:"disable_ip2location"`
+	CronSchedule       struct {
 		Downloader  string `json:"downloader"`
 		CacheReaper string `json:"cache_reaper"`
 		IP2Location string `json:"ip2location"`
@@ -113,7 +114,18 @@ func structToMap(obj any) any {
 	return m
 }
 
-func (app *App) RunServer() error {
+func (app *App) monitorShutdown(ctx context.Context, name string, shutdownFn func() error) {
+	go func() {
+		<-ctx.Done()
+		if err := shutdownFn(); err != nil {
+			app.Logger.Error(name+" failed to shut down", "error", err)
+		} else {
+			app.Logger.Info(name + " shut down successfully")
+		}
+	}()
+}
+
+func (app *App) RunServer(ctx context.Context) error {
 	if err := godotenv.Load(); err != nil {
 		app.Logger.Warn("No .env file found")
 	}
@@ -149,24 +161,14 @@ func (app *App) RunServer() error {
 	crontab.Start()
 	defer crontab.Stop()
 
-	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
-	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
-		app.Logger.Info("Geolocation database not found, downloading...")
-		_, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+	var geoIpLookup geoblock.GeoIpLookup
+	if app.DisableIp2Location {
+		app.Logger.Warn("IP2Location lookups are disabled")
+	} else {
+		geoIpLookup, err = app.initIp2Location(crontab)
 		if err != nil {
-			return errors.Wrap(err, "failed to download geoblock database")
+			return errors.Wrap(err, "failed to initialize IP2Location")
 		}
-	}
-
-	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
-	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
-	if err != nil {
-		return errors.Wrap(err, "failed to open geoblock database")
-	}
-
-	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
-	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
-		return errors.Wrap(err, "failed to create IP2Location updater cron job")
 	}
 
 	allHosts := make([]string, 0)
@@ -252,7 +254,19 @@ func (app *App) RunServer() error {
 
 	group.Go(func() error {
 		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.HttpPort)
-		return r.Run(fmt.Sprintf(":%d", app.HttpPort))
+		srv := &http.Server{
+			Addr:    fmt.Sprintf(":%d", app.HttpPort),
+			Handler: r,
+		}
+
+		app.monitorShutdown(ctx, "HTTP server", func() error {
+			return srv.Shutdown(context.Background())
+		})
+
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			return errors.Wrap(err, "HTTP server failed")
+		}
+		return nil
 	})
 
 	group.Go(func() error {
@@ -261,11 +275,14 @@ func (app *App) RunServer() error {
 			return nil
 		}
 		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
-		return (&dns.Server{
+		srv := &dns.Server{
 			Addr:    fmt.Sprintf(":%d", app.DnsPort),
 			Net:     "udp",
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceUDP)),
-		}).ListenAndServe()
+		}
+
+		app.monitorShutdown(ctx, "UDP DNS server", srv.Shutdown)
+		return srv.ListenAndServe()
 	})
 
 	group.Go(func() error {
@@ -274,11 +291,14 @@ func (app *App) RunServer() error {
 			return nil
 		}
 		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
-		return (&dns.Server{
+		srv := &dns.Server{
 			Addr:    fmt.Sprintf(":%d", app.DnsPort),
 			Net:     "tcp",
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceTCP)),
-		}).ListenAndServe()
+		}
+
+		app.monitorShutdown(ctx, "TCP DNS server", srv.Shutdown)
+		return srv.ListenAndServe()
 	})
 
 	group.Go(func() error {
@@ -311,12 +331,15 @@ func (app *App) RunServer() error {
 			})
 		}
 
-		return (&dns.Server{
+		srv := &dns.Server{
 			Addr:     dotPort,
 			Net:      "tcp",
 			Listener: listener,
 			Handler:  dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoT)),
-		}).ActivateAndServe()
+		}
+
+		app.monitorShutdown(ctx, "DoT server", srv.Shutdown)
+		return srv.ActivateAndServe()
 	})
 
 	return group.Wait()
@@ -454,4 +477,28 @@ func newStructuredLoggingConfig() *sloggin.Config {
 	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics"))
 
 	return &config
+}
+
+func (app *App) initIp2Location(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
+	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
+		app.Logger.Info("Geolocation database not found, downloading...")
+		_, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to download geoblock database")
+		}
+	}
+
+	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
+	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open geoblock database")
+	}
+
+	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
+	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
+		return nil, errors.Wrap(err, "failed to create IP2Location updater cron job")
+	}
+
+	return geoIpLookup, nil
 }

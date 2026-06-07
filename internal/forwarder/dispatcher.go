@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	NUM_WORKERS           = 4
+	NUM_WORKERS          = 4
 	SNAPSHOT_BUFFER_SIZE = 1024
 )
 
@@ -36,23 +36,23 @@ var (
 )
 
 type RequestContext struct {
-	ctx       context.Context
-	snapshot  *metrics.RequestSnapshot
-	logger    *slog.Logger
+	ctx      context.Context
+	snapshot *metrics.RequestSnapshot
+	logger   *slog.Logger
 }
 
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
 
 type DNSDispatcher struct {
-	dnsClient   *RoundRobinClient
-	defaultTTL  float64
-	ttlFloor    time.Duration
-	cache       *DNSCache
-	blockList   *blocklist.BlockList
-	metrics     *metrics.DnsMetrics
-	logger      *slog.Logger
+	dnsClient  *RoundRobinClient
+	defaultTTL float64
+	ttlFloor   time.Duration
+	cache      *DNSCache
+	blockList  *blocklist.BlockList
+	metrics    *metrics.DnsMetrics
+	logger     *slog.Logger
 	snapshotCh chan *metrics.RequestSnapshot
-	done        chan struct{}
+	done       chan struct{}
 }
 
 func NewDNSDispatcher(
@@ -69,15 +69,15 @@ func NewDNSDispatcher(
 	}
 
 	d := &DNSDispatcher{
-		dnsClient:   dnsClient,
-		defaultTTL:  300, // TODO: pass in
-		ttlFloor:    ttlFloor,
-		cache:       cache,
-		blockList:   blockList,
-		metrics:     dnsMetrics,
-		logger:      logger,
+		dnsClient:  dnsClient,
+		defaultTTL: 300, // TODO: pass in
+		ttlFloor:   ttlFloor,
+		cache:      cache,
+		blockList:  blockList,
+		metrics:    dnsMetrics,
+		logger:     logger,
 		snapshotCh: make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
-		done:        make(chan struct{}),
+		done:       make(chan struct{}),
 	}
 
 	for range NUM_WORKERS {
@@ -124,8 +124,8 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		defer span.End()
 
 		requestCtx := &RequestContext{
-			ctx:       ctx,
-			logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
+			ctx:      ctx,
+			logger:   d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
 			snapshot: metrics.NewRequestSnapshot(time.Now(), string(source), ipAddr),
 		}
 
