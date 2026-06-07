@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 03 June 2026 07:33 BST
+# Last modified: 07 June 2026 09:56 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
@@ -13,6 +13,7 @@ b.scorecardresearch.com
 bf.dynatrace.com
 c.amazon-adsystem.com
 cdn.optimizely.com
+cdn.privacy-mgmt.com
 channelexco.com
 ex.co
 comcluster.cxense.com
@@ -20,9 +21,9 @@ content-loader.com
 css-load.com
 doubleclick.net
 dsp.360yield.com
+error-report.com
 flashtalking.com
 g2.gumgum.com
-googleads.g.doubleclick.net
 googlesyndication.com
 gw.geoedge.be
 hbopenbid.pubmatic.com
@@ -34,12 +35,11 @@ match.prod.bidr.io
 paid.outbrain.com
 pixel-sync.sitescout.com
 prg.smartadserver.com
-pubads.g.doubleclick.net
 pubmatic.com
 richaudience.com
 rubiconproject.com
 sb.scorecardresearch.com
-securepubads.g.doubleclick.net
+semetricmedia.com
 sync.ipredictive.com
 t.adx.opera.com
 t.oa.opera.com
