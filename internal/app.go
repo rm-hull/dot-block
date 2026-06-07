@@ -250,7 +250,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 
-	var group errgroup.Group
+	group, groupCtx := errgroup.WithContext(ctx)
 
 	group.Go(func() error {
 		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.HttpPort)
@@ -259,8 +259,10 @@ func (app *App) RunServer(ctx context.Context) error {
 			Handler: r,
 		}
 
-		app.monitorShutdown(ctx, "HTTP server", func() error {
-			return srv.Shutdown(context.Background())
+		app.monitorShutdown(groupCtx, "HTTP server", func() error {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			return srv.Shutdown(shutdownCtx)
 		})
 
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -281,7 +283,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceUDP)),
 		}
 
-		app.monitorShutdown(ctx, "UDP DNS server", srv.Shutdown)
+		app.monitorShutdown(groupCtx, "UDP DNS server", srv.Shutdown)
 		return srv.ListenAndServe()
 	})
 
@@ -297,7 +299,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceTCP)),
 		}
 
-		app.monitorShutdown(ctx, "TCP DNS server", srv.Shutdown)
+		app.monitorShutdown(groupCtx, "TCP DNS server", srv.Shutdown)
 		return srv.ListenAndServe()
 	})
 
@@ -338,7 +340,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			Handler:  dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoT)),
 		}
 
-		app.monitorShutdown(ctx, "DoT server", srv.Shutdown)
+		app.monitorShutdown(groupCtx, "DoT server", srv.Shutdown)
 		return srv.ActivateAndServe()
 	})
 
