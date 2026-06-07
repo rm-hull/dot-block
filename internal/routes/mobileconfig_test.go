@@ -1,4 +1,4 @@
-package mobileconfig
+package routes
 
 import (
 	"net/http"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"github.com/stretchr/testify/assert"
 	"howett.net/plist"
 )
@@ -14,7 +15,7 @@ import (
 func TestHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.GET("/.mobileconfig", NewHandler("localhost"))
+	r.GET("/.mobileconfig", NewMobileconfigHandler("localhost"))
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/.mobileconfig", nil)
@@ -24,7 +25,7 @@ func TestHandler(t *testing.T) {
 	assert.Equal(t, "application/x-apple-aspen-config", w.Header().Get("Content-Type"))
 	assert.Contains(t, w.Header().Get("Content-Disposition"), "dot-block.mobileconfig")
 
-	var profile Profile
+	var profile mobileconfig.Profile
 	err := plist.NewDecoder(strings.NewReader(w.Body.String())).Decode(&profile)
 	assert.NoError(t, err)
 

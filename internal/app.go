@@ -30,7 +30,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
-	"github.com/rm-hull/dot-block/internal/mobileconfig"
+	"github.com/rm-hull/dot-block/internal/routes"
 	"github.com/rm-hull/dot-block/internal/telemetry"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
@@ -387,6 +387,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	}
 
 	r := gin.New()
+	blocklistHandler := routes.NewBlocklistHandler(blocklistUpdater, app.Logger)
 
 	if app.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
@@ -407,7 +408,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		gin.Recovery(),
 		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
 		prometheus.Instrument(),
-		sentryErrorHandler(app.Logger),
+		routes.SentryErrorHandler(app.Logger),
 	)
 
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
@@ -417,7 +418,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	if app.MetricsAuth == "" {
 		app.Logger.Warn("Metrics & reload endpoints are not protected by basic auth")
 		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-		r.GET("/reload", blocklistUpdater.NewHandler())
+		r.GET("/reload", blocklistHandler.Reload)
 
 	} else {
 		parts := strings.SplitN(app.MetricsAuth, ":", 2)
@@ -429,26 +430,21 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 				user: pass,
 			}))
 			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
-			authorized.GET("/reload", blocklistUpdater.NewHandler())
+			authorized.GET("/reload", blocklistHandler.Reload)
 
 		} else {
 			return nil, errors.Newf("invalid metrics-auth value: %s", app.MetricsAuth)
 		}
 	}
+	r.POST("/check", blocklistHandler.Check)
 
 	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
 	}
 	serverName := app.AllowedHosts[0]
-	r.GET("/.mobileconfig", mobileconfig.NewHandler(serverName))
-
-	r.GET("/", func(c *gin.Context) {
-		c.Redirect(http.StatusMovedPermanently, "https://github.com/rm-hull/dot-block/blob/main/README.md")
-	})
-
-	r.GET("/robots.txt", func(c *gin.Context) {
-		c.String(http.StatusOK, "User-agent: *\nDisallow: /\n")
-	})
+	r.GET("/.mobileconfig", routes.NewMobileconfigHandler(serverName))
+	r.GET("/", routes.RootHandler)
+	r.GET("/robots.txt", routes.RobotsTxtHandler)
 
 	return r, nil
 }
@@ -458,18 +454,6 @@ func (app *App) environment() string {
 		return "DEVELOPMENT"
 	}
 	return "PRODUCTION"
-}
-
-func sentryErrorHandler(logger *slog.Logger) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-
-		if len(c.Errors) > 0 {
-			for _, e := range c.Errors {
-				logger.ErrorContext(c.Request.Context(), "Gin error", "error", e.Err)
-			}
-		}
-	}
 }
 
 func newStructuredLoggingConfig() *sloggin.Config {

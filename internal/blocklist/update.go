@@ -8,44 +8,33 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
 
 type BlocklistUpdater struct {
-	blocklist *BlockList
-	urls      []string
+	Blocklist *BlockList
+	URLs      []string
 }
 
 func NewBlocklistUpdater(blocklist *BlockList, urls []string) *BlocklistUpdater {
 	return &BlocklistUpdater{
-		blocklist: blocklist,
-		urls:      urls,
+		Blocklist: blocklist,
+		URLs:      urls,
 	}
 }
 
 func (job *BlocklistUpdater) Run() {
 	allHosts := make([]string, 0)
-	for _, url := range job.urls {
-		hosts, err := Fetch(url, job.blocklist.logger)
+	for _, url := range job.URLs {
+		hosts, err := Fetch(url, job.Blocklist.logger)
 		if err != nil {
-			job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err, "url", url)
+			job.Blocklist.logger.Error("failed to download blocklist for cron reload", "error", err, "url", url)
 			return
 		}
 
 		allHosts = append(allHosts, hosts...)
 	}
-	job.blocklist.Load(allHosts)
-}
-
-func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		go job.Run()
-		c.JSON(http.StatusAccepted, gin.H{
-			"message": "Blocklist reload triggered",
-			"urls":    job.urls,
-		})
-	}
+	job.Blocklist.Load(allHosts)
 }
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
