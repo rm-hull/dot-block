@@ -388,7 +388,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	}
 
 	r := gin.New()
-	blocklistHandler := routes.NewBlocklistHandler(blocklistUpdater)
+	blocklistHandler := routes.NewBlocklistHandler(blocklistUpdater, app.Logger)
 
 	if app.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")

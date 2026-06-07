@@ -24,7 +24,7 @@ func TestCheckHandler(t *testing.T) {
 	blockList := blocklist.NewBlockList([]string{"blocked.com", "ads.net"}, 0.0001, logger)
 	updater := blocklist.NewBlocklistUpdater(blockList, []string{})
 
-	handler := routes.NewBlocklistHandler(updater)
+	handler := routes.NewBlocklistHandler(updater, logger)
 
 	tests := []struct {
 		name           string

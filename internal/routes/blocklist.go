@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -11,10 +12,11 @@ import (
 
 type BlocklistHandler struct {
 	updater *blocklist.BlocklistUpdater
+	logger  *slog.Logger
 }
 
-func NewBlocklistHandler(updater *blocklist.BlocklistUpdater) *BlocklistHandler {
-	return &BlocklistHandler{updater: updater}
+func NewBlocklistHandler(updater *blocklist.BlocklistUpdater, logger *slog.Logger) *BlocklistHandler {
+	return &BlocklistHandler{updater: updater, logger: logger}
 }
 
 func (h *BlocklistHandler) Reload(c *gin.Context) {
@@ -66,8 +68,9 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 	for _, domain := range domains {
 		isBlocked, err := h.updater.Blocklist.IsBlocked(domain)
 		if err != nil {
-			allowed = append(allowed, domain)
-			continue
+			h.logger.Error("blocklist check failed", "error", err, "domain", domain)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+			return
 		}
 		if isBlocked {
 			blocked = append(blocked, domain)
