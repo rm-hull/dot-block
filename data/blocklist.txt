@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 07 June 2026 10:06 BST
+# Last modified: 07 June 2026 17:41 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
@@ -21,17 +21,13 @@ d3p0gayswgyxdw.cloudfront.net
 dmqixuaqncbvu.cloudfront.net
 ex.co
 comcluster.cxense.com
-content-loader.com
-css-load.com
 doubleclick.net
 dsp.360yield.com
-error-report.com
 flashtalking.com
 g2.gumgum.com
 googlesyndication.com
 gw.geoedge.be
 hbopenbid.pubmatic.com
-html-load.com
 img.outbrainimg.com
 jwpsrv.com
 lendhassle.com
@@ -58,3 +54,16 @@ vtrk.dv.tech
 whoeverbeyond.com
 widgets.outbrain.com
 x.bidswitch.net
+
+## Ad-Shield core loader domains
+html-load.com
+html-load.cc
+css-load.com
+js-load.com
+content-load.com
+content-loader.com
+07c225f3.online
+
+## Ad-Shield fake error / gaslighting page
+error-report.com
+report.error-report.com
