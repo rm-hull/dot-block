@@ -12,7 +12,7 @@ type upstreamTTLInfo struct {
 	ttl       float64
 }
 
-type TelemetryData struct {
+type RequestSnapshot struct {
 	source          string
 	ipAddr          string
 	startTime       time.Time
@@ -28,17 +28,17 @@ type TelemetryData struct {
 	rcode           string
 }
 
-func (t *TelemetryData) Finished() *TelemetryData {
+func (t *RequestSnapshot) Finished() *RequestSnapshot {
 	t.requestLatency = t.Latency().Seconds()
 	return t
 }
 
-func (t *TelemetryData) Latency() time.Duration {
+func (t *RequestSnapshot) Latency() time.Duration {
 	return time.Since(t.startTime)
 }
 
-func NewTelemetryData(startTime time.Time, source string, ipAddr string) *TelemetryData {
-	return &TelemetryData{
+func NewRequestSnapshot(startTime time.Time, source string, ipAddr string) *RequestSnapshot {
+	return &RequestSnapshot{
 		startTime:      startTime,
 		source:         source,
 		ipAddr:         ipAddr,
@@ -49,40 +49,40 @@ func NewTelemetryData(startTime time.Time, source string, ipAddr string) *Teleme
 	}
 }
 
-func (t *TelemetryData) AddBlockedDomain(domain string) {
+func (t *RequestSnapshot) AddBlockedDomain(domain string) {
 	t.blockedDomains = append(t.blockedDomains, domain)
 }
 
-func (t *TelemetryData) AddDomain(domain string) {
+func (t *RequestSnapshot) AddDomain(domain string) {
 	t.domains = append(t.domains, domain)
 }
 
-func (t *TelemetryData) AddQueryCount(queryType string, blocked bool) {
+func (t *RequestSnapshot) AddQueryCount(queryType string, blocked bool) {
 	t.queryCounts = append(t.queryCounts, queryCountInfo{queryType: queryType, blocked: blocked})
 }
 
-func (t *TelemetryData) AddUpstreamTTL(queryType string, ttl float64) {
+func (t *RequestSnapshot) AddUpstreamTTL(queryType string, ttl float64) {
 	t.upstreamTTLs = append(t.upstreamTTLs, upstreamTTLInfo{queryType: queryType, ttl: ttl})
 }
 
-func (t *TelemetryData) SetErrorCategory(category string) {
+func (t *RequestSnapshot) SetErrorCategory(category string) {
 	t.errorCategory = category
 }
 
-func (t *TelemetryData) Forwarded() {
+func (t *RequestSnapshot) Forwarded() {
 	t.forwarded = true
 }
 
-func (t *TelemetryData) SetUpstream(upstream string, latency float64) {
+func (t *RequestSnapshot) SetUpstream(upstream string, latency float64) {
 	t.upstream = upstream
 	t.upstreamLatency = latency
 }
 
-func (t *TelemetryData) SetRcode(rcode string) {
+func (t *RequestSnapshot) SetRcode(rcode string) {
 	t.rcode = rcode
 }
 
-func (t *TelemetryData) Record(metrics *DnsMetrics) {
+func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	metrics.RequestLatency.Observe(t.requestLatency)
 	metrics.RequestCounts.WithLabelValues("total", t.source).Inc()
 	if t.forwarded {

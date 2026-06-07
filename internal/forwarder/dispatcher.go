@@ -19,7 +19,7 @@ import (
 
 const (
 	NUM_WORKERS           = 4
-	TELEMETRY_BUFFER_SIZE = 1024
+	SNAPSHOT_BUFFER_SIZE = 1024
 )
 
 type DNSSource string
@@ -37,7 +37,7 @@ var (
 
 type RequestContext struct {
 	ctx       context.Context
-	telemetry *metrics.TelemetryData
+	snapshot  *metrics.RequestSnapshot
 	logger    *slog.Logger
 }
 
@@ -51,7 +51,7 @@ type DNSDispatcher struct {
 	blockList   *blocklist.BlockList
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
-	telemetryCh chan *metrics.TelemetryData
+	snapshotCh chan *metrics.RequestSnapshot
 	done        chan struct{}
 }
 
@@ -76,15 +76,15 @@ func NewDNSDispatcher(
 		blockList:   blockList,
 		metrics:     dnsMetrics,
 		logger:      logger,
-		telemetryCh: make(chan *metrics.TelemetryData, TELEMETRY_BUFFER_SIZE),
+		snapshotCh: make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
 		done:        make(chan struct{}),
 	}
 
 	for range NUM_WORKERS {
-		go d.telemetryWorker()
+		go d.snapshotWorker()
 	}
 
-	logger.Info("DNS dispatcher initialized", "num_telemetry_workers", NUM_WORKERS)
+	logger.Info("DNS dispatcher initialized", "num_snapshot_workers", NUM_WORKERS)
 	return d, nil
 }
 
@@ -126,12 +126,12 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		requestCtx := &RequestContext{
 			ctx:       ctx,
 			logger:    d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
-			telemetry: metrics.NewTelemetryData(time.Now(), string(source), ipAddr),
+			snapshot: metrics.NewRequestSnapshot(time.Now(), string(source), ipAddr),
 		}
 
 		defer func() {
 			select {
-			case d.telemetryCh <- requestCtx.telemetry.Finished():
+			case d.snapshotCh <- requestCtx.snapshot.Finished():
 			default:
 				d.metrics.DroppedTelemetry.Inc()
 			}
@@ -184,14 +184,14 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 	}
 }
 
-func (d *DNSDispatcher) telemetryWorker() {
+func (d *DNSDispatcher) snapshotWorker() {
 	for {
 		select {
-		case telemetry, ok := <-d.telemetryCh:
+		case snapshot, ok := <-d.snapshotCh:
 			if !ok {
 				return
 			}
-			telemetry.Record(d.metrics)
+			snapshot.Record(d.metrics)
 		case <-d.done:
 			return
 		}
@@ -223,8 +223,8 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 
 	if isBlocked {
 		requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name)
-		requestCtx.telemetry.AddBlockedDomain(q.Name)
-		requestCtx.telemetry.AddQueryCount(queryType, true)
+		requestCtx.snapshot.AddBlockedDomain(q.Name)
+		requestCtx.snapshot.AddQueryCount(queryType, true)
 		span.SetAttributes(attribute.Bool("dns.blocked", true))
 
 		soa := &dns.SOA{
@@ -265,12 +265,12 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 
 	if isDNSSDQuery(q.Name) {
 		requestCtx.logger.DebugContext(requestCtx.ctx, "Short-circuiting DNS-SD query", "name", q.Name)
-		requestCtx.telemetry.AddQueryCount(queryType, false)
+		requestCtx.snapshot.AddQueryCount(queryType, false)
 		return nil, dns.RcodeNameError, nil
 	}
 
-	requestCtx.telemetry.AddDomain(q.Name)
-	requestCtx.telemetry.AddQueryCount(queryType, false)
+	requestCtx.snapshot.AddDomain(q.Name)
+	requestCtx.snapshot.AddQueryCount(queryType, false)
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		return cachedRRs, dns.RcodeSuccess, nil
@@ -329,7 +329,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 			}
 
 			d.cache.Set(key, answersForQuestion, effectiveTTL)
-			requestCtx.telemetry.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
+			requestCtx.snapshot.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
 
@@ -358,12 +358,12 @@ func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory st
 		args := append(additionalFields,
 			"category", errorCategory,
 			"error", err,
-			"latency", requestCtx.telemetry.Latency().String())
+			"latency", requestCtx.snapshot.Latency().String())
 
 		requestCtx.logger.ErrorContext(requestCtx.ctx, "DNS error", args...)
 	}
 
-	requestCtx.telemetry.SetErrorCategory(errorCategory)
+	requestCtx.snapshot.SetErrorCategory(errorCategory)
 }
 
 func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (*dns.Msg, string, error) {
@@ -372,7 +372,7 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 	defer span.End()
 
 	startTime := time.Now()
-	requestCtx.telemetry.Forwarded()
+	requestCtx.snapshot.Forwarded()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
 	if err != nil {
@@ -381,14 +381,14 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 	}
 
 	duration := time.Since(startTime).Seconds()
-	requestCtx.telemetry.SetUpstream(upstream, duration)
+	requestCtx.snapshot.SetUpstream(upstream, duration)
 	span.SetAttributes(attribute.String("dns.upstream", upstream))
 
 	return in, upstream, err
 }
 
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
-	ctx.telemetry.SetRcode(dns.RcodeToString[msg.Rcode])
+	ctx.snapshot.SetRcode(dns.RcodeToString[msg.Rcode])
 	if err := writer.WriteMsg(msg); err != nil {
 		d.reportError(ctx, "response", err)
 		return
