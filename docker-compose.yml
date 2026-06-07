@@ -13,7 +13,7 @@ services:
     command:
       - "--cache-dir=/data/certcache"
       - "--http-port=80"
-      - "--allowed-host=dot-block.destructuring-bind.org"
+      - "--allowed-hosts=dot-block.destructuring-bind.org"
       - "--metrics-auth=${METRICS_AUTH}"
 
     restart: unless-stopped

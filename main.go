@@ -44,12 +44,20 @@ func parseLogLevel(level string) slog.Level {
 
 func main() {
 	var logLevelVar slog.LevelVar
-	app := internal.App{
-		Logger: slog.New(logging.NewTracingHandler(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-			Level:       &logLevelVar,
-			ReplaceAttr: logging.ReplaceAttr,
-		}))),
-	}
+
+	handler := logging.NewSentryHandler(
+		slog.LevelError,
+		logging.NewTracingHandler(
+			slog.NewJSONHandler(
+				os.Stderr,
+				&slog.HandlerOptions{
+					Level:       &logLevelVar,
+					AddSource:   true,
+					ReplaceAttr: logging.ReplaceAttr})),
+	)
+
+	app := internal.App{Logger: slog.New(handler)}
+	logging.BridgeStandardLog(handler)
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
 	var dnsPort, dotPort int
@@ -84,16 +92,16 @@ func main() {
 	rootCmd.Flags().IntVar(&dotPort, "dot-port", 853, "The port to run DNS-over-TLS server on")
 	rootCmd.Flags().StringSliceVar(&app.Upstreams, "upstreams", DEFAULT_UPSTREAM_DNS, "Upstream DNS resolvers to forward queries to")
 	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 80, "The port to run HTTP server on")
-	rootCmd.Flags().StringSliceVar(&app.AllowedHosts, "allowed-host", nil, "List of domains used for CertManager allow policy")
+	rootCmd.Flags().StringSliceVar(&app.AllowedHosts, "allowed-hosts", nil, "List of domains used for CertManager allow policy")
 	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
 	rootCmd.Flags().IntVar(&app.MaxCacheSize, "max-cache-size", 1_000_000, "Maximum number of entries in the DNS cache")
 	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", DEFAULT_DOWNLOADER_CRON_SCHEDULE, "cron spec for reloading blocklist")
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
 	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")
 	rootCmd.Flags().DurationVar(&app.CacheTtlFloor, "cache-ttl-floor", 3600*time.Second, "Minimum TTL for cached entries")
-	rootCmd.Flags().DurationVar(&app.ReadTimeout, "read-timeout", 300*time.Millisecond, "Timeout for reading upstream DNS queries")
-	rootCmd.Flags().DurationVar(&app.WriteTimeout, "write-timeout", 500*time.Millisecond, "Timeout for writing upstream DNS queries")
-	rootCmd.Flags().DurationVar(&app.DialTimeout, "dial-timeout", 300*time.Millisecond, "Timeout for establishing connections to upstream servers")
+	rootCmd.Flags().DurationVar(&app.Timeouts.Read, "read-timeout", 300*time.Millisecond, "Timeout for reading upstream DNS queries")
+	rootCmd.Flags().DurationVar(&app.Timeouts.Write, "write-timeout", 500*time.Millisecond, "Timeout for writing upstream DNS queries")
+	rootCmd.Flags().DurationVar(&app.Timeouts.Dial, "dial-timeout", 300*time.Millisecond, "Timeout for establishing connections to upstream servers")
 	rootCmd.Flags().IntVar(&app.ConnectionPoolSize, "connection-pool-size", 10, "Number of connections to maintain in pool for each upstream server")
 	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
 	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")

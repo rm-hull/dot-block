@@ -59,17 +59,32 @@ type App struct {
 		IP2Location string `json:"ip2location"`
 	} `json:"cron_schedule"`
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
-	ReadTimeout          time.Duration `json:"read_timeout"`
-	WriteTimeout         time.Duration `json:"write_timeout"`
-	DialTimeout          time.Duration `json:"dial_timeout"`
 	ConnectionPoolSize   int           `json:"connection_pool_size"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
 	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
+	Timeouts             struct {
+		Read  time.Duration `json:"read"`
+		Write time.Duration `json:"write"`
+		Dial  time.Duration `json:"dial"`
+	} `json:"timeouts"`
 }
 
+// LogValue implements slog.LogValuer to ensure nested durations are formatted as strings.
 func (app *App) LogValue() slog.Value {
+	return slog.AnyValue(structToMap(app))
+}
+
+func structToMap(obj any) any {
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Pointer {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return obj
+	}
+
 	m := make(map[string]any)
-	v := reflect.ValueOf(app).Elem()
 	t := v.Type()
 
 	for i := 0; i < t.NumField(); i++ {
@@ -84,15 +99,18 @@ func (app *App) LogValue() slog.Value {
 			name = strings.Split(tag, ",")[0]
 		}
 
-		val := v.Field(i)
-		if dur, ok := val.Interface().(time.Duration); ok {
-			m[name] = dur.String()
+		val := v.Field(i).Interface()
+
+		// If the field is a struct (and not time.Time), recursively convert it to a map
+		// so that ReplaceAttr can recurse into it.
+		if reflect.TypeOf(val).Kind() == reflect.Struct && reflect.TypeOf(val) != reflect.TypeFor[time.Time]() {
+			m[name] = structToMap(val)
 		} else {
-			m[name] = val.Interface()
+			m[name] = val
 		}
 	}
 
-	return slog.Any("temp", m).Value
+	return m
 }
 
 func (app *App) RunServer() error {
@@ -209,7 +227,7 @@ func (app *App) RunServer() error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
-	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.ReadTimeout, app.WriteTimeout, app.DialTimeout, app.ConnectionPoolSize, app.Logger, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Timeouts.Read, app.Timeouts.Write, app.Timeouts.Dial, app.ConnectionPoolSize, app.Logger, app.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
@@ -364,7 +382,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		gin.Recovery(),
 		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
 		prometheus.Instrument(),
-		sentryErrorHandler(),
+		sentryErrorHandler(app.Logger),
 	)
 
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
@@ -394,7 +412,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	}
 
 	if len(app.AllowedHosts) == 0 {
-		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-host")
+		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
 	}
 	serverName := app.AllowedHosts[0]
 	r.GET("/.mobileconfig", mobileconfig.NewHandler(serverName))
@@ -417,18 +435,13 @@ func (app *App) environment() string {
 	return "PRODUCTION"
 }
 
-func sentryErrorHandler() gin.HandlerFunc {
+func sentryErrorHandler(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
 		if len(c.Errors) > 0 {
-			hub := sentrygin.GetHubFromContext(c)
 			for _, e := range c.Errors {
-				if hub != nil {
-					hub.CaptureException(e.Err)
-				} else {
-					sentry.CaptureException(e.Err)
-				}
+				logger.ErrorContext(c.Request.Context(), "Gin error", "error", e.Err)
 			}
 		}
 	}
