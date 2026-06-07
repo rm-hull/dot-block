@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/routes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,7 +24,7 @@ func TestCheckHandler(t *testing.T) {
 	blockList := blocklist.NewBlockList([]string{"blocked.com", "ads.net"}, 0.0001, logger)
 	updater := blocklist.NewBlocklistUpdater(blockList, []string{})
 
-	handler := updater.NewCheckHandler()
+	handler := routes.NewBlocklistHandler(updater)
 
 	tests := []struct {
 		name           string
@@ -102,7 +103,7 @@ ads.net`),
 			w := httptest.NewRecorder()
 			_, r := gin.CreateTestContext(w)
 
-			r.POST("/check", handler)
+			r.POST("/check", handler.Check)
 
 			req, _ := http.NewRequest("POST", "/check", bytes.NewReader(tt.body))
 			req.Header.Set("Content-Type", tt.contentType)

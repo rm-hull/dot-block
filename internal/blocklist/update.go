@@ -8,91 +8,33 @@ import (
 	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
 
 type BlocklistUpdater struct {
-	blocklist *BlockList
-	urls      []string
+	Blocklist *BlockList
+	URLs      []string
 }
 
 func NewBlocklistUpdater(blocklist *BlockList, urls []string) *BlocklistUpdater {
 	return &BlocklistUpdater{
-		blocklist: blocklist,
-		urls:      urls,
+		Blocklist: blocklist,
+		URLs:      urls,
 	}
 }
 
 func (job *BlocklistUpdater) Run() {
 	allHosts := make([]string, 0)
-	for _, url := range job.urls {
-		hosts, err := Fetch(url, job.blocklist.logger)
+	for _, url := range job.URLs {
+		hosts, err := Fetch(url, job.Blocklist.logger)
 		if err != nil {
-			job.blocklist.logger.Error("failed to download blocklist for cron reload", "error", err, "url", url)
+			job.Blocklist.logger.Error("failed to download blocklist for cron reload", "error", err, "url", url)
 			return
 		}
 
 		allHosts = append(allHosts, hosts...)
 	}
-	job.blocklist.Load(allHosts)
-}
-
-func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		go job.Run()
-		c.JSON(http.StatusAccepted, gin.H{
-			"message": "Blocklist reload triggered",
-			"urls":    job.urls,
-		})
-	}
-}
-
-func (job *BlocklistUpdater) NewCheckHandler() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		var domains []string
-
-		if c.ContentType() == "application/json" {
-			if err := c.ShouldBindJSON(&domains); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON array of domains"})
-				return
-			}
-		} else {
-			body, err := c.GetRawData()
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
-				return
-			}
-			lines := strings.Split(string(body), "\n")
-			for _, line := range lines {
-				line = strings.TrimSpace(line)
-				if line != "" {
-					domains = append(domains, line)
-				}
-			}
-		}
-
-		allowed := make([]string, 0)
-		blocked := make([]string, 0)
-
-		for _, domain := range domains {
-			isBlocked, err := job.blocklist.IsBlocked(domain)
-			if err != nil {
-				allowed = append(allowed, domain)
-				continue
-			}
-			if isBlocked {
-				blocked = append(blocked, domain)
-			} else {
-				allowed = append(allowed, domain)
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"allowed": allowed,
-			"blocked": blocked,
-		})
-	}
+	job.Blocklist.Load(allHosts)
 }
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
