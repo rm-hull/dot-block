@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rm-hull/dot-block/internal"
@@ -80,7 +83,10 @@ func main() {
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
 			}
 
-			return app.RunServer()
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
+
+			return app.RunServer(ctx)
 		},
 	}
 

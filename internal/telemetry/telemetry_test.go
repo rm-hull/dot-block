@@ -37,16 +37,16 @@ func TestInitTracer_WithEndpoint(t *testing.T) {
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
 
-	// This might fail because it tries to create a gRPC connection, 
+	// This might fail because it tries to create a gRPC connection,
 	// but we just want to check it doesn't return the no-op immediately.
 	shutdown, err := InitTracer(logger, "test-service")
-	
-	// It might error if gRPC fails to init (e.g. network), but it should NOT 
+
+	// It might error if gRPC fails to init (e.g. network), but it should NOT
 	// return the no-op if endpoint is set.
 	if err == nil {
 		assert.NotNil(t, shutdown)
 		_ = shutdown(context.Background())
-		
+
 		assert.Contains(t, buf.String(), "level=INFO")
 		assert.Contains(t, buf.String(), "OTEL tracing initialized")
 	}
