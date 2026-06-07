@@ -22,7 +22,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		DotPort:            8853,
 		HttpPort:           0, // Random port
 		Upstreams:          []string{"8.8.8.8", "1.1.1.1"},
-		BlockListURLs:      []string{"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"},
+		BlockListURLs:      []string{"file://../data/blocklist.txt"},
 		AllowedHosts:       []string{"example.com"},
 		DataDir:            "../data",
 		DisableIp2Location: true,

@@ -14,12 +14,29 @@ import (
 	"github.com/dustin/go-humanize"
 )
 
+func isValidFile(uri string) (string, bool) {
+	u, err := url.Parse(uri)
+	if err != nil || u.Scheme != "file" {
+		return "", false
+	}
+
+	path := u.Path
+	if u.Host != "" && u.Host != "localhost" {
+		path = u.Host + path
+	}
+	return path, true
+}
+
 func isValidUrl(uri string) bool {
 	u, err := url.Parse(uri)
-	return err == nil && (u.Scheme == "http" || u.Scheme == "https")
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file")
 }
 
 func TransientDownload(logger *slog.Logger, purpose string, uri string, redact string, handler func(tmpfile string, header http.Header) error) error {
+	if path, ok := isValidFile(uri); ok {
+		return handler(path, http.Header{})
+	}
+
 	if !isValidUrl(uri) {
 		return handler(uri, http.Header{})
 	}
