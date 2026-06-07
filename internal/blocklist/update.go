@@ -67,7 +67,7 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 			line := scanner.Text()
 			if strings.HasPrefix(line, "# ") {
 				logger.Info("Blocklist", "comment", line)
-			} else if len(strings.Trim(line, "# ")) == 0 {
+			} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
 				continue
 			} else {
 				if after, ok := strings.CutPrefix(line, "0.0.0.0 "); ok {
