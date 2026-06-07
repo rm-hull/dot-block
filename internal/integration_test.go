@@ -43,24 +43,29 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 
 	// RunServer will return when ctx is cancelled, but it starts multiple servers in a group.
 	// We need to run it in a goroutine.
+	errCh := make(chan error, 1)
 	go func() {
-		if err := app.RunServer(ctx); err != nil {
-			t.Errorf("RunServer failed: %v", err)
-		}
+		errCh <- app.RunServer(ctx)
 	}()
 
 	// Wait for the server to start by polling the TCP port
 	start := time.Now()
 	for {
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:8053", 100*time.Millisecond)
+		select {
+		case err := <-errCh:
+			t.Fatalf("RunServer exited unexpectedly: %v", err)
+		default:
+		}
+
+		conn, err := net.DialTimeout("tcp", "127.0.0.1:8053", 50*time.Millisecond)
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 			break
 		}
-		if time.Since(start) > 30*time.Second {
-			t.Fatal("Server failed to start within 30 seconds")
+		if time.Since(start) > 5*time.Second {
+			t.Fatal("Server failed to start within 5 seconds")
 		}
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(100 * time.Millisecond)
 	}
 
 	tests := []struct {
