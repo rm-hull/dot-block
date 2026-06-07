@@ -89,6 +89,16 @@ dig @127.0.0.1 -p 8853 www.google.com A +tcp
 openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your-domain.com
 ```
 
+### Management API
+
+The server provides several HTTP endpoints for monitoring and management on the configured `--http-port` (default 80).
+
+- `GET /metrics`: Exports Prometheus metrics.
+- `GET /reload`: Triggers an asynchronous reload of the blocklists.
+- `POST /check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+
+If `--metrics-auth` is configured, `/metrics` and `/reload` are protected by basic authentication.
+
 ### iOS / iPadOS Configuration
 
 To use DoT Block on your iPhone or iPad, you can install a configuration profile directly from the server:
