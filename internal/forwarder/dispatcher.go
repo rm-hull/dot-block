@@ -293,6 +293,13 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 	upstreamReq.RecursionDesired = req.RecursionDesired
 	upstreamReq.Question = unansweredQuestions
 
+	for _, rr := range req.Extra {
+		if opt, ok := rr.(*dns.OPT); ok {
+			upstreamReq.Extra = append(upstreamReq.Extra, dns.Copy(opt))
+			break
+		}
+	}
+
 	upstreamResp, upstream, err := d.forwardQuery(requestCtx, upstreamReq)
 	if err != nil {
 		span.RecordError(err)
