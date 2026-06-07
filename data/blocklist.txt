@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 07 June 2026 09:56 BST
+# Last modified: 07 June 2026 10:06 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 ad.360yield.com
@@ -13,8 +13,12 @@ b.scorecardresearch.com
 bf.dynatrace.com
 c.amazon-adsystem.com
 cdn.optimizely.com
-cdn.privacy-mgmt.com
+cdn.viafoura.net
 channelexco.com
+content.jwplatform.com
+dmqixuaqncbvu.cloudfront.net
+d3p0gayswgyxdw.cloudfront.net
+dmqixuaqncbvu.cloudfront.net
 ex.co
 comcluster.cxense.com
 content-loader.com
@@ -35,6 +39,7 @@ match.prod.bidr.io
 paid.outbrain.com
 pixel-sync.sitescout.com
 prg.smartadserver.com
+privacy-mgmt.com
 pubmatic.com
 richaudience.com
 rubiconproject.com
