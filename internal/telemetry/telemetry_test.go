@@ -11,7 +11,7 @@ import (
 )
 
 func TestInitTracer_NoEndpoint(t *testing.T) {
-	os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	_ = os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
@@ -29,8 +29,10 @@ func TestInitTracer_NoEndpoint(t *testing.T) {
 }
 
 func TestInitTracer_WithEndpoint(t *testing.T) {
-	os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
-	defer os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	_ = os.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "localhost:4317")
+	defer func() {
+		_ = os.Unsetenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	}()
 
 	var buf bytes.Buffer
 	logger := slog.New(slog.NewTextHandler(&buf, nil))
