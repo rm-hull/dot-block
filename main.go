@@ -108,7 +108,6 @@ func main() {
 	rootCmd.Flags().DurationVar(&app.Timeouts.Read, "read-timeout", 300*time.Millisecond, "Timeout for reading upstream DNS queries")
 	rootCmd.Flags().DurationVar(&app.Timeouts.Write, "write-timeout", 100*time.Millisecond, "Timeout for writing upstream DNS queries")
 	rootCmd.Flags().DurationVar(&app.Timeouts.Dial, "dial-timeout", 300*time.Millisecond, "Timeout for establishing connections to upstream servers")
-	rootCmd.Flags().IntVar(&app.ConnectionPoolSize, "connection-pool-size", 10, "Number of connections to maintain in pool for each upstream server")
 	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
 	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")
 

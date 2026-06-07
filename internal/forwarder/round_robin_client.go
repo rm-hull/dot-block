@@ -14,88 +14,17 @@ import (
 	"github.com/tavsec/gin-healthcheck/checks"
 )
 
+type upstreamServer struct {
+	config string
+	addr   string
+}
+
 type RoundRobinClient struct {
-	upstreams []string
-	pools     map[string]*ConnPool
+	upstreams []upstreamServer
 	counter   uint32
 	logger    *slog.Logger
 	metrics   *metrics.DnsMetrics
-}
-
-type pooledConn struct {
-	conn       *dns.Conn
-	returnedAt time.Time
-}
-
-type ConnPool struct {
-	conns      chan *pooledConn
-	addr       string
-	client     *dns.Client
-	metrics    *metrics.DnsMetrics
-	maxIdleAge time.Duration
-}
-
-func NewConnPool(metrics *metrics.DnsMetrics, addr string, client *dns.Client, poolSize int) *ConnPool {
-	return &ConnPool{
-		conns:      make(chan *pooledConn, poolSize),
-		addr:       addr,
-		client:     client,
-		metrics:    metrics,
-		maxIdleAge: 8 * time.Second, // Close connections idle for more than 8 seconds
-	}
-}
-
-func (p *ConnPool) dial() (*dns.Conn, error) {
-	conn, err := p.client.Dial(p.addr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to dial %s", p.addr)
-	}
-	return conn, nil
-}
-
-func (p *ConnPool) acquire() (*dns.Conn, bool, error) {
-	for {
-		select {
-		case pc := <-p.conns:
-			if time.Since(pc.returnedAt) > p.maxIdleAge {
-				_ = pc.conn.Close() // stale, discard and try next
-				continue
-			}
-			return pc.conn, true, nil
-		default:
-			conn, err := p.dial()
-			return conn, false, err
-		}
-	}
-}
-
-func (p *ConnPool) release(conn *dns.Conn) {
-	select {
-	case p.conns <- &pooledConn{conn: conn, returnedAt: time.Now()}:
-	default:
-		_ = conn.Close() // pool full, discard
-		p.metrics.PoolEvictions.WithLabelValues(p.addr).Inc()
-	}
-}
-
-func (p *ConnPool) Exchange(msg *dns.Msg) (*dns.Msg, time.Duration, error) {
-	conn, reused, err := p.acquire()
-	if err != nil {
-		return nil, 0, err
-	}
-
-	resp, rtt, err := p.client.ExchangeWithConn(msg, conn)
-	if err != nil {
-		_ = conn.Close() // discard broken conn
-		if reused {
-			// Dont retry on a failed pooled connection, just move onto the next, but do record the failure
-			p.metrics.PooledConnDeaths.WithLabelValues(p.addr).Inc()
-		}
-		return nil, 0, err
-	}
-
-	p.release(conn)
-	return resp, rtt, nil
+	client    *dns.Client
 }
 
 func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
@@ -104,12 +33,12 @@ func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
 		addr = net.JoinHostPort(addr, "53")
 	}
 
-	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	udpAddr, err := net.ResolveUDPAddr("udp", addr)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to resolve upstream %s", addr)
 	}
 
-	resolvedAddr := tcpAddr.String()
+	resolvedAddr := udpAddr.String()
 	if resolvedAddr != addr {
 		logger.Info("Resolved upstream", "fqdn", upstream, "ip_addr", resolvedAddr)
 	}
@@ -117,35 +46,32 @@ func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
 	return resolvedAddr, nil
 }
 
-func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout, dialTimeout time.Duration, poolSize int, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
+func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout, dialTimeout time.Duration, logger *slog.Logger, upstreams ...string) (*RoundRobinClient, error) {
 	if len(upstreams) == 0 {
 		return nil, errors.New("no upstream servers configured")
 	}
 
-	if poolSize < 0 {
-		return nil, errors.New("connection pool size cannot be negative")
-	}
-
 	client := &dns.Client{
-		Net:          "tcp",
+		Net:          "udp",
 		DialTimeout:  dialTimeout,
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}
-	pools := make(map[string]*ConnPool, len(upstreams))
-	for _, upstream := range upstreams {
-		resolvedAddr, err := resolveUpstream(logger, upstream)
+
+	resolved := make([]upstreamServer, 0, len(upstreams))
+	for _, config := range upstreams {
+		addr, err := resolveUpstream(logger, config)
 		if err != nil {
 			return nil, err
 		}
-		pools[upstream] = NewConnPool(metrics, resolvedAddr, client, poolSize)
+		resolved = append(resolved, upstreamServer{config: config, addr: addr})
 	}
 
 	return &RoundRobinClient{
-		upstreams: upstreams,
-		pools:     pools,
+		upstreams: resolved,
 		logger:    logger,
 		metrics:   metrics,
+		client:    client,
 	}, nil
 }
 
@@ -155,17 +81,18 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 
 	var lastErr error
 	for i := range n {
-		upstream := r.upstreams[(start+i)%n]
-		resp, _, err := r.pools[upstream].Exchange(msg)
+		server := r.upstreams[(start+i)%n]
+
+		resp, _, err := r.client.Exchange(msg, server.addr)
 		if err == nil {
-			return resp, upstream, nil
+			return resp, server.config, nil
 		}
 
 		reason := getFailureReason(err)
-		r.metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
-		r.logger.Warn("upstream failure", "upstream", upstream, "reason", reason, "error", err)
+		r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
+		r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
 
-		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
+		lastErr = errors.Wrapf(err, "upstream %s failed", server.config)
 	}
 	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
 }
@@ -196,30 +123,31 @@ func getFailureReason(err error) string {
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
 	dnsChecks := make([]checks.Check, 0, len(r.upstreams))
-	for _, upstream := range r.upstreams {
-		check := &DNSCheck{
-			upstream: upstream,
-			pool:     r.pools[upstream],
-		}
-		dnsChecks = append(dnsChecks, check)
+	for _, server := range r.upstreams {
+		dnsChecks = append(dnsChecks, &DNSCheck{
+			client: r.client,
+			addr:   server.addr,
+			name:   server.config,
+		})
 	}
 
 	return dnsChecks
 }
 
 type DNSCheck struct {
-	upstream string
-	pool     *ConnPool
+	client *dns.Client
+	addr   string
+	name   string
 }
 
 func (d *DNSCheck) Name() string {
-	return "DNS server " + d.upstream
+	return "DNS server " + d.name
 }
 
 func (d *DNSCheck) Pass() bool {
 	msg := new(dns.Msg)
 	msg.SetQuestion("google.com.", dns.TypeA)
 
-	_, _, err := d.pool.Exchange(msg)
+	_, _, err := d.client.Exchange(msg, d.addr)
 	return err == nil
 }

@@ -91,7 +91,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*D
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	require.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, 1, logger, upstream)
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
 	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger)
@@ -338,7 +338,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	assert.NoError(t, err)
 
-	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, 1, logger, "8.8.8.8:53")
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
 	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, -1*time.Second, logger)
@@ -511,35 +511,20 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 	t.Helper()
 	probeName := fmt.Sprintf("%s.dns-probe.local.", uuid.New().String())
 
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	addr := l.Addr().String()
+	l, err := net.ListenPacket("udp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to listen: %v", err)
+	}
+	addr := l.LocalAddr().String()
 
 	server := &dns.Server{
-		Listener: l,
-		Net:      "tcp",
-		Handler:  probeDecorator(probeName, handler),
-	}
-
-	started := make(chan struct{})
-	server.NotifyStartedFunc = func() {
-		close(started)
+		PacketConn: l,
+		Handler:    probeDecorator(probeName, handler),
 	}
 
 	go func() {
-		err := server.ActivateAndServe()
-		if err != nil {
-			// If it's already closed, don't fail the test
-			return
-		}
+		_ = server.ActivateAndServe()
 	}()
-
-	select {
-	case <-started:
-		t.Logf("Mock DNS server listening on: %s", addr)
-	case <-time.After(5 * time.Second):
-		t.Fatal("Timed out waiting for mock DNS server to become ready")
-	}
 
 	waitForPort(t, addr, probeName, 5*time.Second)
 	return server, addr
@@ -548,7 +533,7 @@ func startLocalDNS(t *testing.T, handler dns.HandlerFunc) (*dns.Server, string) 
 func waitForPort(t *testing.T, addr, probeName string, timeout time.Duration) {
 	t.Helper()
 	deadline := deadline(t, timeout)
-	client := dns.Client{DialTimeout: 100 * time.Millisecond, Net: "tcp"}
+	client := dns.Client{DialTimeout: 100 * time.Millisecond, Net: "udp"}
 	req := new(dns.Msg)
 	req.SetQuestion(probeName, dns.TypeA)
 

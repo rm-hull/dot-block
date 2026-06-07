@@ -35,6 +35,23 @@ The easiest way to get started with DoT Block is to use Docker and Docker Compos
 
 The server will be accessible at `dot.your-domain.com`.
 
+#### Production Tuning
+
+For high-traffic environments, you may need to tune the network stack to avoid port exhaustion and packet loss. You can apply these settings directly in your `docker-compose.yml` using `sysctls`:
+
+```yaml
+services:
+  dot-block:
+    # ... other configuration ...
+    sysctls:
+      - net.ipv4.ip_local_port_range=1024 65535
+      - net.core.rmem_max=26214400
+      - net.core.wmem_max=26214400
+```
+
+- `net.ipv4.ip_local_port_range`: Expands the ephemeral port range to allow more concurrent outgoing UDP requests.
+- `net.core.rmem_max` & `net.core.wmem_max`: Increases the maximum OS receive and send buffer sizes for UDP to prevent packet drops during traffic spikes.
+
 ### Local Development
 
 For local development, you can run the server in "dev mode", which uses plain TCP instead of TLS.
@@ -136,7 +153,6 @@ DoT Block can be configured using the following command-line flags:
 | `--allowed-hosts` | List of domains used for the CertManager allow policy. | `nil` |
 | `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt` |
 | `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
-| `--connection-pool-size` | Number of connections to maintain in pool for each upstream server | `10` |
 | `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
 | `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `300ms` |
 | `--write-timeout` | Timeout for writing upstream DNS queries | `100ms` |
