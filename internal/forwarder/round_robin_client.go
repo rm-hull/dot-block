@@ -1,9 +1,11 @@
 package forwarder
 
 import (
+	"context"
 	"log/slog"
 	"net"
 	"sync/atomic"
+	"syscall"
 	"time"
 
 	"github.com/cockroachdb/errors"
@@ -161,7 +163,7 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 
 		reason := getFailureReason(err)
 		r.metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
-		r.logger.Debug("upstream failure", "upstream", upstream, "reason", reason, "error", err)
+		r.logger.Warn("upstream failure", "upstream", upstream, "reason", reason, "error", err)
 
 		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
 	}
@@ -175,6 +177,15 @@ func getFailureReason(err error) string {
 	var netErr net.Error
 	if errors.As(err, &netErr) && netErr.Timeout() {
 		return "timeout"
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return "deadline_exceeded"
+	}
+	if errors.Is(err, syscall.ECONNREFUSED) {
+		return "connection_refused"
+	}
+	if errors.Is(err, syscall.ECONNRESET) {
+		return "connection_reset"
 	}
 	var opErr *net.OpError
 	if errors.As(err, &opErr) {
