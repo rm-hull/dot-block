@@ -436,6 +436,8 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		}
 	}
 
+	r.POST("/check", blocklistUpdater.NewCheckHandler())
+
 	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
 	}

@@ -48,6 +48,53 @@ func (job *BlocklistUpdater) NewHandler() gin.HandlerFunc {
 	}
 }
 
+func (job *BlocklistUpdater) NewCheckHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var domains []string
+
+		if c.ContentType() == "application/json" {
+			if err := c.ShouldBindJSON(&domains); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON array of domains"})
+				return
+			}
+		} else {
+			body, err := c.GetRawData()
+			if err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
+				return
+			}
+			lines := strings.Split(string(body), "\n")
+			for _, line := range lines {
+				line = strings.TrimSpace(line)
+				if line != "" {
+					domains = append(domains, line)
+				}
+			}
+		}
+
+		allowed := make([]string, 0)
+		blocked := make([]string, 0)
+
+		for _, domain := range domains {
+			isBlocked, err := job.blocklist.IsBlocked(domain)
+			if err != nil {
+				allowed = append(allowed, domain)
+				continue
+			}
+			if isBlocked {
+				blocked = append(blocked, domain)
+			} else {
+				allowed = append(allowed, domain)
+			}
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"allowed": allowed,
+			"blocked": blocked,
+		})
+	}
+}
+
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
 	blocklist := make([]string, 0, 100_000)
 	err := downloader.TransientDownload(logger, "blocklist", url, "", func(tmpFile string, header http.Header) error {
