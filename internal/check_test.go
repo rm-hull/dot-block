@@ -36,7 +36,7 @@ func TestCheckHandler(t *testing.T) {
 		{
 			name:        "Plain text - mixed",
 			contentType: "text/plain",
-			body:        []byte(`google.com
+			body: []byte(`google.com
 blocked.com
 
 allowed.org
@@ -48,9 +48,9 @@ allowed.org
 			},
 		},
 		{
-			name:        "JSON array - mixed",
-			contentType: "application/json",
-			body:        []byte(`["google.com", "blocked.com", "ads.net", "allowed.org"]`),
+			name:           "JSON array - mixed",
+			contentType:    "application/json",
+			body:           []byte(`["google.com", "blocked.com", "ads.net", "allowed.org"]`),
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string][]string{
 				"allowed": {"google.com", "allowed.org"},
@@ -60,7 +60,7 @@ allowed.org
 		{
 			name:        "Plain text - all allowed",
 			contentType: "text/plain",
-			body:        []byte(`google.com
+			body: []byte(`google.com
 allowed.org`),
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string][]string{
@@ -71,7 +71,7 @@ allowed.org`),
 		{
 			name:        "Plain text - all blocked",
 			contentType: "text/plain",
-			body:        []byte(`blocked.com
+			body: []byte(`blocked.com
 ads.net`),
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string][]string{
@@ -80,9 +80,9 @@ ads.net`),
 			},
 		},
 		{
-			name:        "JSON array - empty",
-			contentType: "application/json",
-			body:        []byte(`[]`),
+			name:           "JSON array - empty",
+			contentType:    "application/json",
+			body:           []byte(`[]`),
 			expectedStatus: http.StatusOK,
 			expectedBody: map[string][]string{
 				"allowed": {},
@@ -90,11 +90,11 @@ ads.net`),
 			},
 		},
 		{
-			name:        "JSON array - invalid",
-			contentType: "application/json",
-			body:        []byte(`["invalid" json`),
+			name:           "JSON array - invalid",
+			contentType:    "application/json",
+			body:           []byte(`["invalid" json`),
 			expectedStatus: http.StatusBadRequest,
-			expectedBody: nil,
+			expectedBody:   nil,
 		},
 	}
 
