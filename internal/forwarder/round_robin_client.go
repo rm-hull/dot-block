@@ -14,13 +14,17 @@ import (
 	"github.com/tavsec/gin-healthcheck/checks"
 )
 
+type upstreamServer struct {
+	config string
+	addr   string
+}
+
 type RoundRobinClient struct {
-	upstreams         []string          // Original configuration strings
-	resolvedUpstreams map[string]string // Mapping from config string to resolved IP:port
-	counter           uint32
-	logger            *slog.Logger
-	metrics           *metrics.DnsMetrics
-	client            *dns.Client
+	upstreams []upstreamServer
+	counter   uint32
+	logger    *slog.Logger
+	metrics   *metrics.DnsMetrics
+	client    *dns.Client
 }
 
 func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
@@ -54,21 +58,20 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout,
 		WriteTimeout: writeTimeout,
 	}
 
-	resolved := make(map[string]string, len(upstreams))
-	for _, upstream := range upstreams {
-		addr, err := resolveUpstream(logger, upstream)
+	resolved := make([]upstreamServer, 0, len(upstreams))
+	for _, config := range upstreams {
+		addr, err := resolveUpstream(logger, config)
 		if err != nil {
 			return nil, err
 		}
-		resolved[upstream] = addr
+		resolved = append(resolved, upstreamServer{config: config, addr: addr})
 	}
 
 	return &RoundRobinClient{
-		upstreams:         upstreams,
-		resolvedUpstreams: resolved,
-		logger:            logger,
-		metrics:           metrics,
-		client:            client,
+		upstreams: resolved,
+		logger:    logger,
+		metrics:   metrics,
+		client:    client,
 	}, nil
 }
 
@@ -78,19 +81,18 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 
 	var lastErr error
 	for i := range n {
-		upstream := r.upstreams[(start+i)%n]
-		addr := r.resolvedUpstreams[upstream]
+		server := r.upstreams[(start+i)%n]
 
-		resp, _, err := r.client.Exchange(msg, addr)
+		resp, _, err := r.client.Exchange(msg, server.addr)
 		if err == nil {
-			return resp, upstream, nil
+			return resp, server.config, nil
 		}
 
 		reason := getFailureReason(err)
-		r.metrics.UpstreamFailures.WithLabelValues(upstream, reason).Inc()
-		r.logger.Warn("upstream failure", "upstream", upstream, "reason", reason, "error", err)
+		r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
+		r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
 
-		lastErr = errors.Wrapf(err, "upstream %s failed", upstream)
+		lastErr = errors.Wrapf(err, "upstream %s failed", server.config)
 	}
 	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
 }
@@ -121,11 +123,11 @@ func getFailureReason(err error) string {
 
 func (r *RoundRobinClient) Healthchecks() []checks.Check {
 	dnsChecks := make([]checks.Check, 0, len(r.upstreams))
-	for _, upstream := range r.upstreams {
+	for _, server := range r.upstreams {
 		dnsChecks = append(dnsChecks, &DNSCheck{
 			client: r.client,
-			addr:   r.resolvedUpstreams[upstream],
-			name:   upstream,
+			addr:   server.addr,
+			name:   server.config,
 		})
 	}
 
