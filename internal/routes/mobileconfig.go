@@ -1,4 +1,4 @@
-package mobileconfig
+package routes
 
 import (
 	"bytes"
@@ -9,11 +9,11 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/rm-hull/dot-block/internal/mobileconfig"
 	"howett.net/plist"
 )
 
-func NewHandler(serverName string) gin.HandlerFunc {
-
+func NewMobileconfigHandler(serverName string) gin.HandlerFunc {
 	rootPayloadIdentifier := invertServerName(serverName) + ".profile"
 	dnsPayloadIdentifier := rootPayloadIdentifier + ".dnsSettings.managed"
 	rootUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(rootPayloadIdentifier))
@@ -29,7 +29,7 @@ func NewHandler(serverName string) gin.HandlerFunc {
 			return
 		}
 
-		profile := Profile{
+		profile := mobileconfig.Profile{
 			PayloadType:         "Configuration",
 			PayloadVersion:      2,
 			PayloadIdentifier:   rootPayloadIdentifier,
@@ -39,7 +39,7 @@ func NewHandler(serverName string) gin.HandlerFunc {
 			PayloadDescription:  "Configures system-wide DNS over TLS with ad and malware blocking.",
 			PayloadOrganization: "Destructuring Bind Ltd",
 
-			PayloadContent: []DNSSpec{
+			PayloadContent: []mobileconfig.DNSSpec{
 				{
 					PayloadType:         "com.apple.dnsSettings.managed",
 					PayloadVersion:      1,
@@ -47,7 +47,7 @@ func NewHandler(serverName string) gin.HandlerFunc {
 					PayloadUUID:         dnsUUID,
 					PayloadDisplayName:  "Encrypted DNS",
 					PayloadOrganization: "Destructuring Bind Ltd",
-					DNSSettings: DNSBlock{
+					DNSSettings: mobileconfig.DNSBlock{
 						DNSProtocol:     "TLS",
 						ServerName:      serverName,
 						ServerAddresses: ips,

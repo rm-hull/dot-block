@@ -30,12 +30,12 @@ User-Agent: test-client
 POST http://localhost:8080/check
 Content-Type: application/json
 
-["google.com", "blocked.com", "ads.net"]
+["google.com", "www.ex.co", "ads.net"]
 
 ### Check blocklist (Plain text)
 POST http://localhost:8080/check
 Content-Type: text/plain
 
 google.com
-blocked.com
+www.ex.co
 ads.net

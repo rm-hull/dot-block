@@ -41,8 +41,7 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read request body"})
 			return
 		}
-		lines := strings.Split(string(body), "\n")
-		for _, line := range lines {
+		for line := range strings.SplitSeq(string(body), "\n") {
 			line = strings.TrimSpace(line)
 			if line != "" {
 				domains = append(domains, line)
