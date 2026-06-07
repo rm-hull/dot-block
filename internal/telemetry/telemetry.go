@@ -20,10 +20,11 @@ import (
 func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) error, error) {
 	ctx := context.Background()
 
-	// Read OTLP endpoint from environment variable or use default
+	// Read OTLP endpoint from environment variable
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	if endpoint == "" {
-		endpoint = "localhost:4317"
+		logger.Warn("OTEL_EXPORTER_OTLP_ENDPOINT not defined, skipping tracing initialization")
+		return func(ctx context.Context) error { return nil }, nil
 	}
 
 	// Configure the OTLP exporter
