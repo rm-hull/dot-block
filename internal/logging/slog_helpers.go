@@ -1,13 +1,28 @@
 package logging
 
 import (
+	"fmt"
 	"log/slog"
+	"path"
+	"strings"
 	"time"
 )
 
 // ReplaceAttr is a slog.HandlerOptions.ReplaceAttr function that
 // recursively processes attributes to ensure time.Duration and errors are formatted correctly.
-func ReplaceAttr(_ []string, a slog.Attr) slog.Attr {
+func ReplaceAttr(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.SourceKey {
+		if source, ok := a.Value.Any().(*slog.Source); ok {
+			file := source.File
+			if idx := strings.LastIndex(file, "/internal/"); idx != -1 {
+				file = file[idx+1:]
+			} else {
+				file = path.Base(file)
+			}
+			return slog.String("caller", fmt.Sprintf("%s:%d", file, source.Line))
+		}
+	}
+
 	if a.Value.Kind() != slog.KindAny {
 		return a
 	}
