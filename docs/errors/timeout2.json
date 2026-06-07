@@ -1,0 +1,11 @@
+{
+    "time": "2026-06-06T10:12:34.322115912+01:00",
+    "level": "ERROR",
+    "msg": "DNS error",
+    "client_ip": "172.18.0.33",
+    "request_id": 30463,
+    "source": "UDP",
+    "qtype": "A",
+    "category": "upstream",
+    "error": "upstream resolver (1.1.1.1:53) returned Rcode: SERVFAIL for query: chatwoodbeply.beply.com."
+}
