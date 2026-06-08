@@ -52,6 +52,32 @@ services:
 - `net.ipv4.ip_local_port_range`: Expands the ephemeral port range to allow more concurrent outgoing UDP requests.
 - `net.core.rmem_max` & `net.core.wmem_max`: Increases the maximum OS receive and send buffer sizes for UDP to prevent packet drops during traffic spikes.
 
+### Advanced Setup: Local DNSSEC with Unbound
+
+By default, DoT Block forwards queries to public resolvers. While these typically perform DNSSEC validation, you can implement **local DNSSEC validation** by using [Unbound](https://nlnetlabs.nl/projects/unbound/about/) as your upstream resolver. This removes the need to trust a third-party provider for validation.
+
+The easiest way to achieve this is by running Unbound in a separate container on the same Docker network.
+
+**Example `docker-compose.yml` snippet:**
+
+```yaml
+services:
+  unbound:
+    image: mvance/unbound:latest
+    container_name: unbound
+    restart: unless-stopped
+    # No ports exposed to the host; only accessible internally by dot-block
+
+  dot-block:
+    image: your-username/dot-block:latest
+    # ... other configuration ...
+    command: ["--upstreams=unbound:53"] 
+    depends_on:
+      - unbound
+```
+
+In this configuration, `dot-block` handles the TLS termination, ad-blocking, and caching, while `unbound` performs the actual recursive resolution and DNSSEC validation.
+
 ### Local Development
 
 For local development, you can run the server in "dev mode", which uses plain TCP instead of TLS.
