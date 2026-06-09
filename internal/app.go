@@ -400,19 +400,22 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	r.POST("/dns-query", dohHandler)
 	return r, nil
 }
+
 func (app *App) environment() string {
 	if app.DevMode {
 		return "DEVELOPMENT"
 	}
 	return "PRODUCTION"
 }
+
 func newStructuredLoggingConfig() *sloggin.Config {
 	config := sloggin.DefaultConfig()
 	config.WithUserAgent = true
 	config.WithClientIP = true
-	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics"))
+	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics", "/dns-query"))
 	return &config
 }
+
 func (app *App) initIp2Location(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {

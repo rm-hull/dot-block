@@ -10,56 +10,6 @@ import (
 	"github.com/miekg/dns"
 )
 
-type doHResponseWriter struct {
-	msg        *dns.Msg
-	remoteAddr net.Addr
-}
-
-func NewDoHResponseWriter(clientIP string) (*doHResponseWriter, error) {
-	ip := net.ParseIP(clientIP)
-	if ip == nil {
-		return nil, errors.Newf("failed to parse: %s", clientIP)
-	}
-
-	return &doHResponseWriter{
-		msg:        &dns.Msg{},
-		remoteAddr: &net.TCPAddr{IP: ip, Port: 0},
-	}, nil
-}
-
-func (w *doHResponseWriter) Write(b []byte) (int, error) {
-	return len(b), w.msg.Unpack(b)
-}
-
-func (w *doHResponseWriter) LocalAddr() net.Addr {
-	return nil
-}
-
-func (w *doHResponseWriter) RemoteAddr() net.Addr {
-	return w.remoteAddr
-}
-
-func (w *doHResponseWriter) WriteMsg(m *dns.Msg) error {
-	w.msg = m
-	return nil
-}
-
-func (w *doHResponseWriter) TsigStatus() error {
-	return nil
-}
-
-func (w *doHResponseWriter) TsigTimersOnly(bool) {
-
-}
-
-func (w *doHResponseWriter) Hijack() {
-
-}
-
-func (w *doHResponseWriter) Close() error {
-	return nil
-}
-
 func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var raw []byte
@@ -109,4 +59,57 @@ func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 
 		c.Data(http.StatusOK, "application/dns-message", packed)
 	}
+}
+
+type doHResponseWriter struct {
+	msg        *dns.Msg
+	remoteAddr net.Addr
+}
+
+func NewDoHResponseWriter(clientIP string) (*doHResponseWriter, error) {
+	ip := net.ParseIP(clientIP)
+	if ip == nil {
+		return nil, errors.Newf("failed to parse: %s", clientIP)
+	}
+
+	return &doHResponseWriter{
+		msg:        &dns.Msg{},
+		remoteAddr: &net.TCPAddr{IP: ip, Port: 0},
+	}, nil
+}
+
+func (w *doHResponseWriter) Write(b []byte) (int, error) {
+	return len(b), w.msg.Unpack(b)
+}
+
+func (w *doHResponseWriter) LocalAddr() net.Addr {
+	return &net.TCPAddr{
+		IP:   net.IPv4zero,
+		Port: 0,
+	}
+}
+
+func (w *doHResponseWriter) RemoteAddr() net.Addr {
+	return w.remoteAddr
+}
+
+func (w *doHResponseWriter) WriteMsg(m *dns.Msg) error {
+	w.msg = m
+	return nil
+}
+
+func (w *doHResponseWriter) TsigStatus() error {
+	return nil
+}
+
+func (w *doHResponseWriter) TsigTimersOnly(bool) {
+
+}
+
+func (w *doHResponseWriter) Hijack() {
+
+}
+
+func (w *doHResponseWriter) Close() error {
+	return nil
 }
