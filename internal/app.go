@@ -207,15 +207,18 @@ func (app *App) RunServer(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
-	r, err := app.startHttpServer(dnsClient, blocklistUpdater)
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize HTTP server")
-	}
+
 	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, app.CacheTtlFloor, app.Logger)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
 	defer dispatcher.Close()
+
+	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize HTTP server")
+	}
+
 	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
 	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
@@ -335,7 +338,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 	}
 	return proxyListener, nil
 }
-func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater) (*gin.Engine, error) {
+func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater, dispatcher *forwarder.DNSDispatcher) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -390,6 +393,11 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	r.GET("/.mobileconfig", routes.NewMobileconfigHandler(serverName))
 	r.GET("/", routes.RootHandler)
 	r.GET("/robots.txt", routes.RobotsTxtHandler)
+
+	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
+	dohHandler := routes.NewDoHHandler(requestHandler)
+	r.GET("/dns-query",dohHandler)
+	r.POST("/dns-query",dohHandler)
 	return r, nil
 }
 func (app *App) environment() string {

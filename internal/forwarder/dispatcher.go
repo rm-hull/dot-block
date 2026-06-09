@@ -28,6 +28,7 @@ const (
 	SourceUDP DNSSource = "UDP"
 	SourceTCP DNSSource = "TCP"
 	SourceDoT DNSSource = "DoT"
+	SourceDoH DNSSource = "DoH"
 )
 
 var (
