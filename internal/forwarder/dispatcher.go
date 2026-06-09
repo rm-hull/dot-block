@@ -40,6 +40,8 @@ type RequestContext struct {
 	ctx      context.Context
 	snapshot *metrics.RequestSnapshot
 	logger   *slog.Logger
+	ipAddr   string
+	subnet   string
 }
 
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
@@ -52,6 +54,7 @@ type DNSDispatcher struct {
 	blockList  *blocklist.BlockList
 	metrics    *metrics.DnsMetrics
 	logger     *slog.Logger
+	enableECS  bool
 	snapshotCh chan *metrics.RequestSnapshot
 	done       chan struct{}
 }
@@ -63,6 +66,7 @@ func NewDNSDispatcher(
 	blockList *blocklist.BlockList,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
+	enableECS bool,
 ) (*DNSDispatcher, error) {
 
 	if ttlFloor < 0 {
@@ -77,6 +81,7 @@ func NewDNSDispatcher(
 		blockList:  blockList,
 		metrics:    dnsMetrics,
 		logger:     logger,
+		enableECS:  enableECS,
 		snapshotCh: make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
 		done:       make(chan struct{}),
 	}
@@ -85,7 +90,7 @@ func NewDNSDispatcher(
 		go d.snapshotWorker()
 	}
 
-	logger.Info("DNS dispatcher initialized", "num_snapshot_workers", NUM_WORKERS)
+	logger.Info("DNS dispatcher initialized", "num_snapshot_workers", NUM_WORKERS, "enable_ecs", enableECS)
 	return d, nil
 }
 
@@ -128,6 +133,8 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			ctx:      ctx,
 			logger:   d.logger.With("client_ip", ipAddr, "request_id", req.Id, "source", source),
 			snapshot: metrics.NewRequestSnapshot(time.Now(), string(source), ipAddr),
+			ipAddr:   ipAddr,
+			subnet:   d.computeSubnet(ipAddr),
 		}
 
 		defer func() {
@@ -272,7 +279,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 
 	requestCtx.snapshot.AddDomain(q.Name)
 	requestCtx.snapshot.AddQueryCount(queryType, false)
-	if cachedRRs, ok := d.cache.Get(getCacheKey(q)); ok {
+	if cachedRRs, ok := d.cache.Get(getCacheKey(q, requestCtx.subnet)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		return cachedRRs, dns.RcodeSuccess, nil
 	}
@@ -301,6 +308,8 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 		}
 	}
 
+	d.applyECS(requestCtx, upstreamReq)
+
 	upstreamResp, upstream, err := d.forwardQuery(requestCtx, upstreamReq)
 	if err != nil {
 		span.RecordError(err)
@@ -327,7 +336,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 
 	// Process unanswered questions and cache the results
 	for _, q := range unansweredQuestions {
-		key := getCacheKey(&q)
+		key := getCacheKey(&q, requestCtx.subnet)
 		if answersForQuestion, ok := answerMap[key]; ok {
 			upstreamTTL := answersForQuestion[0].Header().Ttl
 			effectiveTTL := time.Duration(upstreamTTL) * time.Second
@@ -342,6 +351,76 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 	}
 
 	return upstreamReq.Rcode, upstreamResp.Answer, nil
+}
+
+func (d *DNSDispatcher) computeSubnet(ipAddr string) string {
+	if !d.enableECS || ipAddr == "unknown" {
+		return ""
+	}
+
+	ip := net.ParseIP(ipAddr)
+	if ip == nil {
+		return ""
+	}
+
+	if ip4 := ip.To4(); ip4 != nil {
+		mask := net.CIDRMask(24, 32)
+		return string(ip4.Mask(mask))
+	}
+
+	mask := net.CIDRMask(48, 128)
+	return string(ip.Mask(mask))
+}
+
+func (d *DNSDispatcher) applyECS(requestCtx *RequestContext, upstreamReq *dns.Msg) {
+	if !d.enableECS || requestCtx.ipAddr == "unknown" {
+		return
+	}
+
+	ip := net.ParseIP(requestCtx.ipAddr)
+	if ip == nil {
+		return
+	}
+
+	var family uint16
+	var prefixLen uint8
+	if ip4 := ip.To4(); ip4 != nil {
+		family = 1
+		prefixLen = 24
+		ip = ip4
+	} else {
+		family = 2
+		prefixLen = 48
+	}
+
+	ecs := &dns.EDNS0_SUBNET{
+		Code:          dns.EDNS0SUBNET,
+		Family:        family,
+		SourceNetmask: prefixLen,
+		SourceScope:   0,
+		Address:       ip,
+	}
+
+	found := false
+	for _, rr := range upstreamReq.Extra {
+		if opt, ok := rr.(*dns.OPT); ok {
+			opt.Option = append(opt.Option, ecs)
+			found = true
+			break
+		}
+	}
+	if !found {
+		opt := &dns.OPT{
+			Hdr: dns.RR_Header{
+				Name:   ".",
+				Rrtype: dns.TypeOPT,
+				Class:  dns.ClassINET,
+				Ttl:    4096,
+			},
+			Option: []dns.EDNS0{ecs},
+		}
+		upstreamReq.Extra = append(upstreamReq.Extra, opt)
+	}
 }
 
 func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
@@ -403,8 +482,12 @@ func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWri
 	}
 }
 
-func getCacheKey(q *dns.Question) string {
-	return dns.Fqdn(q.Name) + ":" + getQueryType(q)
+func getCacheKey(q *dns.Question, subnet string) string {
+	key := dns.Fqdn(q.Name) + ":" + getQueryType(q)
+	if subnet != "" {
+		key += ":" + subnet
+	}
+	return key
 }
 
 func getQueryType(q *dns.Question) string {
