@@ -641,12 +641,14 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var capturedReq *dns.Msg
+			done := make(chan struct{})
 			server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
-				capturedReq = r
+				capturedReq = r.Copy()
 				m := new(dns.Msg)
 				m.SetReply(r)
 				m.SetRcode(r, dns.RcodeSuccess)
 				_ = w.WriteMsg(m)
+				close(done)
 			})
 			defer server.Shutdown()
 
@@ -674,6 +676,12 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			req.SetQuestion("example.com.", dns.TypeA)
 
 			dispatcher.HandleDNSRequest("test")(writer, req)
+
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out waiting for upstream server to receive request")
+			}
 
 			require.NotNil(t, capturedReq)
 
