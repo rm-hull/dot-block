@@ -405,8 +405,20 @@ func (d *DNSDispatcher) applyECS(requestCtx *RequestContext, upstreamReq *dns.Ms
 	found := false
 	for _, rr := range upstreamReq.Extra {
 		if opt, ok := rr.(*dns.OPT); ok {
-			opt.Option = append(opt.Option, ecs)
 			found = true
+			ecsIndex := -1
+			for i, o := range opt.Option {
+				if _, ok := o.(*dns.EDNS0_SUBNET); ok {
+					ecsIndex = i
+					break
+				}
+			}
+
+			if ecsIndex != -1 {
+				opt.Option[ecsIndex] = ecs
+			} else {
+				opt.Option = append(opt.Option, ecs)
+			}
 			break
 		}
 	}
