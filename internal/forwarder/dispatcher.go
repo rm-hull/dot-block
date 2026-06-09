@@ -408,7 +408,7 @@ func (d *DNSDispatcher) applyECS(requestCtx *RequestContext, upstreamReq *dns.Ms
 			found = true
 			ecsIndex := -1
 			for i, o := range opt.Option {
-				if _, ok := o.(*dns.EDNS0_SUBNET); ok {
+				if o.Option() == dns.EDNS0SUBNET {
 					ecsIndex = i
 					break
 				}
