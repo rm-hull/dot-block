@@ -39,3 +39,14 @@ Content-Type: text/plain
 google.com
 www.ex.co
 ads.net
+
+### DoH POST
+POST http://localhost:8080/dns-query
+Content-Type: application/dns-message
+Accept: application/dns-message
+
+< ./docs/query.bin
+
+### DoH GET
+GET http://localhost:8080/dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB
+Accept: application/dns-message

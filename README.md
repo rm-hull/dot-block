@@ -5,6 +5,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 ## Features
 
 -   **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
+-   **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
 -   **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
 -   **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
 -   **High Performance:** Built with Go for speed and efficiency.
@@ -71,7 +72,7 @@ services:
   dot-block:
     image: your-username/dot-block:latest
     # ... other configuration ...
-    command: ["--upstreams=unbound:53"] 
+    command: ["--upstreams=unbound:53"]
     depends_on:
       - unbound
 ```
@@ -139,6 +140,7 @@ The server provides several HTTP endpoints for monitoring and management on the 
 - `GET /metrics`: Exports Prometheus metrics.
 - `GET /reload`: Triggers an asynchronous reload of the blocklists.
 - `POST /check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+- `GET /dns-query` and `POST /dns-query`: DNS-over-HTTPS (DoH) endpoint. `GET /dns-query` expects a `dns` query parameter containing the base64url-encoded DNS wire message. `POST /dns-query` expects the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
 
 If `--metrics-auth` is configured, `/metrics` and `/reload` are protected by basic authentication.
 
