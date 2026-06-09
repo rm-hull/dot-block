@@ -365,11 +365,11 @@ func (d *DNSDispatcher) computeSubnet(ipAddr string) string {
 
 	if ip4 := ip.To4(); ip4 != nil {
 		mask := net.CIDRMask(24, 32)
-		return string(ip4.Mask(mask))
+		return ip4.Mask(mask).String()
 	}
 
 	mask := net.CIDRMask(48, 128)
-	return string(ip.Mask(mask))
+	return ip.Mask(mask).String()
 }
 
 func (d *DNSDispatcher) applyECS(requestCtx *RequestContext, upstreamReq *dns.Msg) {
@@ -387,10 +387,11 @@ func (d *DNSDispatcher) applyECS(requestCtx *RequestContext, upstreamReq *dns.Ms
 	if ip4 := ip.To4(); ip4 != nil {
 		family = 1
 		prefixLen = 24
-		ip = ip4
+		ip = ip4.Mask(net.CIDRMask(24, 32))
 	} else {
 		family = 2
 		prefixLen = 48
+		ip = ip.Mask(net.CIDRMask(48, 128))
 	}
 
 	ecs := &dns.EDNS0_SUBNET{
