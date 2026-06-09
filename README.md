@@ -106,10 +106,14 @@ You can test the server using `dig` or `openssl`.
 dig @dot.your-domain.com -p <DNS_PORT> example.com A
 ```
 
-**Production (TLS):**
+**Production (TLS/HTTPS):**
 
 ```bash
-dig @dot.your-domain.com -p 853 +tls example.com A
+# DNS-over-TLS
+dig @dot.your-domain.com -p 853 +tls example.com    
+
+# DNS-over-HTTPS
+dig @dot.your-domain.com -p 443 +https example.com A
 ```
 
 Note that the bundled `dig` binary in MacOS doesn't support the `+tls` options, so use an alternative like [kdig](https://www.knot-dns.cz/docs/2.6/html/man_kdig.html) instead.
