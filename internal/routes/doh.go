@@ -15,15 +15,15 @@ type doHResponseWriter struct {
 	remoteAddr net.Addr
 }
 
-func NewDoHResponseWriter(req *http.Request) (*doHResponseWriter, error) {
-	remoteAddr, err := net.ResolveTCPAddr("tcp", req.RemoteAddr)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to resolve: %s", req.RemoteAddr)
+func NewDoHResponseWriter(clientIP string) (*doHResponseWriter, error) {
+	ip := net.ParseIP(clientIP)
+	if ip == nil {
+		return nil, errors.Newf("failed to parse: %s", clientIP)
 	}
 
 	return &doHResponseWriter{
 		msg:        &dns.Msg{},
-		remoteAddr: &net.TCPAddr{IP: remoteAddr.IP, Port: remoteAddr.Port},
+		remoteAddr: &net.TCPAddr{IP: ip, Port: 0},
 	}, nil
 }
 
@@ -62,28 +62,27 @@ func (w *doHResponseWriter) Close() error {
 
 func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		encoded := c.Query("dns")
+		var raw []byte
+		var err error
+
 		if c.Request.Method == http.MethodPost {
-			body, err := c.GetRawData()
-			if err != nil {
+			if raw, err = c.GetRawData(); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"error": "Failed to read request body",
 				})
 				return
 			}
-			encoded = string(body)
-		}
-
-		raw := make([]byte, base64.RawURLEncoding.DecodedLen(len(encoded)))
-		if _, err := base64.RawURLEncoding.Decode(raw, []byte(encoded)); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error": "Failed to decode base64 DNS message: " + err.Error(),
-			})
-			return
+		} else {
+			encoded := c.Query("dns")
+			if raw, err = base64.RawURLEncoding.DecodeString(encoded); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error": "Failed to decode base64 DNS message: " + err.Error(),
+				})
+				return
+			}
 		}
 
 		msg := new(dns.Msg)
-
 		if err := msg.Unpack(raw); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error": "Failed to parse DNS message: " + err.Error(),
@@ -91,7 +90,7 @@ func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 			return
 		}
 
-		responseWriter, err := NewDoHResponseWriter(c.Request)
+		responseWriter, err := NewDoHResponseWriter(c.ClientIP())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": "Failed to create response writer: " + err.Error(),

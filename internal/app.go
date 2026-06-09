@@ -396,8 +396,8 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 
 	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
 	dohHandler := routes.NewDoHHandler(requestHandler)
-	r.GET("/dns-query",dohHandler)
-	r.POST("/dns-query",dohHandler)
+	r.GET("/dns-query", dohHandler)
+	r.POST("/dns-query", dohHandler)
 	return r, nil
 }
 func (app *App) environment() string {
