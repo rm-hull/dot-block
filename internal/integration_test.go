@@ -1,10 +1,14 @@
 package internal
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -20,7 +24,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		DevMode:            true,
 		DnsPort:            8053,
 		DotPort:            8853,
-		HttpPort:           0, // Random port
+		HttpPort:           8080, // Fixed port for DoH tests
 		Upstreams:          []string{"8.8.8.8", "1.1.1.1"},
 		BlockListURLs:      []string{"file://../data/blocklist.txt"},
 		AllowedHosts:       []string{"example.com"},
@@ -70,7 +74,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		protocol      string // "udp", "tcp", "dot"
+		protocol      string // "udp", "tcp", "dot", "doh-get", "doh-post"
 		port          int
 		domain        string
 		expectBlocked bool
@@ -117,25 +121,84 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
+		{
+			name:          "DoH GET - Good Domain",
+			protocol:      "doh-get",
+			port:          8080,
+			domain:        "google.com.",
+			expectBlocked: false,
+		},
+		{
+			name:          "DoH GET - Blocked Domain",
+			protocol:      "doh-get",
+			port:          8080,
+			domain:        "doubleclick.net.",
+			expectBlocked: true,
+		},
+		{
+			name:          "DoH POST - Good Domain",
+			protocol:      "doh-post",
+			port:          8080,
+			domain:        "google.com.",
+			expectBlocked: false,
+		},
+		{
+			name:          "DoH POST - Blocked Domain",
+			protocol:      "doh-post",
+			port:          8080,
+			domain:        "doubleclick.net.",
+			expectBlocked: true,
+		},
 	}
+
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			msg := new(dns.Msg)
-			msg.SetQuestion(tt.domain, dns.TypeA)
-
 			var resp *dns.Msg
 			var err error
 
-			client := &dns.Client{
-				Net:     tt.protocol,
-				Timeout: 2 * time.Second,
+			if tt.protocol == "doh-get" || tt.protocol == "doh-post" {
+				msg := new(dns.Msg)
+				msg.SetQuestion(tt.domain, dns.TypeA)
+				packed, err := msg.Pack()
+				require.NoError(t, err)
+
+				var httpResp *http.Response
+				var httpErr error
+
+				if tt.protocol == "doh-get" {
+					encoded := base64.RawURLEncoding.EncodeToString(packed)
+					url := fmt.Sprintf("http://127.0.0.1:%d/dns-query?dns=%s", tt.port, encoded)
+					httpResp, httpErr = http.Get(url)
+				} else {
+					url := fmt.Sprintf("http://127.0.0.1:%d/dns-query", tt.port)
+					httpResp, httpErr = http.Post(url, "application/dns-message", bytes.NewReader(packed))
+				}
+
+				require.NoError(t, httpErr, "HTTP request failed")
+				defer httpResp.Body.Close()
+				require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+				body, err := io.ReadAll(httpResp.Body)
+				require.NoError(t, err)
+
+				resp = new(dns.Msg)
+				err = resp.Unpack(body)
+				require.NoError(t, err, "Failed to unpack DNS response from DoH")
+			} else {
+				msg := new(dns.Msg)
+				msg.SetQuestion(tt.domain, dns.TypeA)
+
+				client := &dns.Client{
+					Net:     tt.protocol,
+					Timeout: 2 * time.Second,
+				}
+
+				addr := fmt.Sprintf("127.0.0.1:%d", tt.port)
+				resp, _, err = client.Exchange(msg, addr)
+				require.NoError(t, err, "DNS exchange failed")
 			}
 
-			addr := fmt.Sprintf("127.0.0.1:%d", tt.port)
-			resp, _, err = client.Exchange(msg, addr)
-
-			require.NoError(t, err, "DNS exchange failed")
 			require.NotNil(t, resp, "DNS response is nil")
 
 			if tt.expectBlocked {
