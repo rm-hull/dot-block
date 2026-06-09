@@ -176,7 +176,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 				}
 
 				require.NoError(t, httpErr, "HTTP request failed")
-				defer httpResp.Body.Close()
+				defer func() { _ = httpResp.Body.Close() }()
 				require.Equal(t, http.StatusOK, httpResp.StatusCode)
 
 				body, err := io.ReadAll(httpResp.Body)
