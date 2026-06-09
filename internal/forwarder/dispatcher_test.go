@@ -384,7 +384,8 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamNXDOMAIN_NoLogError(t *testing.T
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
 	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
@@ -416,7 +417,8 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamNOTIMP_NoLogError(t *testing.T) 
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
 	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
@@ -448,7 +450,8 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamSERVFAIL_LogError(t *testing.T) 
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
 	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
@@ -650,7 +653,10 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 				_ = w.WriteMsg(m)
 				close(done)
 			})
-			defer server.Shutdown()
+			defer func() {
+				err := server.Shutdown()
+				assert.NoError(t, err)
+			}()
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
