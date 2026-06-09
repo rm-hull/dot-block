@@ -5,8 +5,8 @@
     "name": "a039bfc8-0cb5-4e7c-8043-367b69df33e1",
     "namespace": "default",
     "uid": "oYO54DV0Uu4cEJGbXLDoV7fmgiBXDk5OyweM0uWA3akX",
-    "resourceVersion": "1780253169172990",
-    "generation": 22,
+    "resourceVersion": "1781039819853007",
+    "generation": 32,
     "creationTimestamp": "2025-12-28T23:44:02Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "6"
@@ -14,9 +14,9 @@
     "annotations": {
       "grafana.app/createdBy": "user:ef8i63jnry77ka",
       "grafana.app/folder": "",
-      "grafana.app/saved-from-ui": "Grafana v13.0.1+security-01 (9bbe672d)",
+      "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:ef8i63jnry77ka",
-      "grafana.app/updatedTimestamp": "2026-05-31T18:46:09Z"
+      "grafana.app/updatedTimestamp": "2026-06-09T21:16:59Z"
     }
   },
   "spec": {
@@ -95,7 +95,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "piechart",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "displayLabels": [
@@ -180,7 +180,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -267,7 +267,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -346,7 +346,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -355,7 +355,6 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
                     "max"
                   ],
                   "displayMode": "table",
@@ -428,7 +427,7 @@
         "kind": "Panel",
         "spec": {
           "id": 13,
-          "title": "Current Average Latency by Upstream",
+          "title": "Average Upstream Latency",
           "description": "",
           "links": [],
           "data": {
@@ -464,7 +463,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "bargauge",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "displayMode": "gradient",
@@ -561,7 +560,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "bargauge",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "displayMode": "gradient",
@@ -596,7 +595,282 @@
                     "steps": [
                       {
                         "value": 0,
+                        "color": "blue"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-16": {
+        "kind": "Panel",
+        "spec": {
+          "id": 16,
+          "title": "Country Usage",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBFA97CFB590B2093"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "increase(dns_country_count[1h])",
+                        "legendFormat": "__auto",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "labelsToFields",
+                  "spec": {
+                    "options": {
+                      "keepLabels": [
+                        "iso_code"
+                      ],
+                      "mode": "columns",
+                      "valueLabel": "iso_code"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "reduce",
+                  "spec": {
+                    "options": {
+                      "labelsToFields": true,
+                      "reducers": [
+                        "last"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "organize",
+                  "spec": {
+                    "options": {}
+                  }
+                }
+              ],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "geomap",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "basemap": {
+                  "config": {},
+                  "name": "Layer 0",
+                  "noRepeat": false,
+                  "type": "default"
+                },
+                "controls": {
+                  "mouseWheelZoom": false,
+                  "showAttribution": false,
+                  "showDebug": false,
+                  "showMeasure": false,
+                  "showScale": false,
+                  "showZoom": false
+                },
+                "layers": [
+                  {
+                    "config": {
+                      "showLegend": false,
+                      "style": {
+                        "color": {
+                          "fixed": "dark-green"
+                        },
+                        "opacity": 0.7,
+                        "rotation": {
+                          "fixed": 0,
+                          "max": 360,
+                          "min": -360,
+                          "mode": "mod"
+                        },
+                        "size": {
+                          "field": "Last",
+                          "fixed": 5,
+                          "max": 15,
+                          "min": 2
+                        },
+                        "symbol": {
+                          "fixed": "img/icons/marker/circle.svg",
+                          "mode": "fixed"
+                        },
+                        "symbolAlign": {
+                          "horizontal": "center",
+                          "vertical": "center"
+                        },
+                        "textConfig": {
+                          "fontSize": 12,
+                          "offsetX": 0,
+                          "offsetY": 0,
+                          "textAlign": "center",
+                          "textBaseline": "middle"
+                        }
+                      }
+                    },
+                    "location": {
+                      "lookup": "Field",
+                      "mode": "lookup"
+                    },
+                    "name": "Layer 1",
+                    "tooltip": true,
+                    "type": "markers"
+                  }
+                ],
+                "tooltip": {
+                  "mode": "details"
+                },
+                "view": {
+                  "allLayers": true,
+                  "dashboardVariable": false,
+                  "id": "coords",
+                  "lat": 49.622369,
+                  "lon": -13.680797,
+                  "noRepeat": false,
+                  "zoom": 2.4
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
                         "color": "green"
+                      },
+                      {
+                        "value": 80,
+                        "color": "red"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "thresholds"
+                  },
+                  "custom": {
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-17": {
+        "kind": "Panel",
+        "spec": {
+          "id": 17,
+          "title": "Upstream Errors",
+          "description": "",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "PBFA97CFB590B2093"
+                      },
+                      "spec": {
+                        "editorMode": "builder",
+                        "expr": "dns_upstream_failures_total",
+                        "legendFormat": "__auto",
+                        "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "bargauge",
+            "version": "13.0.2",
+            "spec": {
+              "options": {
+                "displayMode": "gradient",
+                "legend": {
+                  "calcs": [],
+                  "displayMode": "list",
+                  "placement": "bottom",
+                  "showLegend": false
+                },
+                "maxVizHeight": 50,
+                "minVizHeight": 0,
+                "minVizWidth": 8,
+                "namePlacement": "auto",
+                "orientation": "auto",
+                "reduceOptions": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "fields": "",
+                  "values": false
+                },
+                "showUnfilled": true,
+                "sizing": "auto",
+                "valueMode": "color"
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "none",
+                  "min": 0,
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "orange"
+                      },
+                      {
+                        "value": 5,
+                        "color": "red"
                       }
                     ]
                   },
@@ -646,7 +920,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -750,7 +1024,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "piechart",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "displayLabels": [
@@ -868,7 +1142,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -972,7 +1246,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -1182,7 +1456,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -1324,7 +1598,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -1454,7 +1728,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "timeseries",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "annotations": {
@@ -1569,7 +1843,7 @@
           "vizConfig": {
             "kind": "VizConfig",
             "group": "stat",
-            "version": "13.0.1+security-01",
+            "version": "13.0.2",
             "spec": {
               "options": {
                 "colorMode": "value",
@@ -1761,7 +2035,7 @@
             "spec": {
               "x": 0,
               "y": 32,
-              "width": 12,
+              "width": 9,
               "height": 8,
               "element": {
                 "kind": "ElementReference",
@@ -1772,9 +2046,9 @@
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 12,
+              "x": 9,
               "y": 32,
-              "width": 6,
+              "width": 5,
               "height": 8,
               "element": {
                 "kind": "ElementReference",
@@ -1785,13 +2059,39 @@
           {
             "kind": "GridLayoutItem",
             "spec": {
-              "x": 18,
+              "x": 14,
               "y": 32,
-              "width": 6,
+              "width": 5,
               "height": 8,
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-13"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 19,
+              "y": 32,
+              "width": 5,
+              "height": 8,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-17"
+              }
+            }
+          },
+          {
+            "kind": "GridLayoutItem",
+            "spec": {
+              "x": 0,
+              "y": 40,
+              "width": 24,
+              "height": 17,
+              "element": {
+                "kind": "ElementReference",
+                "name": "panel-16"
               }
             }
           }
