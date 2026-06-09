@@ -7,6 +7,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 - **DNS Logic:** Managed by `DNSDispatcher`.
 - **DNS Server:** UDP/TCP (configurable port).
 - **DoT Server:** TLS-encrypted (port 853), uses `miekg/dns`.
+- **DoH Endpoint:** HTTP path `/dns-query` (implemented in `internal/routes/doh.go`) provides a DNS-over-HTTPS handler that accepts `GET /dns-query?dns=<base64url>` and `POST /dns-query` with raw DNS wire format, returning `application/dns-message` responses.
 - **HTTP Server:** `gin-gonic/gin`, handles ACME http-01 challenges.
 - **CLI:** `cobra`.
 - **Observability:** Sentry (errors), Prometheus (metrics).
