@@ -70,7 +70,7 @@ func (nf *NoiseFilter) LoadFromFile(path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	return nf.Load(f)
 }

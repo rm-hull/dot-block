@@ -38,7 +38,7 @@ func Fetch(url string, nf *NoiseFilter, logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		if err := nf.Load(f); err != nil {
 			return err
