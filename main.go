@@ -110,6 +110,7 @@ func main() {
 	rootCmd.Flags().DurationVar(&app.Timeouts.Dial, "dial-timeout", 300*time.Millisecond, "Timeout for establishing connections to upstream servers")
 	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
 	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")
+	rootCmd.Flags().BoolVar(&app.EnableECS, "enable-ecs", false, "Enable EDNS0 Client Subnet (ECS) steering")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)

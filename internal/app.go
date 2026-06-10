@@ -62,6 +62,7 @@ type App struct {
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
 	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
+	EnableECS            bool          `json:"enable_ecs"`
 	Timeouts             struct {
 		Read  time.Duration `json:"read"`
 		Write time.Duration `json:"write"`
@@ -208,7 +209,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, app.CacheTtlFloor, app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}

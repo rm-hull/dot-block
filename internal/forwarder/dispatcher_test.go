@@ -77,7 +77,7 @@ func (m *MockResponseWriter) TsigTimersOnly(b bool) {
 func (m *MockResponseWriter) Hijack() {
 }
 
-func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
+func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, enableECS bool) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
 	t.Helper()
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -94,7 +94,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger) (*D
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger, enableECS)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -130,7 +130,7 @@ func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -170,7 +170,7 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -197,7 +197,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
@@ -227,7 +227,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.Question = []dns.Question{
@@ -269,7 +269,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
@@ -287,7 +287,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	writer.On("WriteMsg", mock.Anything).Return(nil)
 
 	// Ensure the cache item is actually retrievable
-	cacheKey := getCacheKey(&req.Question[0])
+	cacheKey := getCacheKey(&req.Question[0], "")
 	assert.Eventually(t, func() bool {
 		_, ok := dispatcher.cache.Get(cacheKey)
 		return ok // Wait until Get actually finds the item
@@ -312,7 +312,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("google.com.", dns.TypeA)
@@ -341,7 +341,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, -1*time.Second, logger)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, -1*time.Second, logger, false)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -358,7 +358,7 @@ func TestDNSDispatcher_HandleDNSRequest_DNSSD_NXDOMAIN(t *testing.T) {
 		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("db._dns-sd._udp.0.68.168.192.in-addr.arpa.", dns.TypePTR)
@@ -384,10 +384,11 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamNXDOMAIN_NoLogError(t *testing.T
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("nonexistent.example.com.", dns.TypeA)
@@ -416,10 +417,11 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamNOTIMP_NoLogError(t *testing.T) 
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("notimp.example.com.", dns.TypeA)
@@ -448,10 +450,11 @@ func TestDNSDispatcher_HandleDNSRequest_UpstreamSERVFAIL_LogError(t *testing.T) 
 		_ = w.WriteMsg(m)
 	})
 	defer func() {
-		_ = server.Shutdown()
+		err := server.Shutdown()
+		assert.NoError(t, err)
 	}()
 
-	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger)
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, logger, false)
 
 	req := new(dns.Msg)
 	req.SetQuestion("error.example.com.", dns.TypeA)
@@ -559,7 +562,7 @@ func deadline(t *testing.T, timeout time.Duration) time.Time {
 }
 
 func TestDNSDispatcher_ReservedTLDs(t *testing.T) {
-	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53", nil)
+	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53", nil, false)
 
 	tests := []struct {
 		name     string
@@ -597,4 +600,151 @@ func TestDNSDispatcher_ReservedTLDs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDNSDispatcher_ECS_Injection(t *testing.T) {
+	tests := []struct {
+		name       string
+		enableECS  bool
+		clientIP   string
+		expectECS  bool
+		expectFam  uint16
+		expectMask uint8
+	}{
+		{
+			name:       "IPv4 Enabled",
+			enableECS:  true,
+			clientIP:   "1.2.3.4",
+			expectECS:  true,
+			expectFam:  1,
+			expectMask: 24,
+		},
+		{
+			name:      "IPv4 Disabled",
+			enableECS: false,
+			clientIP:  "1.2.3.4",
+			expectECS: false,
+		},
+		{
+			name:       "IPv6 Enabled",
+			enableECS:  true,
+			clientIP:   "2001:db8::1",
+			expectECS:  true,
+			expectFam:  2,
+			expectMask: 48,
+		},
+		{
+			name:      "Unknown IP",
+			enableECS: true,
+			clientIP:  "unknown",
+			expectECS: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedReq *dns.Msg
+			done := make(chan struct{})
+			server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+				capturedReq = r.Copy()
+				m := new(dns.Msg)
+				m.SetReply(r)
+				m.SetRcode(r, dns.RcodeSuccess)
+				_ = w.WriteMsg(m)
+				close(done)
+			})
+			defer func() {
+				err := server.Shutdown()
+				assert.NoError(t, err)
+			}()
+
+			// Setup dispatcher with the specific enableECS setting
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			blockList := blocklist.NewBlockList([]string{}, 0.0001, logger)
+			cache := NewDNSCache(100, logger)
+			mockGeo := new(MockGeoIpLookup)
+			mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo)
+			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
+
+			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, blockList, 1*time.Minute, logger, tt.enableECS)
+			defer dispatcher.Close()
+
+			// Mock ResponseWriter with the specific client IP
+			writer := &mockIPResponseWriter{
+				ip:   tt.clientIP,
+				port: 12345,
+				Mock: mock.Mock{},
+			}
+			writer.On("WriteMsg", mock.Anything).Return(nil)
+
+			req := new(dns.Msg)
+			req.SetQuestion("example.com.", dns.TypeA)
+
+			dispatcher.HandleDNSRequest("test")(writer, req)
+
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				t.Fatal("timed out waiting for upstream server to receive request")
+			}
+
+			require.NotNil(t, capturedReq)
+
+			foundECS := false
+			for _, rr := range capturedReq.Extra {
+				if opt, ok := rr.(*dns.OPT); ok {
+					for _, o := range opt.Option {
+						if ecs, ok := o.(*dns.EDNS0_SUBNET); ok {
+							foundECS = true
+							assert.Equal(t, tt.expectFam, ecs.Family)
+							assert.Equal(t, tt.expectMask, ecs.SourceNetmask)
+						}
+					}
+				}
+			}
+
+			assert.Equal(t, tt.expectECS, foundECS, "ECS option presence mismatch")
+		})
+	}
+}
+
+type mockIPResponseWriter struct {
+	ip   string
+	port int
+	mock.Mock
+}
+
+func (m *mockIPResponseWriter) LocalAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP("127.0.0.1"), Port: 8080}
+}
+
+func (m *mockIPResponseWriter) RemoteAddr() net.Addr {
+	return &net.TCPAddr{IP: net.ParseIP(m.ip), Port: m.port}
+}
+
+func (m *mockIPResponseWriter) WriteMsg(msg *dns.Msg) error {
+	args := m.Called(msg)
+	return args.Error(0)
+}
+
+func (m *mockIPResponseWriter) Write(b []byte) (int, error) {
+	return len(b), nil
+}
+
+func (m *mockIPResponseWriter) Close() error {
+	return nil
+
+}
+
+func (m *mockIPResponseWriter) TsigStatus() error {
+	return nil
+}
+
+func (m *mockIPResponseWriter) TsigTimersOnly(b bool) {
+
+}
+
+func (m *mockIPResponseWriter) Hijack() {
+
 }
