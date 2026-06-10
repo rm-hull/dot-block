@@ -1,0 +1,4 @@
+category,rcode,domain_suffix
+upstream,REFUSED,akadns.net
+upstream,REFUSED,akamaiedge.net
+upstream,REFUSED,akamai.net

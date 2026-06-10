@@ -2,6 +2,7 @@ package forwarder
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/metrics"
+	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/rm-hull/dot-block/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -47,16 +49,17 @@ type RequestContext struct {
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
 
 type DNSDispatcher struct {
-	dnsClient  *RoundRobinClient
-	defaultTTL float64
-	ttlFloor   time.Duration
-	cache      *DNSCache
-	blockList  *blocklist.BlockList
-	metrics    *metrics.DnsMetrics
-	logger     *slog.Logger
-	enableECS  bool
-	snapshotCh chan *metrics.RequestSnapshot
-	done       chan struct{}
+	dnsClient   *RoundRobinClient
+	defaultTTL  float64
+	ttlFloor    time.Duration
+	cache       *DNSCache
+	blockList   *blocklist.BlockList
+	metrics     *metrics.DnsMetrics
+	logger      *slog.Logger
+	noiseFilter *noisefilter.NoiseFilter
+	enableECS   bool
+	snapshotCh  chan *metrics.RequestSnapshot
+	done        chan struct{}
 }
 
 func NewDNSDispatcher(
@@ -64,6 +67,7 @@ func NewDNSDispatcher(
 	dnsMetrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
+	noiseFilter *noisefilter.NoiseFilter,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
 	enableECS bool,
@@ -74,16 +78,17 @@ func NewDNSDispatcher(
 	}
 
 	d := &DNSDispatcher{
-		dnsClient:  dnsClient,
-		defaultTTL: 300, // TODO: pass in
-		ttlFloor:   ttlFloor,
-		cache:      cache,
-		blockList:  blockList,
-		metrics:    dnsMetrics,
-		logger:     logger,
-		enableECS:  enableECS,
-		snapshotCh: make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
-		done:       make(chan struct{}),
+		dnsClient:   dnsClient,
+		defaultTTL:  300, // TODO: pass in
+		ttlFloor:    ttlFloor,
+		cache:       cache,
+		blockList:   blockList,
+		metrics:     dnsMetrics,
+		logger:      logger,
+		noiseFilter: noiseFilter,
+		enableECS:   enableECS,
+		snapshotCh:  make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
+		done:        make(chan struct{}),
 	}
 
 	for range NUM_WORKERS {
@@ -176,7 +181,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			rcode, answers, err := d.resolveUpstream(requestCtx, unansweredQuestions, req)
 			if err != nil {
 				resp.Rcode = rcode
-				d.reportError(requestCtx, "upstream", err, "qtype", getQueryType(&unansweredQuestions[0]))
+				d.reportError(requestCtx, "upstream", err, unansweredQuestions[0].Name, "qtype", getQueryType(&unansweredQuestions[0]))
 				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
@@ -225,7 +230,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		d.reportError(requestCtx, "blocklist", err, "qtype", queryType)
+		d.reportError(requestCtx, "blocklist", err, q.Name, "qtype", queryType)
 		return nil, dns.RcodeServerFailure, err
 	}
 
@@ -453,8 +458,26 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 	return false
 }
 
-func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory string, err error, additionalFields ...any) {
+func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory string, err error, domain string, additionalFields ...any) {
+	if d.noiseFilter != nil {
+		rcodeStr := ""
+		var rcodeErr *RcodeError
+		if errors.As(err, &rcodeErr) {
+			rcodeStr = dns.RcodeToString[rcodeErr.Rcode]
+		}
+
+		if d.noiseFilter.ShouldSuppress(errorCategory, rcodeStr, domain) {
+			requestCtx.snapshot.SetErrorCategory(errorCategory)
+			return
+		}
+	}
+
 	if ShouldLog(err) {
+		// Ensure args are in key-value pairs for slog
+		if len(additionalFields)%2 != 0 {
+			panic(fmt.Sprintf("additionalFields must be in key-value pairs: %v", additionalFields))
+		}
+
 		args := append(additionalFields,
 			"category", errorCategory,
 			"error", err,
@@ -490,7 +513,7 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
 	ctx.snapshot.SetRcode(dns.RcodeToString[msg.Rcode])
 	if err := writer.WriteMsg(msg); err != nil {
-		d.reportError(ctx, "response", err)
+		d.reportError(ctx, "response", err, "")
 		return
 	}
 }

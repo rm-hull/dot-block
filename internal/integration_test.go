@@ -28,6 +28,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		Upstreams:          []string{"8.8.8.8", "1.1.1.1"},
 		BlockListURLs:      []string{"file://../data/blocklist.txt"},
 		AllowedHosts:       []string{"example.com"},
+		NoiseFilterURL:     "file://../data/noise-filter.csv",
 		DataDir:            "../data",
 		DisableIp2Location: true,
 		MaxCacheSize:       1000,

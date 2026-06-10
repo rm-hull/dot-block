@@ -30,6 +30,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
+	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/rm-hull/dot-block/internal/routes"
 	"github.com/rm-hull/dot-block/internal/telemetry"
 	"github.com/rm-hull/godx"
@@ -51,6 +52,7 @@ type App struct {
 	Upstreams          []string     `json:"upstreams"`
 	BlockListURLs      []string     `json:"blocklist_urls"`
 	AllowedHosts       []string     `json:"allowed_hosts"`
+	NoiseFilterURL     string       `json:"noise_filter_url"`
 	MetricsAuth        string       `json:"-"`
 	MaxCacheSize       int          `json:"max_cache_size"`
 	DisableIp2Location bool         `json:"disable_ip2location"`
@@ -170,6 +172,17 @@ func (app *App) RunServer(ctx context.Context) error {
 	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklistUpdater); err != nil {
 		return errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
+
+	noiseFilter := noisefilter.NewNoiseFilter()
+	if err := noisefilter.Fetch(app.NoiseFilterURL, noiseFilter, app.Logger); err != nil {
+		app.Logger.Error("failed to download noise filter", "url", app.NoiseFilterURL, "error", err)
+	}
+
+	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.CronSchedule.Downloader)
+	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.NoiseFilterURL, app.Logger)
+	if _, err = crontab.AddJob(app.CronSchedule.Downloader, noiseFilterUpdater); err != nil {
+		return errors.Wrap(err, "failed to create noise filter downloader cron job")
+	}
 	certCacheDir := fmt.Sprintf("%s/certcache", app.DataDir)
 	if err := os.MkdirAll(certCacheDir, 0700); err != nil {
 		return errors.Wrap(err, "failed to create certcache directory")
@@ -209,7 +222,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, app.CacheTtlFloor, app.Logger, app.EnableECS)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
