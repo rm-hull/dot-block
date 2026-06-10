@@ -92,6 +92,7 @@ func main() {
 
 	rootCmd.Flags().StringVar(&app.LogLevel, "log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	rootCmd.Flags().StringSliceVar(&app.BlockListURLs, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
+	rootCmd.Flags().StringSliceVar(&app.NoiseFilterURLs, "noise-filter-url", nil, "URL of noise filter list (CSV format: category,rcode,domain_suffix)")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 0, "The port to run regular DNS (UDP/TCP) server on")
