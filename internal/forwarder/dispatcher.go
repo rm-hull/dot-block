@@ -2,6 +2,7 @@ package forwarder
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"strings"
@@ -472,15 +473,15 @@ func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory st
 	}
 
 	if ShouldLog(err) {
+		// Ensure args are in key-value pairs for slog
+		if len(additionalFields)%2 != 0 {
+			panic(fmt.Sprintf("additionalFields must be in key-value pairs: %v", additionalFields))
+		}
+
 		args := append(additionalFields,
 			"category", errorCategory,
 			"error", err,
 			"latency", requestCtx.snapshot.Latency().String())
-
-		// Ensure args are in key-value pairs for slog
-		if len(args)%2 != 0 {
-			args = append(args, "unbalanced_args")
-		}
 
 		requestCtx.logger.ErrorContext(requestCtx.ctx, "DNS error", args...)
 	}
@@ -512,7 +513,7 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
 	ctx.snapshot.SetRcode(dns.RcodeToString[msg.Rcode])
 	if err := writer.WriteMsg(msg); err != nil {
-		d.reportError(ctx, "response", err, "", "")
+		d.reportError(ctx, "response", err, "")
 		return
 	}
 }
