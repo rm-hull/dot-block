@@ -67,8 +67,8 @@ func TestNoiseFilter_ShouldSuppress(t *testing.T) {
 			expectSuppress: false,
 		},
 		{
-			name: "Empty filter - should NOT suppress",
-			triplets: []Triplet{},
+			name:           "Empty filter - should NOT suppress",
+			triplets:       []Triplet{},
 			category:       "upstream",
 			rcode:          "REFUSED",
 			domain:         "test.akadns.net",
@@ -79,8 +79,23 @@ func TestNoiseFilter_ShouldSuppress(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			nf := NewNoiseFilter()
+
+			// Normalize triplets as Load would
+			normalizedTriplets := make([]Triplet, 0, len(tt.triplets))
+			for _, tr := range tt.triplets {
+				suffix := tr.DomainSuffix
+				if suffix != "" && !strings.HasSuffix(suffix, ".") {
+					suffix += "."
+				}
+				normalizedTriplets = append(normalizedTriplets, Triplet{
+					Category:     strings.ToUpper(tr.Category),
+					Rcode:        strings.ToUpper(tr.Rcode),
+					DomainSuffix: suffix,
+				})
+			}
+
 			nf.mu.Lock()
-			nf.triplets = tt.triplets
+			nf.triplets = normalizedTriplets
 			nf.mu.Unlock()
 
 			assert.Equal(t, tt.expectSuppress, nf.ShouldSuppress(tt.category, tt.rcode, tt.domain))

@@ -23,6 +23,7 @@ func NewNoiseFilterUpdater(nf *NoiseFilter, urls []string, logger *slog.Logger) 
 }
 
 func (job *NoiseFilterUpdater) Run() {
+	job.NoiseFilter.Reset()
 	for _, url := range job.URLs {
 		err := Fetch(url, job.NoiseFilter, job.Logger)
 		if err != nil {

@@ -48,17 +48,17 @@ type RequestContext struct {
 type DispatcherFunc func(writer dns.ResponseWriter, req *dns.Msg)
 
 type DNSDispatcher struct {
-	dnsClient  *RoundRobinClient
-	defaultTTL float64
-	ttlFloor   time.Duration
-	cache      *DNSCache
-	blockList  *blocklist.BlockList
-	metrics    *metrics.DnsMetrics
-	logger     *slog.Logger
+	dnsClient   *RoundRobinClient
+	defaultTTL  float64
+	ttlFloor    time.Duration
+	cache       *DNSCache
+	blockList   *blocklist.BlockList
+	metrics     *metrics.DnsMetrics
+	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
-	enableECS  bool
-	snapshotCh chan *metrics.RequestSnapshot
-	done       chan struct{}
+	enableECS   bool
+	snapshotCh  chan *metrics.RequestSnapshot
+	done        chan struct{}
 }
 
 func NewDNSDispatcher(
@@ -77,17 +77,17 @@ func NewDNSDispatcher(
 	}
 
 	d := &DNSDispatcher{
-		dnsClient:  dnsClient,
-		defaultTTL: 300, // TODO: pass in
-		ttlFloor:   ttlFloor,
-		cache:      cache,
-		blockList:  blockList,
-		metrics:    dnsMetrics,
-		logger:     logger,
+		dnsClient:   dnsClient,
+		defaultTTL:  300, // TODO: pass in
+		ttlFloor:    ttlFloor,
+		cache:       cache,
+		blockList:   blockList,
+		metrics:     dnsMetrics,
+		logger:      logger,
 		noiseFilter: noiseFilter,
-		enableECS:  enableECS,
-		snapshotCh: make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
-		done:       make(chan struct{}),
+		enableECS:   enableECS,
+		snapshotCh:  make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
+		done:        make(chan struct{}),
 	}
 
 	for range NUM_WORKERS {
@@ -476,6 +476,11 @@ func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory st
 			"category", errorCategory,
 			"error", err,
 			"latency", requestCtx.snapshot.Latency().String())
+
+		// Ensure args are in key-value pairs for slog
+		if len(args)%2 != 0 {
+			args = append(args, "unbalanced_args")
+		}
 
 		requestCtx.logger.ErrorContext(requestCtx.ctx, "DNS error", args...)
 	}

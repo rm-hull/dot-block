@@ -26,18 +26,34 @@ func NewNoiseFilter() *NoiseFilter {
 	}
 }
 
+func (nf *NoiseFilter) Reset() {
+	nf.mu.Lock()
+	defer nf.mu.Unlock()
+	nf.triplets = make([]Triplet, 0)
+}
+
 func (nf *NoiseFilter) Load(reader io.Reader) error {
 	csvReader := csv.NewReader(reader)
-	
-	// Skip header
-	if _, err := csvReader.Read(); err != nil {
+
+	// Detect and skip header
+	firstRecord, err := csvReader.Read()
+	if err != nil {
 		if err == io.EOF {
 			return nil
 		}
-		return fmt.Errorf("failed to read CSV header: %w", err)
+		return fmt.Errorf("failed to read CSV: %w", err)
 	}
 
-	var newTriplets []Triplet
+	// Simple header detection: if the first column is "category", it's a header
+	if len(firstRecord) > 0 && strings.ToLower(strings.TrimSpace(firstRecord[0])) == "category" {
+		// It's a header, we already read it, so we just continue
+	} else {
+		// Not a header, we need to process this first record as a rule
+		nf.mu.Lock()
+		nf.appendTriplet(firstRecord)
+		nf.mu.Unlock()
+	}
+
 	for {
 		record, err := csvReader.Read()
 		if err == io.EOF {
@@ -51,18 +67,25 @@ func (nf *NoiseFilter) Load(reader io.Reader) error {
 			continue // Skip malformed lines
 		}
 
-		newTriplets = append(newTriplets, Triplet{
-			Category:     strings.TrimSpace(record[0]),
-			Rcode:        strings.TrimSpace(record[1]),
-			DomainSuffix: strings.TrimSpace(record[2]),
-		})
+		nf.mu.Lock()
+		nf.appendTriplet(record)
+		nf.mu.Unlock()
 	}
 
-	nf.mu.Lock()
-	nf.triplets = newTriplets
-	nf.mu.Unlock()
-
 	return nil
+}
+
+func (nf *NoiseFilter) appendTriplet(record []string) {
+	suffix := strings.TrimSpace(record[2])
+	if suffix != "" && !strings.HasSuffix(suffix, ".") {
+		suffix += "."
+	}
+
+	nf.triplets = append(nf.triplets, Triplet{
+		Category:     strings.ToUpper(strings.TrimSpace(record[0])),
+		Rcode:        strings.ToUpper(strings.TrimSpace(record[1])),
+		DomainSuffix: suffix,
+	})
 }
 
 func (nf *NoiseFilter) LoadFromFile(path string) error {
@@ -76,12 +99,21 @@ func (nf *NoiseFilter) LoadFromFile(path string) error {
 }
 
 func (nf *NoiseFilter) ShouldSuppress(category, rcode, domain string) bool {
+	if !strings.HasSuffix(domain, ".") {
+		domain += "."
+	}
+
+	category = strings.ToUpper(category)
+	rcode = strings.ToUpper(rcode)
+
 	nf.mu.RLock()
 	defer nf.mu.RUnlock()
 
 	for _, t := range nf.triplets {
-		if t.Category == category && t.Rcode == rcode && strings.HasSuffix(domain, t.DomainSuffix) {
-			return true
+		if t.Category == category && t.Rcode == rcode {
+			if domain == t.DomainSuffix || strings.HasSuffix(domain, "."+t.DomainSuffix) {
+				return true
+			}
 		}
 	}
 
