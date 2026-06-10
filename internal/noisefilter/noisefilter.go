@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"sync"
 )
@@ -36,7 +35,7 @@ func (nf *NoiseFilter) Load(reader io.Reader) error {
 	csvReader := csv.NewReader(reader)
 
 	// Detect and skip header
-	firstRecord, err := csvReader.Read()
+	_, err := csvReader.Read()
 	if err != nil {
 		if err == io.EOF {
 			return nil
@@ -44,15 +43,8 @@ func (nf *NoiseFilter) Load(reader io.Reader) error {
 		return fmt.Errorf("failed to read CSV: %w", err)
 	}
 
-	// Simple header detection: if the first column is "category", it's a header
-	if len(firstRecord) > 0 && strings.ToLower(strings.TrimSpace(firstRecord[0])) == "category" {
-		// It's a header, we already read it, so we just continue
-	} else {
-		// Not a header, we need to process this first record as a rule
-		nf.mu.Lock()
-		nf.appendTriplet(firstRecord)
-		nf.mu.Unlock()
-	}
+	nf.mu.Lock()
+	defer nf.mu.Unlock()
 
 	for {
 		record, err := csvReader.Read()
@@ -67,9 +59,7 @@ func (nf *NoiseFilter) Load(reader io.Reader) error {
 			continue // Skip malformed lines
 		}
 
-		nf.mu.Lock()
 		nf.appendTriplet(record)
-		nf.mu.Unlock()
 	}
 
 	return nil
@@ -86,16 +76,6 @@ func (nf *NoiseFilter) appendTriplet(record []string) {
 		Rcode:        strings.ToUpper(strings.TrimSpace(record[1])),
 		DomainSuffix: suffix,
 	})
-}
-
-func (nf *NoiseFilter) LoadFromFile(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = f.Close() }()
-
-	return nf.Load(f)
 }
 
 func (nf *NoiseFilter) ShouldSuppress(category, rcode, domain string) bool {

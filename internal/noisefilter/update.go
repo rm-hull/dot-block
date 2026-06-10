@@ -10,26 +10,23 @@ import (
 
 type NoiseFilterUpdater struct {
 	NoiseFilter *NoiseFilter
-	URLs        []string
+	URL         string
 	Logger      *slog.Logger
 }
 
-func NewNoiseFilterUpdater(nf *NoiseFilter, urls []string, logger *slog.Logger) *NoiseFilterUpdater {
+func NewNoiseFilterUpdater(nf *NoiseFilter, url string, logger *slog.Logger) *NoiseFilterUpdater {
 	return &NoiseFilterUpdater{
 		NoiseFilter: nf,
-		URLs:        urls,
+		URL:         url,
 		Logger:      logger,
 	}
 }
 
 func (job *NoiseFilterUpdater) Run() {
 	job.NoiseFilter.Reset()
-	for _, url := range job.URLs {
-		err := Fetch(url, job.NoiseFilter, job.Logger)
-		if err != nil {
-			job.Logger.Error("failed to download noise filter for cron reload", "error", err, "url", url)
-			continue
-		}
+	err := Fetch(job.URL, job.NoiseFilter, job.Logger)
+	if err != nil {
+		job.Logger.Error("failed to download noise filter for cron reload", "error", err, "url", job.URL)
 	}
 }
 
@@ -49,7 +46,7 @@ func Fetch(url string, nf *NoiseFilter, logger *slog.Logger) error {
 	})
 
 	if err == nil {
-		logger.Info("Noise filter loaded successfully")
+		logger.Info("Noise filter loaded successfully", "count", len(nf.triplets))
 	}
 	return err
 }

@@ -51,8 +51,8 @@ type App struct {
 	DotPort            int          `json:"dot_port"`
 	Upstreams          []string     `json:"upstreams"`
 	BlockListURLs      []string     `json:"blocklist_urls"`
-	NoiseFilterURLs    []string     `json:"noise_filter_urls"`
 	AllowedHosts       []string     `json:"allowed_hosts"`
+	NoiseFilterURL     string       `json:"noise_filter_url"`
 	MetricsAuth        string       `json:"-"`
 	MaxCacheSize       int          `json:"max_cache_size"`
 	DisableIp2Location bool         `json:"disable_ip2location"`
@@ -174,19 +174,12 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 
 	noiseFilter := noisefilter.NewNoiseFilter()
-	noiseFilterPath := fmt.Sprintf("%s/noise-filter.csv", app.DataDir)
-	if err := noiseFilter.LoadFromFile(noiseFilterPath); err != nil {
-		app.Logger.Warn("Could not load noise filter from local file", "path", noiseFilterPath, "error", err)
-	}
-
-	for _, url := range app.NoiseFilterURLs {
-		if err := noisefilter.Fetch(url, noiseFilter, app.Logger); err != nil {
-			app.Logger.Error("failed to download noise filter", "url", url, "error", err)
-		}
+	if err := noisefilter.Fetch(app.NoiseFilterURL, noiseFilter, app.Logger); err != nil {
+		app.Logger.Error("failed to download noise filter", "url", app.NoiseFilterURL, "error", err)
 	}
 
 	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.CronSchedule.Downloader)
-	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.NoiseFilterURLs, app.Logger)
+	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.NoiseFilterURL, app.Logger)
 	if _, err = crontab.AddJob(app.CronSchedule.Downloader, noiseFilterUpdater); err != nil {
 		return errors.Wrap(err, "failed to create noise filter downloader cron job")
 	}

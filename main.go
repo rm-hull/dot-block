@@ -18,6 +18,8 @@ const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
 const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "0 3 * * *" // 3:00am every day
 const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *"  // 7:05am on the 4th of every month
 
+var DEFAULT_NOISE_FILTER_URL = "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
+
 var DEFAULT_BLOCKLIST_URLS = []string{
 	"https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt",       // Hagezi Pro blocklist
 	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt", // dot-block default blocklist
@@ -92,7 +94,7 @@ func main() {
 
 	rootCmd.Flags().StringVar(&app.LogLevel, "log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
 	rootCmd.Flags().StringSliceVar(&app.BlockListURLs, "blocklist-url", DEFAULT_BLOCKLIST_URLS, "URL of blocklist, must be wildcard hostname format")
-	rootCmd.Flags().StringSliceVar(&app.NoiseFilterURLs, "noise-filter-url", nil, "URL of noise filter list (CSV format: category,rcode,domain_suffix)")
+	rootCmd.Flags().StringVar(&app.NoiseFilterURL, "noise-filter-url", DEFAULT_NOISE_FILTER_URL, "URL of noise filter list (CSV format: category,rcode,domain_suffix)")
 	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "./data", "Directory for persisting data (e.g. TLS certificate cache)")
 	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", envDevMode, "Run server in dev mode (no TLS, plain TCP)")
 	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 0, "The port to run regular DNS (UDP/TCP) server on")
