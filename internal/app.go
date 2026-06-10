@@ -76,6 +76,7 @@ type App struct {
 func (app *App) LogValue() slog.Value {
 	return slog.AnyValue(structToMap(app))
 }
+
 func structToMap(obj any) any {
 	v := reflect.ValueOf(obj)
 	if v.Kind() == reflect.Pointer {
@@ -107,6 +108,7 @@ func structToMap(obj any) any {
 	}
 	return m
 }
+
 func (app *App) monitorShutdown(ctx context.Context, name string, shutdownFn func() error) {
 	go func() {
 		<-ctx.Done()
@@ -117,6 +119,7 @@ func (app *App) monitorShutdown(ctx context.Context, name string, shutdownFn fun
 		}
 	}()
 }
+
 func (app *App) RunServer(ctx context.Context) error {
 	if err := godotenv.Load(); err != nil {
 		app.Logger.Warn("No .env file found")
@@ -319,6 +322,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	})
 	return group.Wait()
 }
+
 func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error) {
 	var proxyListener *proxyproto.Listener
 	if len(app.TrustedProxies) > 0 {
@@ -352,6 +356,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 	}
 	return proxyListener, nil
 }
+
 func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater, dispatcher *forwarder.DNSDispatcher) (*gin.Engine, error) {
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
@@ -390,9 +395,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 			app.Logger.Info("Protecting /metrics and /reload endpoints with basic auth")
 			user := parts[0]
 			pass := parts[1]
-			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{
-				user: pass,
-			}))
+			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{user: pass}))
 			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
 			authorized.GET("/reload", blocklistHandler.Reload)
 		} else {
