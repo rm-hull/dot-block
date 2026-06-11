@@ -300,6 +300,51 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 }
 
+func TestDNSDispatcher_HandleDNSRequest_CacheHit_ECS(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("example.com.", dns.TypeA, []byte{93, 184, 216, 34}))
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, true)
+
+	req := new(dns.Msg)
+	req.SetQuestion("example.com.", dns.TypeA)
+
+	writer := &mockIPResponseWriter{
+		ip:   "1.2.3.4",
+		port: 12345,
+		Mock: mock.Mock{},
+	}
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// First request: should be a cache miss and populate the cache
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+
+	// Ensure the cache item is actually retrievable
+	cacheKey := getCacheKey(&req.Question[0], "1.2.3.0")
+	assert.Eventually(t, func() bool {
+		_, ok := dispatcher.cache.Get(cacheKey)
+		return ok // Wait until Get actually finds the item
+	}, 5*time.Second, 50*time.Millisecond, "Cache item not found after first request with ECS")
+
+	// Second request: should be a cache hit
+	writer = &mockIPResponseWriter{
+		ip:   "1.2.3.4",
+		port: 12345,
+		Mock: mock.Mock{},
+	}
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+}
+
 func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
 		m := new(dns.Msg)
@@ -711,8 +756,9 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 }
 
 type mockIPResponseWriter struct {
-	ip   string
-	port int
+	ip          string
+	port        int
+	WrittenMsg  *dns.Msg
 	mock.Mock
 }
 
@@ -725,6 +771,7 @@ func (m *mockIPResponseWriter) RemoteAddr() net.Addr {
 }
 
 func (m *mockIPResponseWriter) WriteMsg(msg *dns.Msg) error {
+	m.WrittenMsg = msg
 	args := m.Called(msg)
 	return args.Error(0)
 }

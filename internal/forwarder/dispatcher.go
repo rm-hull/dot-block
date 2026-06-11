@@ -341,8 +341,9 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 
 	// Process unanswered questions and cache the results
 	for _, q := range unansweredQuestions {
-		key := getCacheKey(&q, requestCtx.subnet)
-		if answersForQuestion, ok := answerMap[key]; ok {
+		cacheKey := getCacheKey(&q, requestCtx.subnet)
+		answerKey := getCacheKey(&q, "")
+		if answersForQuestion, ok := answerMap[answerKey]; ok {
 			upstreamTTL := answersForQuestion[0].Header().Ttl
 			effectiveTTL := time.Duration(upstreamTTL) * time.Second
 
@@ -350,7 +351,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 				effectiveTTL = d.ttlFloor
 			}
 
-			d.cache.Set(key, answersForQuestion, effectiveTTL)
+			d.cache.Set(cacheKey, answersForQuestion, effectiveTTL)
 			requestCtx.snapshot.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
