@@ -22,8 +22,6 @@ type RequestSnapshot struct {
 	upstreamTTLs    []upstreamTTLInfo
 	errorCategory   string
 	forwarded       bool
-	upstream        string
-	upstreamLatency float64
 	requestLatency  float64
 	rcode           string
 }
@@ -73,10 +71,7 @@ func (t *RequestSnapshot) Forwarded() {
 	t.forwarded = true
 }
 
-func (t *RequestSnapshot) SetUpstream(upstream string, latency float64) {
-	t.upstream = upstream
-	t.upstreamLatency = latency
-}
+// SetUpstream is no longer needed as latency is recorded directly by the client.
 
 func (t *RequestSnapshot) SetRcode(rcode string) {
 	t.rcode = rcode
@@ -119,9 +114,6 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	}
 	for _, upstreamTTL := range t.upstreamTTLs {
 		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.queryType).Observe(upstreamTTL.ttl)
-	}
-	if t.upstream != "" {
-		metrics.UpstreamLatency.WithLabelValues(t.upstream).Observe(t.upstreamLatency)
 	}
 	if t.rcode != "" {
 		metrics.ReplyCounts.WithLabelValues(t.rcode).Inc()
