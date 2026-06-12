@@ -13,17 +13,17 @@ type upstreamTTLInfo struct {
 }
 
 type RequestSnapshot struct {
-	source          string
-	ipAddr          string
-	startTime       time.Time
-	blockedDomains  []string
-	domains         []string
-	queryCounts     []queryCountInfo
-	upstreamTTLs    []upstreamTTLInfo
-	errorCategory   string
-	forwarded       bool
-	requestLatency  float64
-	rcode           string
+	source         string
+	ipAddr         string
+	startTime      time.Time
+	blockedDomains []string
+	domains        []string
+	queryCounts    []queryCountInfo
+	upstreamTTLs   []upstreamTTLInfo
+	errorCategory  string
+	forwarded      bool
+	requestLatency float64
+	rcode          string
 }
 
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
