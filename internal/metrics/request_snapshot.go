@@ -13,19 +13,17 @@ type upstreamTTLInfo struct {
 }
 
 type RequestSnapshot struct {
-	source          string
-	ipAddr          string
-	startTime       time.Time
-	blockedDomains  []string
-	domains         []string
-	queryCounts     []queryCountInfo
-	upstreamTTLs    []upstreamTTLInfo
-	errorCategory   string
-	forwarded       bool
-	upstream        string
-	upstreamLatency float64
-	requestLatency  float64
-	rcode           string
+	source         string
+	ipAddr         string
+	startTime      time.Time
+	blockedDomains []string
+	domains        []string
+	queryCounts    []queryCountInfo
+	upstreamTTLs   []upstreamTTLInfo
+	errorCategory  string
+	forwarded      bool
+	requestLatency float64
+	rcode          string
 }
 
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
@@ -73,11 +71,6 @@ func (t *RequestSnapshot) Forwarded() {
 	t.forwarded = true
 }
 
-func (t *RequestSnapshot) SetUpstream(upstream string, latency float64) {
-	t.upstream = upstream
-	t.upstreamLatency = latency
-}
-
 func (t *RequestSnapshot) SetRcode(rcode string) {
 	t.rcode = rcode
 }
@@ -119,9 +112,6 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	}
 	for _, upstreamTTL := range t.upstreamTTLs {
 		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.queryType).Observe(upstreamTTL.ttl)
-	}
-	if t.upstream != "" {
-		metrics.UpstreamLatency.WithLabelValues(t.upstream).Observe(t.upstreamLatency)
 	}
 	if t.rcode != "" {
 		metrics.ReplyCounts.WithLabelValues(t.rcode).Inc()

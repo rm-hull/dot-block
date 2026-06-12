@@ -3,6 +3,7 @@ package forwarder
 import (
 	"context"
 	"log/slog"
+	rand "math/rand/v2"
 	"net"
 	"sync/atomic"
 	"syscall"
@@ -15,13 +16,13 @@ import (
 )
 
 type upstreamServer struct {
-	config string
-	addr   string
+	config  string
+	addr    string
+	latency *atomic.Int64 // nanoseconds, EMA
 }
 
 type RoundRobinClient struct {
 	upstreams []upstreamServer
-	counter   uint32
 	logger    *slog.Logger
 	metrics   *metrics.DnsMetrics
 	client    *dns.Client
@@ -64,7 +65,13 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout,
 		if err != nil {
 			return nil, err
 		}
-		resolved = append(resolved, upstreamServer{config: config, addr: addr})
+		server := upstreamServer{
+			config:  config,
+			addr:    addr,
+			latency: new(atomic.Int64),
+		}
+		server.latency.Store(int64(100 * time.Millisecond))
+		resolved = append(resolved, server)
 	}
 
 	return &RoundRobinClient{
@@ -76,25 +83,86 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout,
 }
 
 func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
-	n := uint32(len(r.upstreams))
-	start := uint32(atomic.AddUint32(&r.counter, 1) - 1)
+	n := len(r.upstreams)
+	if n == 0 {
+		return nil, "", errors.New("no upstreams available")
+	}
+
+	startIdx := r.selectUpstreamIndex()
 
 	var lastErr error
-	for i := range n {
-		server := r.upstreams[(start+i)%n]
+	for i := 0; i < n; i++ {
+		idx := (startIdx + i) % n
+		server := &r.upstreams[idx]
 
+		start := time.Now()
 		resp, _, err := r.client.Exchange(msg, server.addr)
+		duration := time.Since(start)
+
 		if err == nil {
+			r.recordSuccess(server, duration)
 			return resp, server.config, nil
 		}
 
-		reason := getFailureReason(err)
-		r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
-		r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
-
+		r.recordFailure(server, duration, err)
 		lastErr = errors.Wrapf(err, "upstream %s failed", server.config)
 	}
 	return nil, "", errors.Wrap(lastErr, "all upstream servers failed")
+}
+
+func (r *RoundRobinClient) selectUpstreamIndex() int {
+	n := len(r.upstreams)
+	weights := make([]float64, n)
+	var totalWeight float64
+	for i := range r.upstreams {
+		lat := r.upstreams[i].latency.Load()
+		if lat <= 0 {
+			lat = int64(time.Millisecond)
+		}
+		w := 1.0 / float64(lat)
+		weights[i] = w
+		totalWeight += w
+	}
+
+	randomVal := rand.Float64() * totalWeight
+	for i, w := range weights {
+		randomVal -= w
+		if randomVal <= 0 {
+			return i
+		}
+	}
+	return n - 1
+}
+
+func (r *RoundRobinClient) recordSuccess(server *upstreamServer, duration time.Duration) {
+	var newLat int64
+	for {
+		oldLat := server.latency.Load()
+		newLat = int64(float64(oldLat)*0.7 + float64(duration)*0.3)
+		if server.latency.CompareAndSwap(oldLat, newLat) {
+			break
+		}
+	}
+
+	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
+	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(time.Duration(newLat).Seconds())
+}
+
+func (r *RoundRobinClient) recordFailure(server *upstreamServer, duration time.Duration, err error) {
+	var newLat int64
+	for {
+		oldLat := server.latency.Load()
+		newLat = min(oldLat+int64(100*time.Millisecond), int64(5*time.Second))
+		if server.latency.CompareAndSwap(oldLat, newLat) {
+			break
+		}
+	}
+
+	reason := getFailureReason(err)
+	r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
+	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
+	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(time.Duration(newLat).Seconds())
+	r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
 }
 
 func getFailureReason(err error) string {

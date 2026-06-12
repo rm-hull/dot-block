@@ -16,16 +16,10 @@ To prevent the server from being abused or becoming a vector for DNS amplificati
   - Implement token-bucket rate limiting in `HandleDNSRequest` to restrict the number of queries per second (QPS) from a single source IP.
 - **Response Rate Limiting (RRL):** 
   - Implement RRL to mitigate the risk of the server being used in DNS amplification DDoS attacks.
-- **Hardened TLS Configuration:** 
-  - Explicitly restrict TLS versions to 1.2 and 1.3.
-  - Enforce a strict set of cipher suites that prioritize Forward Secrecy (FS).
 
 ## ⚡ Performance: Intelligent Steering
-The current `RoundRobinClient` is simple and effective, but doesn't account for network conditions.
+The `RoundRobinClient` uses latency-based routing to account for network conditions.
 
-- **Latency-Based Routing:** 
-  - Track real-time response latencies for each configured upstream.
-  - Implement a weighted selection algorithm to prefer the fastest responding resolvers.
 - **Proactive Health Management:** 
   - Move health checks to a dedicated background worker.
   - Maintain a "Healthy Pool" of upstreams to avoid the latency penalty of discovering a failed server during a live client request.
@@ -48,6 +42,5 @@ Leveraging the existing HTTP infrastructure, `dot-block` can support a wider ran
 | :--- | :--- | :--- | :--- | :--- |
 | **Upstream DoT/DoH** | Privacy | Medium | **High** | End-to-End Privacy |
 | **Rate Limiting** | Security | Medium | **High** | Server Stability |
-| **Latency Steering** | Performance | Medium | Medium | Reduced Latency |
 | **DoH Support** | Feature | Low | Medium | Client Versatility |
 | **Proactive Health** | Performance | Low | Low | Reliable Failover |

@@ -495,7 +495,6 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 	_, span := tracer.Start(requestCtx.ctx, "forwardQuery")
 	defer span.End()
 
-	startTime := time.Now()
 	requestCtx.snapshot.Forwarded()
 	in, upstream, err := d.dnsClient.Exchange(req)
 
@@ -504,8 +503,6 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 		span.SetStatus(codes.Error, err.Error())
 	}
 
-	duration := time.Since(startTime).Seconds()
-	requestCtx.snapshot.SetUpstream(upstream, duration)
 	span.SetAttributes(attribute.String("dns.upstream", upstream))
 
 	return in, upstream, err
