@@ -186,8 +186,8 @@ DoT Block can be configured using the following command-line flags:
 | `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt` |
 | `--noise-filter-url` | URL of noise filter (CSV format: category,rcode,domain_suffix). | `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.txt` |
 | `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
-| `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
-| `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `300ms` |
+| `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `100ms` |
+| `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `100ms` |
 | `--write-timeout` | Timeout for writing upstream DNS queries | `100ms` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
