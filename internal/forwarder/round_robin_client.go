@@ -3,7 +3,7 @@ package forwarder
 import (
 	"context"
 	"log/slog"
-	"math/rand"
+	rand "math/rand/v2"
 	"net"
 	"sync/atomic"
 	"syscall"
@@ -18,7 +18,7 @@ import (
 type upstreamServer struct {
 	config  string
 	addr    string
-	latency atomic.Int64 // nanoseconds, EMA
+	latency *atomic.Int64 // nanoseconds, EMA
 }
 
 type RoundRobinClient struct {
@@ -65,7 +65,11 @@ func NewRoundRobinClient(metrics *metrics.DnsMetrics, readTimeout, writeTimeout,
 		if err != nil {
 			return nil, err
 		}
-		server := upstreamServer{config: config, addr: addr}
+		server := upstreamServer{
+			config:  config,
+			addr:    addr,
+			latency: new(atomic.Int64),
+		}
 		server.latency.Store(int64(100 * time.Millisecond))
 		resolved = append(resolved, server)
 	}
@@ -131,22 +135,28 @@ func (r *RoundRobinClient) selectUpstreamIndex() int {
 }
 
 func (r *RoundRobinClient) recordSuccess(server *upstreamServer, duration time.Duration) {
-	// Update latency using EMA: new = 0.7*old + 0.3*current
-	oldLat := server.latency.Load()
-	newLat := int64(float64(oldLat)*0.7 + float64(duration)*0.3)
-	server.latency.Store(newLat)
+	for {
+		oldLat := server.latency.Load()
+		newLat := int64(float64(oldLat)*0.7 + float64(duration)*0.3)
+		if server.latency.CompareAndSwap(oldLat, newLat) {
+			break
+		}
+	}
 
 	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
 }
 
 func (r *RoundRobinClient) recordFailure(server *upstreamServer, duration time.Duration, err error) {
-	// Apply penalty (increase latency)
-	oldLat := server.latency.Load()
-	newLat := oldLat + int64(500*time.Millisecond)
-	if newLat > int64(5*time.Second) {
-		newLat = int64(5 * time.Second)
+	for {
+		oldLat := server.latency.Load()
+		newLat := oldLat + int64(500*time.Millisecond)
+		if newLat > int64(5*time.Second) {
+			newLat = int64(5 * time.Second)
+		}
+		if server.latency.CompareAndSwap(oldLat, newLat) {
+			break
+		}
 	}
-	server.latency.Store(newLat)
 
 	reason := getFailureReason(err)
 	r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
