@@ -756,9 +756,9 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 }
 
 type mockIPResponseWriter struct {
-	ip          string
-	port        int
-	WrittenMsg  *dns.Msg
+	ip         string
+	port       int
+	WrittenMsg *dns.Msg
 	mock.Mock
 }
 
