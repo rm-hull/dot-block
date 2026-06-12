@@ -145,14 +145,14 @@ func (r *RoundRobinClient) recordSuccess(server *upstreamServer, duration time.D
 	}
 
 	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
-	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(float64(newLat) / 1e9)
+	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(time.Duration(newLat).Seconds())
 }
 
 func (r *RoundRobinClient) recordFailure(server *upstreamServer, duration time.Duration, err error) {
 	var newLat int64
 	for {
 		oldLat := server.latency.Load()
-		newLat = min(oldLat+int64(500*time.Millisecond), int64(5*time.Second))
+		newLat = min(oldLat+int64(100*time.Millisecond), int64(5*time.Second))
 		if server.latency.CompareAndSwap(oldLat, newLat) {
 			break
 		}
@@ -161,7 +161,7 @@ func (r *RoundRobinClient) recordFailure(server *upstreamServer, duration time.D
 	reason := getFailureReason(err)
 	r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
 	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
-	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(float64(newLat) / 1e9)
+	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(time.Duration(newLat).Seconds())
 	r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
 }
 
