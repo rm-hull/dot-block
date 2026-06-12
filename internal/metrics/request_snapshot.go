@@ -71,8 +71,6 @@ func (t *RequestSnapshot) Forwarded() {
 	t.forwarded = true
 }
 
-// SetUpstream is no longer needed as latency is recorded directly by the client.
-
 func (t *RequestSnapshot) SetRcode(rcode string) {
 	t.rcode = rcode
 }

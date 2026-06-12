@@ -45,6 +45,7 @@ type DnsMetrics struct {
 	TopBlockedDomains   *SpaceSaver
 	UpstreamTTLs        *prometheus.HistogramVec
 	UpstreamLatency     *prometheus.HistogramVec
+	UpstreamEMA         *prometheus.GaugeVec
 	CacheReaperCalls    prometheus.Counter
 	DroppedCacheUpdates prometheus.Counter
 	DroppedTelemetry    prometheus.Counter
@@ -154,6 +155,11 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		Buckets: latencyBuckets,
 	}, []string{"ip_addr"})
 
+	upstreamEMA := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "dns_upstream_ema_seconds",
+		Help: "Exponential moving average of upstream DNS request latency, broken down by upstream server",
+	}, []string{"ip_addr"})
+
 	cacheReaperCalls := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "dns_cache_reaper_calls",
 		Help: "The number of times the cache reaper has been called",
@@ -198,6 +204,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		topBlockedDomainsStats,
 		upstreamTTLs,
 		upstreamLatency,
+		upstreamEMA,
 		cacheReaperCalls,
 		droppedCacheUpdates,
 		droppedTelemetry,
@@ -223,6 +230,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		TopBlockedDomains:   topBlockedDomains,
 		UpstreamTTLs:        upstreamTTLs,
 		UpstreamLatency:     upstreamLatency,
+		UpstreamEMA:         upstreamEMA,
 		CacheReaperCalls:    cacheReaperCalls,
 		DroppedCacheUpdates: droppedCacheUpdates,
 		DroppedTelemetry:    droppedTelemetry,
