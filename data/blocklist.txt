@@ -1,10 +1,12 @@
 # dot-block custom blocklist
-# Last modified: 13 June 2026 19:57 BST
+# Last modified: 13 June 2026 20:37 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
+07c225f3.online
 ad.360yield.com
 ad.doubleclick.net
 adform.net
+adnami.io
 ads.betweendigital.com
 ads.theyorkmix.com
 adservice.google.com
@@ -16,6 +18,7 @@ cdn.optimizely.com
 cdn.viafoura.net
 cdn-ukwest.onetrust.com
 channelexco.com
+chartbeat.com
 content.jwplatform.com
 dmqixuaqncbvu.cloudfront.net
 d3p0gayswgyxdw.cloudfront.net
@@ -71,3 +74,7 @@ content-loader.com
 ## Ad-Shield fake error / gaslighting page
 error-report.com
 report.error-report.com
+
+confiant-integrations.net
+permutive.com
+clarity.ms
