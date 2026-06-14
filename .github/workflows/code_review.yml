@@ -14,26 +14,23 @@ jobs:
     if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/review') }}
     runs-on: ubuntu-latest
     steps:
-      - name: Generate token
-        id: generate_token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.GEMINI_PR_AGENT_CLIENT_ID }}
-          private-key: ${{ secrets.GEMINI_PR_AGENT_PRIVATE_KEY }}
-
       - name: Fetch PR Details
         id: pr_data
         run: |
-          PR_JSON=$(curl -s -H "Authorization: token ${{ steps.generate_token.outputs.token }}" \
+          PR_JSON=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "${{ github.event.issue.pull_request.url }}")
           HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
       - uses: actions/checkout@v6
         with:
-          token: ${{ steps.generate_token.outputs.token }}
           ref: ${{ steps.pr_data.outputs.head_ref }}
           fetch-depth: 0
+
+      - name: Configure Git identity
+        run: |
+          git config user.name "gemini-pr-agent[bot]"
+          git config user.email "gemini-pr-agent[bot]@users.noreply.github.com"
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -42,7 +39,7 @@ jobs:
 
       - uses: shaftoe/pi-coding-agent-action@v2
         with:
-          github_token: ${{ steps.generate_token.outputs.token }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: google
           model: gemma-4-31b-it
           token: ${{ secrets.GEMINI_API_KEY }}
