@@ -36,19 +36,27 @@ jobs:
       - name: Bump version and update changelog
         id: bump
         run: |
-          # Calculate next version based on tags and conventional commits
+          LATEST_TAG=$(git describe --tags --abbrev=0)
           NEXT_VERSION=$(svu)
-          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           
-          # Generate changelog (appends to the top of CHANGELOG.md)
-          npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s
-          
-          # Commit changelog and tag
-          git add CHANGELOG.md
-          git commit -m "chore: release $NEXT_VERSION [skip ci]"
-          git tag $NEXT_VERSION
+          if [ "$NEXT_VERSION" == "$LATEST_TAG" ]; then
+            echo "No new version to release. Skipping."
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            
+            # Generate changelog (appends to the top of CHANGELOG.md)
+            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s
+            
+            # Commit changelog and tag
+            git add CHANGELOG.md
+            git commit -m "chore: release $NEXT_VERSION [skip ci]"
+            git tag $NEXT_VERSION
+          fi
 
       - name: Push changes
+        if: steps.bump.outputs.release_needed == 'true'
         run: |
           git push origin main --follow-tags
 
@@ -65,6 +73,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: GoReleaser
+        if: steps.bump.outputs.release_needed == 'true'
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
