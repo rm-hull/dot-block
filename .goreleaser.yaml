@@ -1,0 +1,27 @@
+version: 2
+project_name: dot-block
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+    main: .
+    binary: dot-block
+
+dockers:
+  - image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
+    dockerfile: Dockerfile
+
+release:
+  github:
+    owner: rhu
+    name: dot-block
