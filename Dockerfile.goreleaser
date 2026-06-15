@@ -1,0 +1,21 @@
+FROM alpine:latest
+ENV GIN_MODE=release
+ENV TZ=UTC
+
+RUN apk --no-cache add curl ca-certificates tzdata && \
+    update-ca-certificates
+
+RUN adduser -D -g '' appuser
+WORKDIR /app
+
+# GoReleaser provides the pre-built binary in the build context
+COPY dot-block .
+
+USER appuser
+EXPOSE 80/tcp
+EXPOSE 853/tcp
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:80/healthz || exit 1
+
+ENTRYPOINT ["./dot-block"]

@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install svu
+        run: |
+          go install github.com/caarlos0/svu@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Bump version and update changelog
+        id: bump
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0)
+          NEXT_VERSION=$(svu)
+          
+          if [ "$NEXT_VERSION" == "$LATEST_TAG" ]; then
+            echo "No new version to release. Skipping."
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            
+            # Generate changelog (appends to the top of CHANGELOG.md)
+            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s -t $NEXT_VERSION
+            
+            # Commit changelog and tag
+            git add CHANGELOG.md
+            git commit -m "chore: release $NEXT_VERSION [skip ci]"
+            git tag $NEXT_VERSION
+          fi
+
+      - name: Push changes
+        if: steps.bump.outputs.release_needed == 'true'
+        run: |
+          git push origin main --follow-tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GoReleaser
+        if: steps.bump.outputs.release_needed == 'true'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
