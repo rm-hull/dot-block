@@ -41,8 +41,7 @@ jobs:
           echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
           
           # Generate changelog (appends to the top of CHANGELOG.md)
-          npm install -g conventional-changelog-cli
-          conventional-changelog -p angular -i CHANGELOG.md -s
+          npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s
           
           # Commit changelog and tag
           git add CHANGELOG.md
