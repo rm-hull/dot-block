@@ -26,8 +26,6 @@ dockers:
     goarch: amd64
     build_flag_templates:
       - "--platform=linux/amd64"
-    build_args:
-      - --platform=linux/amd64
   - image_templates:
       - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}-arm64"
       - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest-arm64"
@@ -37,8 +35,6 @@ dockers:
     goarch: arm64
     build_flag_templates:
       - "--platform=linux/arm64"
-    build_args:
-      - --platform=linux/arm64
 
 docker_manifests:
   - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
