@@ -1,3 +1,9 @@
+# [](https://github.com/rm-hull/dot-block/compare/v0.1.0...v) (2026-06-15)
+
+
+### Bug Fixes
+
+* prevent empty releases in CI pipeline ([94df946](https://github.com/rm-hull/dot-block/commit/94df9466f433f8a1bda520be041deac48c2672da))
 #  (2026-06-15)
 
 
