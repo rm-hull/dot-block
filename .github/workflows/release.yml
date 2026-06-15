@@ -37,7 +37,7 @@ jobs:
         id: bump
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0)
-          NEXT_VERSION=$(svu)
+          NEXT_VERSION=$(svu next)
 
           if [ "$NEXT_VERSION" == "$LATEST_TAG" ]; then
             echo "No new version to release. Skipping."
@@ -46,13 +46,10 @@ jobs:
             echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
             echo "release_needed=true" >> $GITHUB_OUTPUT
 
-            # Commit changelog and tag
+            git tag $NEXT_VERSION
+            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -r 0 -s
             git add CHANGELOG.md
             git commit -m "chore: release $NEXT_VERSION [skip ci]"
-            git tag $NEXT_VERSION
-
-            # Generate changelog (appends to the top of CHANGELOG.md)
-            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -r 0 -s
           fi
 
       - name: Push changes
