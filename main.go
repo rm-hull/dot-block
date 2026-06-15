@@ -8,10 +8,12 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"fmt"
 
 	"github.com/rm-hull/dot-block/internal"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/spf13/cobra"
+	"github.com/earthboundkid/versioninfo/v2"
 )
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
@@ -66,11 +68,17 @@ func main() {
 	envDevMode := os.Getenv("DEV_MODE") == "true"
 
 	var dnsPort, dotPort int
+	var showVersion bool
 
 	rootCmd := &cobra.Command{
-		Use:   "dotserver",
-		Short: "DNS-over-TLS server",
+		Use:   "dot-block",
+		Short: "Secure DNS-over-TLS forwarder with ad/tracker blocking",
+		Long: "dot-block is a secure DNS-over-TLS (DoT) server that acts as a DNS forwarder with built-in ad and tracker blocking. It supports customizable blocklists, cache management, and can be integrated with ACME for automatic TLS certificate management.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if showVersion {
+				fmt.Println(versioninfo.Short())
+				os.Exit(0)
+			}
 			logLevelVar.Set(parseLogLevel(app.LogLevel))
 			app.DnsPort = dnsPort
 			app.DotPort = dotPort
@@ -114,6 +122,7 @@ func main() {
 	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
 	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")
 	rootCmd.Flags().BoolVar(&app.EnableECS, "enable-ecs", false, "Enable EDNS0 Client Subnet (ECS) steering")
+	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Print version and exit")
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)

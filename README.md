@@ -224,6 +224,7 @@ DoT Block can be configured using the following command-line flags:
 | `--require-proxy-protocol` | Require PROXY protocol header for DoT connections. | `false` |
 | `--trusted-proxies` | Comma-separated list of trusted proxy IP addresses or CIDR ranges. | `nil` |
 | `--enable-ecs` | Enable EDNS0 Client Subnet (ECS) steering. This allows the server to send the client's network prefix to upstream resolvers for location-aware responses. | `false` |
+| `-v, --version` | Print the version of the server and exit. | `nil` |
 | `--upstreams` | Upstream DNS resolvers to forward queries to. (Port 53 is assumed if omitted) | `8.8.8.8`, `8.8.4.4`, `1.1.1.1`, `1.0.0.1`, `9.9.9.9`, `149.112.112.112` |
 
 ### Environment Variables
