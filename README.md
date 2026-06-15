@@ -174,10 +174,10 @@ You can configure your browser to use DoT Block for DNS queries directly, withou
 3.  Select **With: Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Mozilla Firefox
-1.  Open **Settings** -> **General**.
-2.  Scroll down to **Network Settings** and click **Settings...**.
-3.  Check **Enable DNS over HTTPS**.
-4.  Under **Use Provider**, select **Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
+1.  Open **Settings** -> **Privacy & Security**.
+2.  Scroll down to **DNS over HTTPS**.
+3.  Select **Max Protection** or **Increased Protection**.
+4.  Under **Choose provider**, select **Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Safari (macOS/iOS)
 Safari uses the system DNS settings. To use DoH in Safari, you must configure it at the OS level (see [iOS Configuration](#ios--ipados-configuration) or your macOS network settings).
