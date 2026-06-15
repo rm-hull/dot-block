@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install svu
+        run: go install github.com/caarlos0/svu@latest
+
+      - name: Bump version and update changelog
+        id: bump
+        run: |
+          # Calculate next version based on tags and conventional commits
+          NEXT_VERSION=$(svu)
+          echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+          
+          # Generate changelog (appends to the top of CHANGELOG.md)
+          npx conventional-changelog-cli -p angular -i CHANGELOG.md -s
+          
+          # Commit changelog and tag
+          git add CHANGELOG.md
+          git commit -m "chore: release $NEXT_VERSION [skip ci]"
+          git tag $NEXT_VERSION
+
+      - name: Push changes
+        run: |
+          git push origin main --follow-tags
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: ${{ steps.bump.outputs.version }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
