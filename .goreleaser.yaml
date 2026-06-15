@@ -12,6 +12,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     main: .
     binary: dot-block
 
@@ -19,7 +20,7 @@ dockers:
   - image_templates:
       - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
       - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
-    dockerfile: Dockerfile
+    dockerfile: Dockerfile.goreleaser
 
 release:
   github:
