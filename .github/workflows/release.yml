@@ -47,7 +47,7 @@ jobs:
             echo "release_needed=true" >> $GITHUB_OUTPUT
             
             # Generate changelog (appends to the top of CHANGELOG.md)
-            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s
+            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s -t $NEXT_VERSION
             
             # Commit changelog and tag
             git add CHANGELOG.md
