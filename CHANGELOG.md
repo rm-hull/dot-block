@@ -1,4 +1,11 @@
-# [](https://github.com/rm-hull/dot-block/compare/v0.1.1...v) (2026-06-15)
+# [](https://github.com/rm-hull/dot-block/compare/v0.1.2...v) (2026-06-15)
+
+## [0.1.2](https://github.com/rm-hull/dot-block/compare/v0.1.1...v0.1.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* add version flag to CLI ([0a1eb37](https://github.com/rm-hull/dot-block/commit/0a1eb373374a1dd3aea18206a8b05aff18363915))
 
 ## [0.1.1](https://github.com/rm-hull/dot-block/compare/v0.1.0...v0.1.1) (2026-06-15)
 
