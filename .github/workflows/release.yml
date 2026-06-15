@@ -29,7 +29,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Install svu
-        run: go install github.com/caarlos0/svu@latest
+        run: |
+          go install github.com/caarlos0/svu@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
 
       - name: Bump version and update changelog
         id: bump
