@@ -71,3 +71,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}
