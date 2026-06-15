@@ -162,7 +162,6 @@ To use DoT Block on your iPhone or iPad, you can install a configuration profile
 6.  Tap **Install** in the top right corner and follow the prompts.
 7.  Once installed, your device will use DoT Block for all DNS queries.
 
-
 ### Browser Configuration (DoH)
 
 You can configure your browser to use DoT Block for DNS queries directly, without changing any system-wide settings.
@@ -175,17 +174,13 @@ You can configure your browser to use DoT Block for DNS queries directly, withou
 3.  Select **With: Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Mozilla Firefox
-1.  Open **Settings** -> **General**.
-2.  Scroll down to **Network Settings** and click **Settings...**.
-3.  Check **Enable DNS over HTTPS**.
-4.  Under **Use Provider**, select **Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
+1.  Open **Settings** -> **Privacy & Security**.
+2.  Scroll down to **DNS over HTTPS**.
+3.  Select **Max Protection** or **Increased Protection**.
+4.  Under **Choose provider**, select **Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Safari (macOS/iOS)
 Safari uses the system DNS settings. To use DoH in Safari, you must configure it at the OS level (see [iOS Configuration](#ios--ipados-configuration) or your macOS network settings).
-
-#### Mobile Browsers
-*   **Chrome (Android):** Same as desktop Chrome (**Settings** -> **Privacy and security** -> **Use secure DNS**).
-*   **Firefox (Android):** **Settings** -> **DNS over HTTPS** -> **Custom**.
 
 ## Building
 
