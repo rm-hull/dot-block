@@ -18,9 +18,33 @@ builds:
 
 dockers:
   - image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest-amd64"
     dockerfile: Dockerfile.goreleaser
+    use: buildx
+    goos: linux
+    goarch: amd64
+    build_flag_templates:
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}-arm64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest-arm64"
+    dockerfile: Dockerfile.goreleaser
+    use: buildx
+    goos: linux
+    goarch: arm64
+    build_flag_templates:
+      - "--platform=linux/arm64"
+
+docker_manifests:
+  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
+    image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}-arm64"
+  - name_template: "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
+    image_templates:
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest-amd64"
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest-arm64"
 
 release:
   github:
