@@ -1,9 +1,6 @@
 version: 2
 project_name: dot-block
 
-before:
-  hooks: []
-
 builds:
   - env:
       - CGO_ENABLED=0
@@ -25,9 +22,27 @@ dockers:
     build_flag_templates:
       - "--platform=linux/amd64"
 
-docker_manifests: []
-
 release:
   github:
     owner: rm-hull
     name: dot-block
+  prerelease: auto
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 100
+    - title: 'Bug fixes'
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 200
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
