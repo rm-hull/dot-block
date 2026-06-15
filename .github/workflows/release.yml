@@ -46,13 +46,13 @@ jobs:
             echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
             echo "release_needed=true" >> $GITHUB_OUTPUT
 
-            # Generate changelog (appends to the top of CHANGELOG.md)
-            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -s -t $NEXT_VERSION
-
             # Commit changelog and tag
             git add CHANGELOG.md
             git commit -m "chore: release $NEXT_VERSION [skip ci]"
             git tag $NEXT_VERSION
+
+            # Generate changelog (appends to the top of CHANGELOG.md)
+            npx conventional-changelog-cli@latest -p angular -i CHANGELOG.md -r 0 -s
           fi
 
       - name: Push changes
