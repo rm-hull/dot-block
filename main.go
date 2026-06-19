@@ -2,18 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
-	"fmt"
 
+	"github.com/earthboundkid/versioninfo/v2"
 	"github.com/rm-hull/dot-block/internal"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/spf13/cobra"
-	"github.com/earthboundkid/versioninfo/v2"
 )
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
@@ -23,7 +23,7 @@ const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *"  // 7:05am on the 4th of e
 var DEFAULT_NOISE_FILTER_URL = "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
 
 var DEFAULT_BLOCKLIST_URLS = []string{
-	"https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt",       // Hagezi Pro blocklist
+	"https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",  // Hagezi Pro blocklist
 	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt", // dot-block default blocklist
 }
 
@@ -73,7 +73,7 @@ func main() {
 	rootCmd := &cobra.Command{
 		Use:   "dot-block",
 		Short: "Secure DNS-over-TLS forwarder with ad/tracker blocking",
-		Long: "dot-block is a secure DNS-over-TLS (DoT) server that acts as a DNS forwarder with built-in ad and tracker blocking. It supports customizable blocklists, cache management, and can be integrated with ACME for automatic TLS certificate management.",
+		Long:  "dot-block is a secure DNS-over-TLS (DoT) server that acts as a DNS forwarder with built-in ad and tracker blocking. It supports customizable blocklists, cache management, and can be integrated with ACME for automatic TLS certificate management.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if showVersion {
 				fmt.Println(versioninfo.Short())
