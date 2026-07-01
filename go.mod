@@ -13,7 +13,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/libdns/cloudflare v0.2.2
 	github.com/miekg/dns v1.1.72
-	github.com/pires/go-proxyproto v0.12.0
+	github.com/pires/go-proxyproto v0.13.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/slog-gin v1.21.1
 	github.com/stretchr/testify v1.11.1
