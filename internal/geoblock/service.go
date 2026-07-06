@@ -3,23 +3,31 @@ package geoblock
 import (
 	"sync"
 
+	"net"
+
 	"github.com/cockroachdb/errors"
-	"github.com/ip2location/ip2location-go/v9"
+	"github.com/oschwald/geoip2-golang"
 )
+
+type GeoData struct {
+	Country string
+	ASN     uint
+	ISP     string
+}
 
 type GeoIpLookup interface {
 	Reopen() error
-	GetAll(ipAddress string) (ip2location.IP2Locationrecord, error)
+	GetAll(ipAddress string) (GeoData, error)
 }
 
 type geoBlocker struct {
 	path string
-	db   *ip2location.DB
+	db   *geoip2.Reader
 	mu   sync.RWMutex
 }
 
 func NewGeoIpLookup(path string) (GeoIpLookup, error) {
-	db, err := ip2location.OpenDB(path)
+	db, err := geoip2.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -30,7 +38,7 @@ func NewGeoIpLookup(path string) (GeoIpLookup, error) {
 }
 
 func (g *geoBlocker) Reopen() error {
-	newDb, err := ip2location.OpenDB(g.path)
+	newDb, err := geoip2.Open(g.path)
 	if err != nil {
 		return err
 	}
@@ -46,13 +54,39 @@ func (g *geoBlocker) Reopen() error {
 	return nil
 }
 
-func (g *geoBlocker) GetAll(ipAddress string) (ip2location.IP2Locationrecord, error) {
+func (g *geoBlocker) GetAll(ipAddress string) (GeoData, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	if g.db == nil {
-		return ip2location.IP2Locationrecord{}, errors.New("geoblock database not initialized")
+		return GeoData{}, errors.New("geoblock database not initialized")
 	}
 
-	return g.db.Get_all(ipAddress)
+	ip := net.ParseIP(ipAddress)
+	if ip == nil {
+		return GeoData{}, errors.New("invalid IP address")
+	}
+
+	city, err := g.db.City(ip)
+	if err != nil {
+		return GeoData{}, err
+	}
+
+	asn, err := g.db.ASN(ip)
+	if err != nil {
+		// Log or handle ASN lookup failure if needed, or just proceed
+	}
+
+	var asnNumber uint
+	var isp string
+	if asn != nil {
+		asnNumber = asn.AutonomousSystemNumber
+		isp = asn.AutonomousSystemOrganization
+	}
+
+	return GeoData{
+		Country: city.Country.IsoCode,
+		ASN:     asnNumber,
+		ISP:     isp,
+	}, nil
 }

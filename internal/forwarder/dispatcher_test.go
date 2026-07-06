@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ip2location/ip2location-go/v9"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/stretchr/testify/assert"
@@ -25,9 +25,9 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) GetAll(ipAddress string) (ip2location.IP2Locationrecord, error) {
+func (m *MockGeoIpLookup) GetAll(ipAddress string) (geoblock.GeoData, error) {
 	args := m.Called(ipAddress)
-	return args.Get(0).(ip2location.IP2Locationrecord), args.Error(1)
+	return args.Get(0).(geoblock.GeoData), args.Error(1)
 }
 
 func (m *MockGeoIpLookup) Reopen() error {
@@ -87,7 +87,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	require.NoError(t, err)
@@ -379,7 +379,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
-	mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
 	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
 	assert.NoError(t, err)
@@ -709,7 +709,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			blockList := blocklist.NewBlockList([]string{}, 0.0001, logger)
 			cache := NewDNSCache(100, logger)
 			mockGeo := new(MockGeoIpLookup)
-			mockGeo.On("GetAll", mock.Anything).Return(ip2location.IP2Locationrecord{}, nil)
+			mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo)
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 

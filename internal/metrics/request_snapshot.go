@@ -91,8 +91,8 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 		metrics.UniqueClients.Insert([]byte(t.ipAddr))
 
 		if metrics.geoIpLookup != nil {
-			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record.Country_short != "" {
-				metrics.CountryCounts.WithLabelValues(record.Country_short).Inc()
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record.Country != "" {
+				metrics.CountryCounts.WithLabelValues(record.Country).Inc()
 			}
 		}
 	}
