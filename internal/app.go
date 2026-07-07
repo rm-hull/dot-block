@@ -154,11 +154,11 @@ func (app *App) RunServer(ctx context.Context) error {
 	defer crontab.Stop()
 	var geoIpLookup geoblock.GeoIpLookup
 	if app.DisableIp2Location {
-		app.Logger.Warn("IP2Location lookups are disabled")
+		app.Logger.Warn("GeoData lookups are disabled")
 	} else {
-		geoIpLookup, err = app.initIp2Location(crontab)
+		geoIpLookup, err = app.initMaxmind(crontab)
 		if err != nil {
-			return errors.Wrap(err, "failed to initialize IP2Location")
+			return errors.Wrap(err, "failed to initialize GeoData database")
 		}
 	}
 	allHosts := make([]string, 0)
@@ -442,23 +442,23 @@ func newStructuredLoggingConfig() *sloggin.Config {
 	return &config
 }
 
-func (app *App) initIp2Location(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
-	geolocationDb := fmt.Sprintf("%s/ip2location/IP2LOCATION-LITE-DB1.BIN", app.DataDir)
+func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
+	geolocationDb := fmt.Sprintf("%s/maxmind/ipinfo_lite.mmdb", app.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
 		app.Logger.Info("Geolocation database not found, downloading...")
-		_, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to download geoblock database")
-		}
+		// _, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
+		// if err != nil {
+		// 	return nil, errors.Wrap(err, "failed to download geoblock database")
+		// }
 	}
-	app.Logger.Info("Loading geolocation database", "file", geolocationDb)
+	app.Logger.Info("Loading maxmind geolocation database", "file", geolocationDb)
 	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open geoblock database")
 	}
-	app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
-	if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
-		return nil, errors.Wrap(err, "failed to create IP2Location updater cron job")
-	}
+	// app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
+	// if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
+	// 	return nil, errors.Wrap(err, "failed to create IP2Location updater cron job")
+	// }
 	return geoIpLookup, nil
 }

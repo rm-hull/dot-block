@@ -91,8 +91,13 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 		metrics.UniqueClients.Insert([]byte(t.ipAddr))
 
 		if metrics.geoIpLookup != nil {
-			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record.Country != "" {
-				metrics.CountryCounts.WithLabelValues(record.Country).Inc()
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil {
+				if record.ISOCode != "" {
+					metrics.CountryCounts.WithLabelValues(record.ISOCode).Inc()
+				}
+				if record.Provider != "" {
+					metrics.ProviderCounts.WithLabelValues(record.ASN + ": " + record.Provider).Inc()
+				}
 			}
 		}
 	}

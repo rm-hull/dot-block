@@ -1,33 +1,34 @@
 package geoblock
 
 import (
+	"net/netip"
 	"sync"
 
-	"net"
-
 	"github.com/cockroachdb/errors"
-	"github.com/oschwald/geoip2-golang"
+	"github.com/oschwald/maxminddb-golang/v2"
 )
 
 type GeoData struct {
-	Country string
-	ASN     uint
-	ISP     string
+	ISOCode  string `maxminddb:"country_code"`
+	Country  string `maxminddb:"country"`
+	ASN      string `maxminddb:"asn"`
+	Provider string `maxminddb:"as_name"`
+	Domain   string `maxminddb:"as_domain"`
 }
 
 type GeoIpLookup interface {
 	Reopen() error
-	GetAll(ipAddress string) (GeoData, error)
+	GetAll(ipAddress string) (*GeoData, error)
 }
 
 type geoBlocker struct {
 	path string
-	db   *geoip2.Reader
+	db   *maxminddb.Reader
 	mu   sync.RWMutex
 }
 
 func NewGeoIpLookup(path string) (GeoIpLookup, error) {
-	db, err := geoip2.Open(path)
+	db, err := maxminddb.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +39,7 @@ func NewGeoIpLookup(path string) (GeoIpLookup, error) {
 }
 
 func (g *geoBlocker) Reopen() error {
-	newDb, err := geoip2.Open(g.path)
+	newDb, err := maxminddb.Open(g.path)
 	if err != nil {
 		return err
 	}
@@ -49,44 +50,29 @@ func (g *geoBlocker) Reopen() error {
 	g.mu.Unlock()
 
 	if oldDb != nil {
-		oldDb.Close()
+		_ = oldDb.Close()
 	}
 	return nil
 }
 
-func (g *geoBlocker) GetAll(ipAddress string) (GeoData, error) {
+func (g *geoBlocker) GetAll(ipAddress string) (*GeoData, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
 	if g.db == nil {
-		return GeoData{}, errors.New("geoblock database not initialized")
+		return nil, errors.New("geoblock database not initialized")
 	}
 
-	ip := net.ParseIP(ipAddress)
-	if ip == nil {
-		return GeoData{}, errors.New("invalid IP address")
-	}
-
-	city, err := g.db.City(ip)
+	ip, err := netip.ParseAddr("82.12.229.87") //ipAddress)
 	if err != nil {
-		return GeoData{}, err
+		return nil, errors.Newf("invalid IP address: %w", err)
 	}
 
-	asn, err := g.db.ASN(ip)
+	var geodata GeoData
+	err = g.db.Lookup(ip).Decode(&geodata)
 	if err != nil {
-		// Log or handle ASN lookup failure if needed, or just proceed
+		return nil, err
 	}
 
-	var asnNumber uint
-	var isp string
-	if asn != nil {
-		asnNumber = asn.AutonomousSystemNumber
-		isp = asn.AutonomousSystemOrganization
-	}
-
-	return GeoData{
-		Country: city.Country.IsoCode,
-		ASN:     asnNumber,
-		ISP:     isp,
-	}, nil
+	return &geodata, nil
 }

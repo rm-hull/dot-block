@@ -39,6 +39,7 @@ type DnsMetrics struct {
 	QueryCounts         *prometheus.CounterVec
 	ReplyCounts         *prometheus.CounterVec
 	CountryCounts       *prometheus.CounterVec
+	ProviderCounts      *prometheus.CounterVec
 	UniqueClients       *SafeSketch
 	TopClients          *SpaceSaver
 	TopDomains          *SpaceSaver
@@ -132,6 +133,11 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		Help: "Counts the number of DNS requests, broken down by country code (ISO 3166-1 alpha-2)",
 	}, []string{"iso_code"})
 
+	providerCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_provider_count",
+		Help: "Counts the number of DNS requests, broken down by Autonomous System Number (ASN)",
+	}, []string{"asn"})
+
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
 		Help: "Estimates the number of unique clients (relative error ≈ 1.04%)",
@@ -198,6 +204,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		queryCounts,
 		replyCounts,
 		countryCounts,
+		providerCounts,
 		uniqueClientsCount,
 		topClientsStats,
 		topDomainsStats,
@@ -224,6 +231,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		QueryCounts:         queryCounts,
 		ReplyCounts:         replyCounts,
 		CountryCounts:       countryCounts,
+		ProviderCounts:      providerCounts,
 		UniqueClients:       uniqueClients,
 		TopClients:          topClients,
 		TopDomains:          topDomains,
