@@ -38,7 +38,6 @@ type DnsMetrics struct {
 	RequestCounts       *prometheus.CounterVec
 	QueryCounts         *prometheus.CounterVec
 	ReplyCounts         *prometheus.CounterVec
-	CountryCounts       *prometheus.CounterVec
 	ProviderCounts      *prometheus.CounterVec
 	UniqueClients       *SafeSketch
 	TopClients          *SpaceSaver
@@ -73,7 +72,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 	topDomains := NewSpaceSaver(TOP_K)
 	topBlockedDomains := NewSpaceSaver(TOP_K)
 
-	cacheStats := NewStatsCollector("dns_cache_stats", "type",
+	cacheStats := NewStatsCollector("dns_cache_stats", []string{"type"},
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
 		func() map[string]int {
 			stats := cache.Stat()
@@ -86,17 +85,17 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 			}
 		})
 
-	topDomainsStats := NewStatsCollector("dns_top_domains", "hostname",
+	topDomainsStats := NewStatsCollector("dns_top_domains", []string{"hostname"},
 		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topDomains, TOP_K),
 	)
 
-	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", "hostname",
+	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", []string{"hostname"},
 		fmt.Sprintf("Shows the top %d blocked domains (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topBlockedDomains, TOP_K),
 	)
 
-	topClientsStats := NewStatsCollector("dns_top_clients", "ip_addr",
+	topClientsStats := NewStatsCollector("dns_top_clients", []string{"ip_addr", "asn", "iso_code"},
 		fmt.Sprintf("Shows the top %d most active clients (estimate based on count - error)", TOP_K),
 		newSpaceSaverStatsCallback(topClients, TOP_K),
 	)
@@ -128,15 +127,10 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		Help: "Counts the number of DNS replies, broken down by response code",
 	}, []string{"rcode"})
 
-	countryCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "dns_country_count",
-		Help: "Counts the number of DNS requests, broken down by country code (ISO 3166-1 alpha-2)",
-	}, []string{"iso_code"})
-
 	providerCounts := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_provider_count",
-		Help: "Counts the number of DNS requests, broken down by Autonomous System Number (ASN)",
-	}, []string{"asn"})
+		Help: "Counts the number of DNS requests, broken down by Autonomous System Number (ASN) & country code (ISO 3166-1 alpha-2)",
+	}, []string{"asn", "iso_code"})
 
 	uniqueClientsCount := prometheus.NewCounterFunc(prometheus.CounterOpts{
 		Name: "dns_unique_clients",
@@ -203,7 +197,6 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		requestCounts,
 		queryCounts,
 		replyCounts,
-		countryCounts,
 		providerCounts,
 		uniqueClientsCount,
 		topClientsStats,
@@ -230,7 +223,6 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		RequestCounts:       requestCounts,
 		QueryCounts:         queryCounts,
 		ReplyCounts:         replyCounts,
-		CountryCounts:       countryCounts,
 		ProviderCounts:      providerCounts,
 		UniqueClients:       uniqueClients,
 		TopClients:          topClients,

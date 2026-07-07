@@ -1,39 +1,33 @@
 package geoblock
 
 import (
-	"archive/zip"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
-	"strings"
 
 	"github.com/cockroachdb/errors"
-	"github.com/dustin/go-humanize"
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
 
-type Ip2LocationUpdater struct {
+type IpinfoUpdater struct {
 	logger      *slog.Logger
-	fileId      string
-	dataDir     string
+	fileName    string
 	geoIpLookup GeoIpLookup
 }
 
-func NewIp2LocationUpdaterCronJob(logger *slog.Logger, fileId string, dataDir string, geoIpLookup GeoIpLookup) *Ip2LocationUpdater {
-	return &Ip2LocationUpdater{
+func NewIpinfoUpdaterCronJob(logger *slog.Logger, fileName string, geoIpLookup GeoIpLookup) *IpinfoUpdater {
+	return &IpinfoUpdater{
 		logger:      logger,
-		fileId:      fileId,
-		dataDir:     dataDir,
+		fileName:    fileName,
 		geoIpLookup: geoIpLookup,
 	}
 }
 
-func (job *Ip2LocationUpdater) Run() {
-	if _, err := Fetch(job.fileId, job.dataDir, job.logger); err != nil {
+func (job *IpinfoUpdater) Run() {
+	if _, err := Fetch(job.fileName, job.logger); err != nil {
 		job.logger.Error("failed to download ip2location list for cron reload", "error", err)
 	}
 
@@ -42,42 +36,26 @@ func (job *Ip2LocationUpdater) Run() {
 	}
 }
 
-func Fetch(fileId string, dataDir string, logger *slog.Logger) ([]string, error) {
+func Fetch(fileName string, logger *slog.Logger) ([]string, error) {
 
-	token := os.Getenv("IP2LOCATION_TOKEN")
+	token := os.Getenv("IPINFO_TOKEN")
 	if token == "" {
-		return nil, errors.New("IP2LOCATION_TOKEN not set in environment")
+		return nil, errors.New("IPINFO_TOKEN not set in environment")
 	}
-	url := fmt.Sprintf("https://www.ip2location.com/download/?token=%s&file=%s", token, fileId)
+	url := fmt.Sprintf("https://ipinfo.io/data/ipinfo_lite.mmdb?_src=frontend&token=%s", token)
 
-	dataDir += "/ip2location"
+	dataDir := path.Dir(fileName)
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return nil, errors.Wrapf(err, "failed to create data directory %q", dataDir)
 	}
 
 	files := make([]string, 0)
-	err := downloader.TransientDownload(logger, "ip2location", url, token, func(zipPath string, header http.Header) error {
-		r, err := zip.OpenReader(zipPath)
-		if err != nil {
-			return errors.Wrapf(err, "failed to open zip file")
+	err := downloader.TransientDownload(logger, "ipinfo", url, token, func(srcPath string, header http.Header) error {
+		logger.Info("Copying downloaded file to data directory", "to", fileName)
+		if err := copyFile(srcPath, fileName); err != nil {
+			return errors.Wrapf(err, "failed to copy file from %q to %q", srcPath, fileName)
 		}
-		defer func() {
-			if err := r.Close(); err != nil {
-				logger.Warn("error closing zip file", "error", err)
-			}
-		}()
-
-		for _, f := range r.File {
-			if f.FileInfo().IsDir() || !strings.HasSuffix(f.Name, ".BIN") {
-				continue
-			}
-
-			filename, err := extractZipFile(f, dataDir, logger)
-			if err != nil {
-				return errors.Wrapf(err, "failed to extract file from zip")
-			}
-			files = append(files, filename)
-		}
+		files = append(files, fileName)
 
 		return nil
 	})
@@ -85,35 +63,21 @@ func Fetch(fileId string, dataDir string, logger *slog.Logger) ([]string, error)
 	return files, err
 }
 
-func extractZipFile(f *zip.File, toFolder string, logger *slog.Logger) (string, error) {
-	destPath := filepath.Join(toFolder, path.Base(f.Name))
-	logger.Info(fmt.Sprintf("Extracting file (%s) from zip", humanize.Bytes(uint64(f.FileInfo().Size()))),
-		"to", destPath,
-	)
-
-	rc, err := f.Open()
+func copyFile(src, dest string) error {
+	srcFile, err := os.Open(src)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to open file in zip")
+		return errors.Wrapf(err, "failed to open source file %q", src)
 	}
-	defer func() {
-		if err := rc.Close(); err != nil {
-			logger.Error("error closing file in zip", "error", err)
-		}
-	}()
+	defer srcFile.Close()
 
-	outFile, err := os.Create(destPath)
+	destFile, err := os.Create(dest)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create output file")
+		return errors.Wrapf(err, "failed to create destination file %q", dest)
 	}
-	defer func() {
-		if err := outFile.Close(); err != nil {
-			logger.Error("error closing output file", "error", err)
-		}
-	}()
+	defer destFile.Close()
 
-	_, err = io.Copy(outFile, rc)
-	if err != nil {
-		return "", errors.Wrapf(err, "failed to copy file contents")
+	if _, err := io.Copy(destFile, srcFile); err != nil {
+		return errors.Wrapf(err, "failed to copy file from %q to %q", src, dest)
 	}
-	return destPath, nil
+	return nil
 }

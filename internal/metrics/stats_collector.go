@@ -1,6 +1,8 @@
 package metrics
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -14,23 +16,24 @@ func (coll *StatsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (coll *StatsCollector) Collect(ch chan<- prometheus.Metric) {
-	for label, value := range coll.callbackFn() {
+	for labels, value := range coll.callbackFn() {
+		labelsArr := strings.Split(labels, ",")
 		ch <- prometheus.MustNewConstMetric(
 			coll.desc,
 			prometheus.GaugeValue,
 			float64(value),
-			label,
+			labelsArr...,
 		)
 	}
 }
 
-func NewStatsCollector(desc, label, help string, callbackFn func() map[string]int) *StatsCollector {
+func NewStatsCollector(desc string, labels []string, help string, callbackFn func() map[string]int) *StatsCollector {
 	return &StatsCollector{
 		callbackFn: callbackFn,
 		desc: prometheus.NewDesc(
 			desc,
 			help,
-			[]string{label},
+			labels,
 			nil,
 		),
 	}

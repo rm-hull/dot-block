@@ -20,26 +20,26 @@ import (
 func TestIntegration_DNSFunctionality(t *testing.T) {
 	// App configuration for integration test
 	app := App{
-		Logger:             slog.Default(),
-		DevMode:            true,
-		DnsPort:            8053,
-		DotPort:            8853,
-		HttpPort:           8080, // Fixed port for DoH tests
-		Upstreams:          []string{"8.8.8.8", "1.1.1.1"},
-		BlockListURLs:      []string{"file://../data/blocklist.txt"},
-		AllowedHosts:       []string{"example.com"},
-		NoiseFilterURL:     "file://../data/noise-filter.csv",
-		DataDir:            "../data",
-		DisableIp2Location: true,
-		MaxCacheSize:       1000,
+		Logger:         slog.Default(),
+		DevMode:        true,
+		DnsPort:        8053,
+		DotPort:        8853,
+		HttpPort:       8080, // Fixed port for DoH tests
+		Upstreams:      []string{"8.8.8.8", "1.1.1.1"},
+		BlockListURLs:  []string{"file://../data/blocklist.txt"},
+		AllowedHosts:   []string{"example.com"},
+		NoiseFilterURL: "file://../data/noise-filter.csv",
+		DataDir:        "../data",
+		DisableIpinfo:  true,
+		MaxCacheSize:   1000,
 		CronSchedule: struct {
 			Downloader  string `json:"downloader"`
 			CacheReaper string `json:"cache_reaper"`
-			IP2Location string `json:"ip2location"`
+			IPInfo      string `json:"ipinfo"`
 		}{
 			Downloader:  "@every 19h",
 			CacheReaper: "0 3 * * *",
-			IP2Location: "5 7 4 * *",
+			IPInfo:      "5 7 4 * *",
 		},
 	}
 

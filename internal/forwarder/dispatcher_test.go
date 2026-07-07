@@ -25,9 +25,9 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) GetAll(ipAddress string) (geoblock.GeoData, error) {
+func (m *MockGeoIpLookup) GetAll(ipAddress string) (*geoblock.GeoData, error) {
 	args := m.Called(ipAddress)
-	return args.Get(0).(geoblock.GeoData), args.Error(1)
+	return new(args.Get(0).(geoblock.GeoData)), args.Error(1)
 }
 
 func (m *MockGeoIpLookup) Reopen() error {

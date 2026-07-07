@@ -42,24 +42,24 @@ import (
 )
 
 type App struct {
-	Logger             *slog.Logger `json:"-"`
-	LogLevel           string       `json:"log_level"`
-	DevMode            bool         `json:"dev_mode"`
-	DataDir            string       `json:"data_dir"`
-	HttpPort           int          `json:"http_port"`
-	DnsPort            int          `json:"dns_port"`
-	DotPort            int          `json:"dot_port"`
-	Upstreams          []string     `json:"upstreams"`
-	BlockListURLs      []string     `json:"blocklist_urls"`
-	AllowedHosts       []string     `json:"allowed_hosts"`
-	NoiseFilterURL     string       `json:"noise_filter_url"`
-	MetricsAuth        string       `json:"-"`
-	MaxCacheSize       int          `json:"max_cache_size"`
-	DisableIp2Location bool         `json:"disable_ip2location"`
-	CronSchedule       struct {
+	Logger         *slog.Logger `json:"-"`
+	LogLevel       string       `json:"log_level"`
+	DevMode        bool         `json:"dev_mode"`
+	DataDir        string       `json:"data_dir"`
+	HttpPort       int          `json:"http_port"`
+	DnsPort        int          `json:"dns_port"`
+	DotPort        int          `json:"dot_port"`
+	Upstreams      []string     `json:"upstreams"`
+	BlockListURLs  []string     `json:"blocklist_urls"`
+	AllowedHosts   []string     `json:"allowed_hosts"`
+	NoiseFilterURL string       `json:"noise_filter_url"`
+	MetricsAuth    string       `json:"-"`
+	MaxCacheSize   int          `json:"max_cache_size"`
+	DisableIpinfo  bool         `json:"disable_ipinfo"`
+	CronSchedule   struct {
 		Downloader  string `json:"downloader"`
 		CacheReaper string `json:"cache_reaper"`
-		IP2Location string `json:"ip2location"`
+		IPInfo      string `json:"ipinfo"`
 	} `json:"cron_schedule"`
 	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
 	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
@@ -153,8 +153,8 @@ func (app *App) RunServer(ctx context.Context) error {
 	crontab.Start()
 	defer crontab.Stop()
 	var geoIpLookup geoblock.GeoIpLookup
-	if app.DisableIp2Location {
-		app.Logger.Warn("GeoData lookups are disabled")
+	if app.DisableIpinfo {
+		app.Logger.Warn("GeoData lookups via ipinfo.io are disabled")
 	} else {
 		geoIpLookup, err = app.initMaxmind(crontab)
 		if err != nil {
@@ -445,20 +445,20 @@ func newStructuredLoggingConfig() *sloggin.Config {
 func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	geolocationDb := fmt.Sprintf("%s/maxmind/ipinfo_lite.mmdb", app.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
-		app.Logger.Info("Geolocation database not found, downloading...")
-		// _, err = geoblock.Fetch("DB1LITEBIN", app.DataDir, app.Logger)
-		// if err != nil {
-		// 	return nil, errors.Wrap(err, "failed to download geoblock database")
-		// }
+		app.Logger.Info("ipinfo.io database not found, downloading...")
+		_, err = geoblock.Fetch(geolocationDb, app.Logger)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to download ipinfo.io database")
+		}
 	}
-	app.Logger.Info("Loading maxmind geolocation database", "file", geolocationDb)
+	app.Logger.Info("Loading maxmind database", "file", geolocationDb)
 	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to open geoblock database")
+		return nil, errors.Wrap(err, "failed to open ipinfo.io database")
 	}
-	// app.Logger.Info("Creating IP2Location updater cron job", "schedule", app.CronSchedule.IP2Location)
-	// if _, err = crontab.AddJob(app.CronSchedule.IP2Location, geoblock.NewIp2LocationUpdaterCronJob(app.Logger, "DB1LITEBIN", app.DataDir, geoIpLookup)); err != nil {
-	// 	return nil, errors.Wrap(err, "failed to create IP2Location updater cron job")
-	// }
+	app.Logger.Info("Creating ipinfo.io updater cron job", "schedule", app.CronSchedule.IPInfo)
+	if _, err = crontab.AddJob(app.CronSchedule.IPInfo, geoblock.NewIpinfoUpdaterCronJob(app.Logger, geolocationDb, geoIpLookup)); err != nil {
+		return nil, errors.Wrap(err, "failed to create ipinfo.io updater cron job")
+	}
 	return geoIpLookup, nil
 }
