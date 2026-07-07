@@ -1,6 +1,7 @@
 package geoblock
 
 import (
+	"log/slog"
 	"net/netip"
 	"sync"
 
@@ -22,19 +23,21 @@ type GeoIpLookup interface {
 }
 
 type geoBlocker struct {
-	path string
-	db   *maxminddb.Reader
-	mu   sync.RWMutex
+	path   string
+	db     *maxminddb.Reader
+	logger *slog.Logger
+	mu     sync.RWMutex
 }
 
-func NewGeoIpLookup(path string) (GeoIpLookup, error) {
+func NewGeoIpLookup(path string, logger *slog.Logger) (GeoIpLookup, error) {
 	db, err := maxminddb.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	return &geoBlocker{
-		path: path,
-		db:   db,
+		path:   path,
+		db:     db,
+		logger: logger,
 	}, nil
 }
 
@@ -50,7 +53,9 @@ func (g *geoBlocker) Reopen() error {
 	g.mu.Unlock()
 
 	if oldDb != nil {
-		_ = oldDb.Close()
+		if err := oldDb.Close(); err != nil {
+			g.logger.Warn("failed to close old geoblock database", "error", err)
+		}
 	}
 	return nil
 }

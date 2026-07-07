@@ -452,7 +452,7 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 		}
 	}
 	app.Logger.Info("Loading maxmind database", "file", geolocationDb)
-	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb)
+	geoIpLookup, err := geoblock.NewGeoIpLookup(geolocationDb, app.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open ipinfo.io database")
 	}
