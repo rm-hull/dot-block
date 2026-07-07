@@ -87,12 +87,18 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	}
 
 	if t.ipAddr != "" && t.ipAddr != "unknown" {
-		metrics.UniqueClients.Insert([]byte(t.ipAddr))
+		provider := "unknown"
+		isoCode := "unknown"
 
-		if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil {
-			metrics.ProviderCounts.WithLabelValues(record.ASN+":"+record.Provider, record.ISOCode).Inc()
-			metrics.TopClients.Add(t.ipAddr + "|" + record.ASN + ":" + record.Provider + "|" + record.ISOCode)
+		if metrics.geoIpLookup != nil {
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record.ASN != "" && record.ISOCode != "" {
+				provider = record.ASN + ":" + record.Provider
+				isoCode = record.ISOCode
+			}
 		}
+		metrics.UniqueClients.Insert([]byte(t.ipAddr))
+		metrics.ProviderCounts.WithLabelValues(provider, isoCode).Inc()
+		metrics.TopClients.Add(t.ipAddr + "|" + provider + "|" + isoCode)
 	}
 
 	for _, qc := range t.queryCounts {
