@@ -18,7 +18,7 @@ import (
 
 const DEFAULT_DOWNLOADER_CRON_SCHEDULE = "@every 19h"
 const DEFAULT_CACHE_REAPER_CRON_SCHEDULE = "0 3 * * *" // 3:00am every day
-const DEFAULT_IP2LOCATION_CRON_SCHEDULE = "5 7 4 * *"  // 7:05am on the 4th of every month
+const DEFAULT_IPINFO_CRON_SCHEDULE = "5 7 4 * *"       // 7:05am on the 4th of every month
 
 var DEFAULT_NOISE_FILTER_URL = "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
 
@@ -114,7 +114,7 @@ func main() {
 	rootCmd.Flags().IntVar(&app.MaxCacheSize, "max-cache-size", 1_000_000, "Maximum number of entries in the DNS cache")
 	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", DEFAULT_DOWNLOADER_CRON_SCHEDULE, "cron spec for reloading blocklist")
 	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", DEFAULT_CACHE_REAPER_CRON_SCHEDULE, "cron spec for cache reaper")
-	rootCmd.Flags().StringVar(&app.CronSchedule.IP2Location, "cron-schedule:ip2location", DEFAULT_IP2LOCATION_CRON_SCHEDULE, "cron spec for Ip2location downloader")
+	rootCmd.Flags().StringVar(&app.CronSchedule.IPInfo, "cron-schedule:ipinfo", DEFAULT_IPINFO_CRON_SCHEDULE, "cron spec for Ipinfo.io downloader")
 	rootCmd.Flags().DurationVar(&app.CacheTtlFloor, "cache-ttl-floor", 3600*time.Second, "Minimum TTL for cached entries")
 	rootCmd.Flags().DurationVar(&app.Timeouts.Read, "read-timeout", 300*time.Millisecond, "Timeout for reading upstream DNS queries")
 	rootCmd.Flags().DurationVar(&app.Timeouts.Write, "write-timeout", 100*time.Millisecond, "Timeout for writing upstream DNS queries")

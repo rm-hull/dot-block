@@ -213,7 +213,7 @@ DoT Block can be configured using the following command-line flags:
 | `--write-timeout` | Timeout for writing upstream DNS queries | `100ms` |
 | `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
 | `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
-| `--cron-schedule:ip2location` | Cron spec for fetching IP2Location db. | `5 7 4 * *` (7:05am on the 4th of every month) |
+| `--cron-schedule:ipinfo` | Cron spec for fetching ipinfo.io geoIP database. | `5 7 4 * *` (7:05am on the 4th of every month) |
 | `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |
 | `--dev-mode` | Run the server in dev mode (no TLS, plain TCP). | `false` |
 | `--dns-port` | The port to run regular DNS (UDP/TCP) server on. If omitted, the regular DNS server will not start. | `0` |
@@ -234,7 +234,7 @@ DoT Block can be configured using the following command-line flags:
 | `ACME_EMAIL` | Email address used for Let's Encrypt registration. | Yes (in production) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (CertManager). | Yes (in production) |
 | `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | No |
-| `IP2LOCATION_TOKEN` | IP2Location token for downloading geoIP locations. | Yes |
+| `IPINFO_TOKEN` | IPInfo.io token for downloading geoIP locations. | Yes (if geoblocking enabled) |
 | `SENTRY_DSN` | DSN for Sentry error reporting. | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (e.g. `localhost:4317`). | No |
 | `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0). Defaults to `0.01` (1%). | No |

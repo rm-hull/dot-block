@@ -1,6 +1,9 @@
 package metrics
 
-import "time"
+import (
+	"strings"
+	"time"
+)
 
 type queryCountInfo struct {
 	queryType string
@@ -87,14 +90,30 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	}
 
 	if t.ipAddr != "" && t.ipAddr != "unknown" {
-		metrics.TopClients.Add(t.ipAddr)
-		metrics.UniqueClients.Insert([]byte(t.ipAddr))
+		provider := "unknown"
+		isoCode := "unknown"
 
 		if metrics.geoIpLookup != nil {
-			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record.Country_short != "" {
-				metrics.CountryCounts.WithLabelValues(record.Country_short).Inc()
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil {
+				if record.ASN != "" {
+					provider = record.ASN + ":" + record.Provider
+				}
+				if record.ISOCode != "" {
+					isoCode = record.ISOCode
+				}
 			}
 		}
+
+		var sb strings.Builder
+		sb.WriteString(t.ipAddr)
+		sb.WriteByte('|')
+		sb.WriteString(provider)
+		sb.WriteByte('|')
+		sb.WriteString(isoCode)
+
+		metrics.TopClients.Add(sb.String())
+		metrics.UniqueClients.Insert([]byte(t.ipAddr))
+		metrics.ProviderCounts.WithLabelValues(provider, isoCode).Inc()
 	}
 
 	for _, qc := range t.queryCounts {

@@ -31,7 +31,7 @@ func (job *NoiseFilterUpdater) Run() {
 }
 
 func Fetch(url string, nf *NoiseFilter, logger *slog.Logger) error {
-	err := downloader.TransientDownload(logger, "noisefilter", url, "", func(tmpFile string, header http.Header) error {
+	err := downloader.TransientDownload(logger, "", "noisefilter", url, "", func(tmpFile string, header http.Header) error {
 		f, err := os.Open(tmpFile)
 		if err != nil {
 			return err
