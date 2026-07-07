@@ -2,7 +2,6 @@ package geoblock
 
 import (
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -50,10 +49,10 @@ func Fetch(fileName string, logger *slog.Logger) ([]string, error) {
 	}
 
 	files := make([]string, 0)
-	err := downloader.TransientDownload(logger, "ipinfo", url, token, func(srcPath string, header http.Header) error {
-		logger.Info("Copying downloaded file to data directory", "to", fileName)
-		if err := copyFile(srcPath, fileName); err != nil {
-			return errors.Wrapf(err, "failed to copy file from %q to %q", srcPath, fileName)
+	err := downloader.TransientDownload(logger, dataDir, "ipinfo", url, token, func(srcPath string, header http.Header) error {
+		logger.Info("Moving downloaded file", "to", fileName)
+		if err := os.Rename(srcPath, fileName); err != nil {
+			return errors.Wrapf(err, "failed to move file from %q to %q", srcPath, fileName)
 		}
 		files = append(files, fileName)
 
@@ -61,23 +60,4 @@ func Fetch(fileName string, logger *slog.Logger) ([]string, error) {
 	})
 
 	return files, err
-}
-
-func copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open source file %q", src)
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create destination file %q", dest)
-	}
-	defer destFile.Close()
-
-	if _, err := io.Copy(destFile, srcFile); err != nil {
-		return errors.Wrapf(err, "failed to copy file from %q to %q", src, dest)
-	}
-	return nil
 }

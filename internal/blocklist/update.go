@@ -39,7 +39,7 @@ func (job *BlocklistUpdater) Run() {
 
 func Fetch(url string, logger *slog.Logger) ([]string, error) {
 	blocklist := make([]string, 0, 100_000)
-	err := downloader.TransientDownload(logger, "blocklist", url, "", func(tmpFile string, header http.Header) error {
+	err := downloader.TransientDownload(logger, "", "blocklist", url, "", func(tmpFile string, header http.Header) error {
 		file, err := os.Open(tmpFile)
 		if err != nil {
 			return errors.Wrap(err, "failed to open downloaded blocklist")

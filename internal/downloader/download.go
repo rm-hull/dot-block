@@ -32,7 +32,7 @@ func isValidUrl(uri string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file")
 }
 
-func TransientDownload(logger *slog.Logger, purpose string, uri string, redact string, handler func(tmpfile string, header http.Header) error) error {
+func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string, handler func(tmpfile string, header http.Header) error) error {
 	if path, ok := isValidFile(uri); ok {
 		return handler(path, http.Header{})
 	}
@@ -68,7 +68,7 @@ func TransientDownload(logger *slog.Logger, purpose string, uri string, redact s
 		return fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
 	}
 
-	tmp, err := os.CreateTemp("", fmt.Sprintf("dot-block-%s-download-*", purpose))
+	tmp, err := os.CreateTemp(dataDir, fmt.Sprintf("dot-block-%s-download-*", purpose))
 	if err != nil {
 		return err
 	}
