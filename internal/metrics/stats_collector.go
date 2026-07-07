@@ -17,7 +17,7 @@ func (coll *StatsCollector) Describe(ch chan<- *prometheus.Desc) {
 
 func (coll *StatsCollector) Collect(ch chan<- prometheus.Metric) {
 	for labels, value := range coll.callbackFn() {
-		labelsArr := strings.Split(labels, ",")
+		labelsArr := strings.Split(labels, "|")
 		ch <- prometheus.MustNewConstMetric(
 			coll.desc,
 			prometheus.GaugeValue,

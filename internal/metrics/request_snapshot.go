@@ -91,7 +91,7 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 
 		if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil {
 			metrics.ProviderCounts.WithLabelValues(record.ASN+":"+record.Provider, record.ISOCode).Inc()
-			metrics.TopClients.Add(t.ipAddr + "," + record.ASN + ":" + record.Provider + "," + record.ISOCode)
+			metrics.TopClients.Add(t.ipAddr + "|" + record.ASN + ":" + record.Provider + "|" + record.ISOCode)
 		}
 	}
 
