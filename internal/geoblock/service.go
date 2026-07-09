@@ -68,7 +68,7 @@ func (g *geoBlocker) GetAll(ipAddress string) (*GeoData, error) {
 		return nil, errors.New("geoblock database not initialized")
 	}
 
-ip, err := netip.ParseAddr(ipAddress)
+	ip, err := netip.ParseAddr(ipAddress)
 	if err != nil {
 		return nil, errors.Newf("invalid IP address: %w", err)
 	}
