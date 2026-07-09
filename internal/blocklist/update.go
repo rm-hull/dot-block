@@ -11,7 +11,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
 
-var PREFIX_LIST = []string{"*.", "www.", "0.0.0.0 "}
+var PREFIX_LIST = []string{"0.0.0.0 ", "*.", "www."}
 
 type BlocklistUpdater struct {
 	Blocklist *BlockList
