@@ -32,13 +32,13 @@ func isValidUrl(uri string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file")
 }
 
-func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string, handler func(tmpfile string, header http.Header) error) error {
+func Download(logger *slog.Logger, dataDir, purpose, uri, redact string) (string, http.Header, bool, error) {
 	if path, ok := isValidFile(uri); ok {
-		return handler(path, http.Header{})
+		return path, http.Header{}, false, nil
 	}
 
 	if !isValidUrl(uri) {
-		return handler(uri, http.Header{})
+		return "", nil, false, fmt.Errorf("invalid URL: %s", uri)
 	}
 
 	redactedUri := uri
@@ -48,14 +48,14 @@ func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string
 	logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
 	req, err := http.NewRequest("GET", uri, nil)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create request")
+		return "", nil, false, errors.Wrapf(err, "failed to create request")
 	}
 
 	req.Header.Add("User-Agent", "dot-block downloader (https://github.com/rm-hull/dot-block)")
 	client := &http.Client{Timeout: 5 * time.Minute}
 	resp, err := client.Do(req)
 	if err != nil {
-		return errors.Wrapf(err, "failed to fetch from %s", redactedUri)
+		return "", nil, false, errors.Wrapf(err, "failed to fetch from %s", redactedUri)
 	}
 
 	defer func() {
@@ -65,12 +65,12 @@ func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string
 	}()
 
 	if resp.StatusCode > 299 {
-		return fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
+		return "", nil, false, fmt.Errorf("error response from %s: %s", redactedUri, resp.Status)
 	}
 
 	tmp, err := os.CreateTemp(dataDir, fmt.Sprintf("dot-block-%s-download-*", purpose))
 	if err != nil {
-		return err
+		return "", nil, false, err
 	}
 	tmpfile := tmp.Name()
 
@@ -86,20 +86,31 @@ func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string
 	}
 	logger.Info(fmt.Sprintf("Downloading content (%s) to %s", filesize, tmpfile))
 
-	defer func() {
-		logger.Info(fmt.Sprintf("Removing temporary file: %s", tmpfile))
-		if err := os.Remove(tmpfile); err != nil {
-			logger.Info(fmt.Sprintf("failed to remove file %s: %v", tmpfile, err))
-		}
-	}()
-
 	if _, err := io.Copy(tmp, resp.Body); err != nil {
 		_ = tmp.Close()
-		return errors.Wrapf(err, "failed to copy response body")
+		return "", nil, false, errors.Wrapf(err, "failed to copy response body")
 	}
 
 	if err := tmp.Close(); err != nil {
-		return errors.Wrapf(err, "failed to close temporary file")
+		return "", nil, false, errors.Wrapf(err, "failed to close temporary file")
 	}
-	return handler(tmpfile, resp.Header)
+	return tmpfile, resp.Header, true, nil
+}
+
+func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string, handler func(tmpfile string, header http.Header) error) error {
+	tmpfile, header, isTemp, err := Download(logger, dataDir, purpose, uri, redact)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if isTemp {
+			logger.Info(fmt.Sprintf("Removing temporary file: %s", tmpfile))
+			if err := os.Remove(tmpfile); err != nil {
+				logger.Info(fmt.Sprintf("failed to remove file %s: %v", tmpfile, err))
+			}
+		}
+	}()
+
+	return handler(tmpfile, header)
 }
