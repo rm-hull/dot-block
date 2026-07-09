@@ -23,8 +23,9 @@ const DEFAULT_IPINFO_CRON_SCHEDULE = "5 7 4 * *"       // 7:05am on the 4th of e
 var DEFAULT_NOISE_FILTER_URL = "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
 
 var DEFAULT_BLOCKLIST_URLS = []string{
-	"https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",  // Hagezi Pro blocklist
-	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt", // dot-block default blocklist
+	"https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",          // Hagezi Pro blocklist
+	"https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt", // Cebeerre NRD blocklist
+	"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",         // dot-block default blocklist
 }
 
 var DEFAULT_UPSTREAM_DNS = []string{

@@ -11,6 +11,8 @@ import (
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
 
+var PREFIX_LIST = []string{"*.", "www.", "0.0.0.0 "}
+
 type BlocklistUpdater struct {
 	Blocklist *BlockList
 	URLs      []string
@@ -59,8 +61,10 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 			} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
 				continue
 			} else {
-				if after, ok := strings.CutPrefix(line, "0.0.0.0 "); ok {
-					line = after
+				for _, prefix := range PREFIX_LIST {
+					if after, ok := strings.CutPrefix(line, prefix); ok {
+						line = after
+					}
 				}
 				blocklist = append(blocklist, line)
 			}
