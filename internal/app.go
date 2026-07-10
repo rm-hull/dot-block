@@ -332,7 +332,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 	if len(app.TrustedProxies) > 0 {
 		// If trusted proxies are specified, use a whitelist policy
 		app.Logger.Info("Using PROXY protocol with trusted proxy whitelist", "trusted_proxies", app.TrustedProxies)
-		policy, err := proxyproto.ConnStrictWhiteListPolicy(app.TrustedProxies)
+		policy, err := proxyproto.PolicyFromRanges(app.TrustedProxies, proxyproto.USE, proxyproto.REJECT)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create trusted proxy whitelist policy")
 		}
