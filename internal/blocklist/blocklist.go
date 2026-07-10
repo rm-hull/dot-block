@@ -29,7 +29,6 @@ func NewBlockList(items []string, fpRate float64, logger *slog.Logger) *BlockLis
 	}
 
 	blocklist.Load(items)
-
 	return blocklist
 }
 
@@ -68,6 +67,10 @@ func (blocklist *BlockList) Load(items []string) {
 		bf.AddString(item)
 	}
 
+	blocklist.ApplyBloomFilter(bf, n)
+}
+
+func (blocklist *BlockList) ApplyBloomFilter(bf *bloom.BloomFilter, n uint) {
 	m, k := bloom.EstimateParameters(n, blocklist.fpRate)
 	blocklist.logger.Info("Bloom filter created", "actual_fp_rate", bloom.EstimateFalsePositiveRate(m, k, n), "approx_size", bf.ApproximatedSize())
 

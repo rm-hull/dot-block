@@ -161,15 +161,10 @@ func (app *App) RunServer(ctx context.Context) error {
 			return errors.Wrap(err, "failed to initialize GeoData database")
 		}
 	}
-	allHosts := make([]string, 0)
-	for _, url := range app.BlockListURLs {
-		hosts, err := blocklist.Fetch(url, app.Logger)
-		if err != nil {
-			return errors.Wrapf(err, "failed to download blocklist: %s", url)
-		}
-		allHosts = append(allHosts, hosts...)
+	blockList := blocklist.NewBlockList(nil, 0.0001, app.Logger)
+	if err := blocklist.LoadFromURLs(blockList, app.BlockListURLs); err != nil {
+		return errors.Wrap(err, "failed to load blocklists")
 	}
-	blockList := blocklist.NewBlockList(allHosts, 0.0001, app.Logger)
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
 	blocklistUpdater := blocklist.NewBlocklistUpdater(blockList, app.BlockListURLs)
 	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklistUpdater); err != nil {
