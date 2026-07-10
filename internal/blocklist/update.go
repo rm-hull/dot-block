@@ -121,7 +121,7 @@ func countFromFile(path string, logger *slog.Logger) (int, error) {
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to open blocklist file for counting")
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	err = scanBlocklist(file, logger, func(_ string) {
 		count++
 	})
@@ -133,7 +133,7 @@ func streamFromFile(path string, logger *slog.Logger, handler func(string)) erro
 	if err != nil {
 		return errors.Wrap(err, "failed to open blocklist file for streaming")
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	return scanBlocklist(file, logger, handler)
 }
 
