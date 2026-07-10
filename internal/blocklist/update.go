@@ -65,6 +65,11 @@ func LoadFromURLs(bl *BlockList, urls []string) error {
 		totalCount += uint(count)
 	}
 
+	// Avoid creating a bloom filter with 0 items, which will panic
+	if totalCount == 0 {
+		totalCount = 1
+	}
+
 	bf := bloom.NewWithEstimates(totalCount, bl.fpRate)
 	for _, f := range files {
 		if err := streamFromFile(f.path, bl.logger, func(host string) {
