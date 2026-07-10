@@ -28,10 +28,7 @@ func NewBlockList(items []string, fpRate float64, logger *slog.Logger) *BlockLis
 		mutex:   &sync.RWMutex{},
 	}
 
-	if items != nil {
-		blocklist.Load(items)
-	}
-
+	blocklist.Load(items)
 	return blocklist
 }
 
