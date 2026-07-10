@@ -93,11 +93,11 @@ func Fetch(url string, logger *slog.Logger) ([]string, error) {
 func scanBlocklist(file *os.File, logger *slog.Logger, handler func(string)) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := scanner.Text()
+		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "# ") {
 			logger.Info("Blocklist", "comment", line)
 		} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
-			continue
+			continue // ignore double-octothorpe and empty comments
 		} else {
 			for _, prefix := range prefixes {
 				if after, ok := strings.CutPrefix(line, prefix); ok {
