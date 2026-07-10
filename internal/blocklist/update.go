@@ -40,14 +40,6 @@ func LoadFromURLs(bl *BlockList, urls []string) error {
 	}
 	files := make([]downloadedFile, 0, len(urls))
 
-	for _, url := range urls {
-		path, _, isTemp, err := downloader.Download(bl.logger, "", "blocklist", url, "")
-		if err != nil {
-			return errors.Wrapf(err, "failed to download blocklist for counting: %s", url)
-		}
-		files = append(files, downloadedFile{path: path, url: url, isTemp: isTemp})
-	}
-
 	defer func() {
 		for _, f := range files {
 			if f.isTemp {
@@ -55,6 +47,14 @@ func LoadFromURLs(bl *BlockList, urls []string) error {
 			}
 		}
 	}()
+
+	for _, url := range urls {
+		path, _, isTemp, err := downloader.Download(bl.logger, "", "blocklist", url, "")
+		if err != nil {
+			return errors.Wrapf(err, "failed to download blocklist for counting: %s", url)
+		}
+		files = append(files, downloadedFile{path: path, url: url, isTemp: isTemp})
+	}
 
 	var totalCount uint
 	for _, f := range files {
