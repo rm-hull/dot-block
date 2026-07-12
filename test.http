@@ -6,10 +6,6 @@ GET http://localhost:8080/
 GET http://localhost:8080/robots.txt
 
 
-### ACME challenge
-GET http://localhost:8080/.well-known/acme-challenge/abc123XYZ
-
-
 ### Metrics
 GET http://localhost:8080/metrics
 

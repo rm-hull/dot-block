@@ -27,7 +27,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		HttpPort:       8080, // Fixed port for DoH tests
 		Upstreams:      []string{"8.8.8.8", "1.1.1.1"},
 		BlockListURLs:  []string{"file://../data/blocklist.txt"},
-		AllowedHosts:   []string{"example.com"},
+		AllowedHosts:   []string{"127.0.0.1"},
 		NoiseFilterURL: "file://../data/noise-filter.csv",
 		DataDir:        "../data",
 		DisableIpinfo:  true,
