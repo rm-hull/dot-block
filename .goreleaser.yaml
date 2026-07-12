@@ -3,8 +3,7 @@ project_name: dot-block
 
 before:
   hooks:
-    - cmd: pnpm install --frozen-lockfile && pnpm build
-      dir: ./web
+    - bash -c "cd web && pnpm install --frozen-lockfile && pnpm build"
 
 builds:
   - env:
