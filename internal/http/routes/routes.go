@@ -36,6 +36,10 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 			api.POST("/check", blocklistCheckHandler)
 			api.POST("/reload", blocklistReloadHandler)
 			api.GET("/events", func(c *gin.Context) {
+				if broadcaster == nil {
+					c.AbortWithStatus(http.StatusServiceUnavailable)
+					return
+				}
 				subscriber := broadcaster.Subscribe()
 				defer broadcaster.Unsubscribe(subscriber)
 
