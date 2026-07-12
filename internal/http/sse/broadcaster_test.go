@@ -1,6 +1,8 @@
 package sse
 
 import (
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -8,7 +10,8 @@ import (
 )
 
 func TestBroadcaster(t *testing.T) {
-	b := NewBroadcaster()
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	b := NewBroadcaster(logger)
 
 	// Register a subscriber
 	subscriber := b.Subscribe()
