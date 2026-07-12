@@ -49,7 +49,10 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 
 				for {
 					select {
-					case msg := <-subscriber:
+					case msg, ok := <-subscriber:
+						if !ok {
+							return
+						}
 						c.SSEvent("message", string(msg))
 						c.Writer.Flush()
 					case <-c.Request.Context().Done():
