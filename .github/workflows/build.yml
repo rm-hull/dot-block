@@ -7,15 +7,52 @@ on:
     branches: ["main"]
 
 jobs:
-  build-and-test:
+  build-web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "pnpm"
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install web dependencies
+        run: pnpm install --frozen-lockfile
+        working-directory: web
+
+      - name: Build web
+        run: pnpm build
+        working-directory: web
+
+      - name: Upload web dist
+        uses: actions/upload-artifact@v7
+        with:
+          name: web-dist
+          path: internal/http/web/dist
+
+  build-go:
+    needs: build-web
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       checks: write
-
     steps:
       - uses: actions/checkout@v7
+
+      - name: Download web dist
+        uses: actions/download-artifact@v7
+        with:
+          name: web-dist
+          path: internal/http/web/dist
 
       - name: Setup Go
         uses: actions/setup-go@v6
