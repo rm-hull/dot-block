@@ -11,7 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
-	"github.com/rm-hull/dot-block/internal/routes"
+	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +24,7 @@ func TestCheckHandler(t *testing.T) {
 	blockList := blocklist.NewBlockList([]string{"blocked.com", "ads.net"}, 0.0001, logger)
 	updater := blocklist.NewBlocklistUpdater(blockList, []string{})
 
-	handler := routes.NewBlocklistHandler(updater, logger)
+	handler := handlers.NewBlocklistHandler(updater, logger)
 
 	tests := []struct {
 		name           string

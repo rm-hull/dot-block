@@ -41,3 +41,5 @@ gemini-artifacts/
 
 # GitHub App credentials
 gha-creds-*.json
+
+internal/http/web/dist/
