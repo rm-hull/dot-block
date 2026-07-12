@@ -233,7 +233,7 @@ func (d *DNSDispatcher) snapshotWorker() {
 				}
 
 				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {
-					if geodata, err := d.geoIp.GetAll(snapshot.IPAddr()); err == nil {
+					if geodata, err := d.geoIp.GetAll(snapshot.IPAddr()); err == nil && geodata != nil {
 						event.Country = geodata.ISOCode
 						if geodata.ASN != "" && geodata.Provider != "" {
 							event.ASN = geodata.ASN + ":" + geodata.Provider
