@@ -56,3 +56,8 @@ Accept: text/html
 ### Who Am I
 GET http://admin.localhost:8080/api/whoami
 Accept: application/json
+
+
+### DNS Events Stream (SSE)
+GET http://admin.localhost:8080/api/events
+Accept: text/event-stream

@@ -13,7 +13,8 @@
             "args": [
                 "--dev-mode",
                 "--http-port=8080",
-                "--allowed-hosts=localhost"
+                "--allowed-hosts=localhost",
+                "--log-level=debug"
             ]
         }
     ]

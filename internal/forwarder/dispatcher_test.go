@@ -13,6 +13,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/geoblock"
+	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/stretchr/testify/assert"
@@ -95,7 +96,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), 1*time.Minute, logger, enableECS)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), mockGeo, sse.NewBroadcaster(logger), 1*time.Minute, logger, enableECS)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -387,7 +388,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), -1*time.Second, logger, false)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), mockGeo, sse.NewBroadcaster(logger), -1*time.Second, logger, false)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -713,7 +714,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo)
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 
-			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), 1*time.Minute, logger, tt.enableECS)
+			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), mockGeo, sse.NewBroadcaster(logger), 1*time.Minute, logger, tt.enableECS)
 			defer dispatcher.Close()
 
 			// Mock ResponseWriter with the specific client IP

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
+	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/http/web"
 )
 
@@ -23,7 +24,7 @@ func NewPublicGroup(r *gin.Engine, publicHost string, mobileConfigHandler gin.Ha
 	return public
 }
 
-func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheckHandler gin.HandlerFunc, blocklistReloadHandler gin.HandlerFunc) *gin.RouterGroup {
+func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheckHandler gin.HandlerFunc, blocklistReloadHandler gin.HandlerFunc, broadcaster *sse.Broadcaster) *gin.RouterGroup {
 
 	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
 	admin := r.Group("/")
@@ -34,6 +35,31 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 		{
 			api.POST("/check", blocklistCheckHandler)
 			api.POST("/reload", blocklistReloadHandler)
+			api.GET("/events", func(c *gin.Context) {
+				if broadcaster == nil {
+					c.AbortWithStatus(http.StatusServiceUnavailable)
+					return
+				}
+				subscriber := broadcaster.Subscribe()
+				defer broadcaster.Unsubscribe(subscriber)
+
+				c.Header("Content-Type", "text/event-stream")
+				c.Header("Cache-Control", "no-cache")
+				c.Header("Connection", "keep-alive")
+
+				for {
+					select {
+					case msg, ok := <-subscriber:
+						if !ok {
+							return
+						}
+						c.SSEvent("message", string(msg))
+						c.Writer.Flush()
+					case <-c.Request.Context().Done():
+						return
+					}
+				}
+			})
 			api.GET("/whoami", func(c *gin.Context) {
 				user, _ := c.Get("user")
 				email, _ := c.Get("email")

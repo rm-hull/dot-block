@@ -19,6 +19,7 @@ type RequestSnapshot struct {
 	source         string
 	ipAddr         string
 	startTime      time.Time
+	primaryDomain  string
 	blockedDomains []string
 	domains        []string
 	queryCounts    []queryCountInfo
@@ -32,6 +33,18 @@ type RequestSnapshot struct {
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
 	t.requestLatency = t.Latency().Seconds()
 	return t
+}
+
+func (t *RequestSnapshot) IPAddr() string {
+	return t.ipAddr
+}
+
+func (t *RequestSnapshot) Source() string {
+	return t.source
+}
+
+func (t *RequestSnapshot) IsBlocked() bool {
+	return len(t.blockedDomains) > 0
 }
 
 func (t *RequestSnapshot) Latency() time.Duration {
@@ -48,6 +61,14 @@ func NewRequestSnapshot(startTime time.Time, source string, ipAddr string) *Requ
 		queryCounts:    []queryCountInfo{},
 		upstreamTTLs:   []upstreamTTLInfo{},
 	}
+}
+
+func (t *RequestSnapshot) SetPrimaryDomain(domain string) {
+	t.primaryDomain = domain
+}
+
+func (t *RequestSnapshot) PrimaryDomain() string {
+	return t.primaryDomain
 }
 
 func (t *RequestSnapshot) AddBlockedDomain(domain string) {

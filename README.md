@@ -13,6 +13,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 -   **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
 -   **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
 -   **Advanced Observability:** Exports detailed Prometheus metrics including upstream health, failure reasons, and cache effectiveness.
+-   **Real-time Request Streaming:** An admin-only SSE endpoint streams live DNS requests, including client IP, location data (ASN/Country), and blocking status.
 -   **Latency-Aware Routing:** Automatically prefers the fastest upstream resolvers based on real-time response latency and applies penalties to failing servers to ensure high availability.
 -   **Hardened TLS:** Uses a strict TLS configuration (TLS 1.2+) with forward-secrecy prioritized cipher suites to ensure maximum security for DoT connections.
 -   **Distributed Tracing:** Integrates with OpenTelemetry (OTel), providing end-to-end traces of DNS requests and correlating them with logs via `trace_id` and `span_id`.
@@ -143,12 +144,30 @@ openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your
 
 The server provides several HTTP endpoints for monitoring and management on the configured `--http-port` (default 80).
 
+#### Public endpoints
+
 - `GET /metrics`: Exports Prometheus metrics.
-- `GET /reload`: Triggers an asynchronous reload of the blocklists.
-- `POST /check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+- `GET /healthz`: Simple heathcheck.
 - `GET /dns-query` and `POST /dns-query`: DNS-over-HTTPS (DoH) endpoint. `GET /dns-query` expects a `dns` query parameter containing the base64url-encoded DNS wire message. `POST /dns-query` expects the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
 
-If `--metrics-auth` is configured, `/metrics` and `/reload` are protected by basic authentication.
+If `--metrics-auth` is configured, the `/metrics` endpoint is protected by basic authentication.
+
+#### Admin endpoints
+
+While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`):
+
+- `POST /api/reload`: Triggers an asynchronous reload of the blocklists.
+- `POST /api/check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+- `GET /api/whoami`: Returns information about the currently authenticated user.
+- `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
+
+### Testing the Event Stream
+
+You can stream live DNS requests using `curl`:
+
+```bash
+curl -N -H "Accept: text/event-stream" http://admin.localhost:8080/api/events
+```
 
 ### iOS / iPadOS Configuration
 
