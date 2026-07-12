@@ -31,6 +31,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/routes"
+	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
@@ -222,7 +223,8 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, app.CacheTtlFloor, app.Logger, app.EnableECS)
+	broadcaster := sse.NewBroadcaster(app.Logger)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, geoIpLookup, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
@@ -411,7 +413,8 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 
 	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode,
 		blocklistHandler.Check,
-		blocklistHandler.Reload)
+		blocklistHandler.Reload,
+		dispatcher.GetBroadcaster())
 
 	return r, nil
 }

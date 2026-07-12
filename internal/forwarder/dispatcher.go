@@ -2,6 +2,7 @@ package forwarder
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/geoblock"
+	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/rm-hull/dot-block/internal/telemetry"
@@ -57,6 +60,8 @@ type DNSDispatcher struct {
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
+	geoIp       geoblock.GeoIpLookup
+	broadcaster *sse.Broadcaster
 	enableECS   bool
 	snapshotCh  chan *metrics.RequestSnapshot
 	done        chan struct{}
@@ -68,6 +73,8 @@ func NewDNSDispatcher(
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
 	noiseFilter *noisefilter.NoiseFilter,
+	geoIp geoblock.GeoIpLookup,
+	broadcaster *sse.Broadcaster,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
 	enableECS bool,
@@ -86,6 +93,8 @@ func NewDNSDispatcher(
 		metrics:     dnsMetrics,
 		logger:      logger,
 		noiseFilter: noiseFilter,
+		geoIp:       geoIp,
+		broadcaster: broadcaster,
 		enableECS:   enableECS,
 		snapshotCh:  make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
 		done:        make(chan struct{}),
@@ -102,6 +111,10 @@ func NewDNSDispatcher(
 func (d *DNSDispatcher) Close() {
 	d.cache.Close()
 	close(d.done)
+}
+
+func (d *DNSDispatcher) GetBroadcaster() *sse.Broadcaster {
+	return d.broadcaster
 }
 
 func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
@@ -140,6 +153,9 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			snapshot: metrics.NewRequestSnapshot(time.Now(), string(source), ipAddr),
 			ipAddr:   ipAddr,
 			subnet:   d.computeSubnet(ipAddr),
+		}
+		if len(req.Question) > 0 {
+			requestCtx.snapshot.SetPrimaryDomain(req.Question[0].Name)
 		}
 
 		defer func() {
@@ -205,6 +221,29 @@ func (d *DNSDispatcher) snapshotWorker() {
 				return
 			}
 			snapshot.Record(d.metrics)
+
+			// Broadcast event in the background
+			if d.broadcaster != nil {
+				event := sse.Event{
+					Domain:   snapshot.PrimaryDomain(),
+					ClientIP: snapshot.IPAddr(),
+					Source:   snapshot.Source(),
+					Blocked:  snapshot.IsBlocked(),
+					Time:     time.Now().Format(time.RFC3339),
+				}
+
+				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {
+					if geodata, err := d.geoIp.GetAll(snapshot.IPAddr()); err == nil {
+						event.Country = geodata.ISOCode
+						if geodata.ASN != "" && geodata.Provider != "" {
+							event.ASN = geodata.ASN + ":" + geodata.Provider
+						}
+					}
+				}
+
+				msg, _ := json.Marshal(event)
+				d.broadcaster.Broadcast(msg)
+			}
 		case <-d.done:
 			return
 		}
