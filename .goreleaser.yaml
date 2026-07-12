@@ -3,7 +3,7 @@ project_name: dot-block
 
 before:
   hooks:
-    - cd web && pnpm build
+    - cd web && pnpm install --frozen-lockfile && pnpm build
 
 builds:
   - env:

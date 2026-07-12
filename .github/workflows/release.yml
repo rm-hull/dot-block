@@ -39,14 +39,6 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: web/pnpm-lock.yaml
 
-      - name: Install web dependencies
-        run: pnpm install --frozen-lockfile
-        working-directory: web
-
-      - name: Build web
-        run: pnpm build
-        working-directory: web
-
       - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
