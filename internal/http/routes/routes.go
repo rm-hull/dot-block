@@ -1,7 +1,6 @@
 package routes
 
 import (
-	"fmt"
 	"io/fs"
 	"net/http"
 	"strings"
@@ -55,9 +54,6 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 			if i := strings.IndexByte(host, ':'); i != -1 {
 				host = host[:i]
 			}
-			fmt.Printf("NoRoute hit: path=%q host=%q adminHost=%q match=%v\n",
-				c.Request.URL.Path, host, adminHost, strings.EqualFold(host, adminHost))
-
 			if !strings.EqualFold(host, adminHost) {
 				c.AbortWithStatus(http.StatusNotFound)
 				return
@@ -65,6 +61,10 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 
 			path := strings.TrimPrefix(c.Request.URL.Path, "/")
 			if path != "" {
+				if strings.HasPrefix(path, "api/") {
+					c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+					return
+				}
 				if _, err := fs.Stat(distFS, path); err == nil {
 					fileServer.ServeHTTP(c.Writer, c.Request)
 					return

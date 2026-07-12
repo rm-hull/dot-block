@@ -391,8 +391,12 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize healthcheck")
 	}
-	authorized := r.Group("/", middlewares.RequireBasicAuth(app.MetricsAuth, app.Logger))
-	authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	basicAuthMiddleware, err := middlewares.RequireBasicAuth(app.MetricsAuth, app.Logger)
+	if err != nil {
+		return nil, errors.Wrap(err, "basic auth middleware failure")
+	}
+	r.GET("/metrics", basicAuthMiddleware, gin.WrapH(promhttp.Handler()))
 
 	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
@@ -405,7 +409,9 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		handlers.NewMobileconfigHandler(serverName),
 		handlers.NewDoHHandler(requestHandler))
 
-	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode, blocklistHandler.Check, blocklistHandler.Reload)
+	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode,
+		blocklistHandler.Check,
+		blocklistHandler.Reload)
 
 	return r, nil
 }
