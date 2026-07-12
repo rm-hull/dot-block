@@ -1,6 +1,10 @@
 version: 2
 project_name: dot-block
 
+before:
+  hooks:
+    - cd web && pnpm build
+
 builds:
   - env:
       - CGO_ENABLED=0
