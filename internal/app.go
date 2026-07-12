@@ -28,10 +28,12 @@ import (
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/forwarder"
 	"github.com/rm-hull/dot-block/internal/geoblock"
+	"github.com/rm-hull/dot-block/internal/http/handlers"
+	"github.com/rm-hull/dot-block/internal/http/middlewares"
+	"github.com/rm-hull/dot-block/internal/http/routes"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
-	"github.com/rm-hull/dot-block/internal/routes"
 	"github.com/rm-hull/dot-block/internal/telemetry"
 	"github.com/rm-hull/godx"
 	"github.com/robfig/cron/v3"
@@ -366,7 +368,7 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	blocklistHandler := routes.NewBlocklistHandler(blocklistUpdater, app.Logger)
+	blocklistHandler := handlers.NewBlocklistHandler(blocklistUpdater, app.Logger)
 	if app.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
@@ -384,41 +386,27 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 		gin.Recovery(),
 		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
 		prometheus.Instrument(),
-		routes.SentryErrorHandler(app.Logger),
+		middlewares.SentryErrorHandler(app.Logger),
 	)
 	if err := healthcheck.New(r, hc_config.DefaultConfig(), dnsClient.Healthchecks()); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize healthcheck")
 	}
-	if app.MetricsAuth == "" {
-		app.Logger.Warn("Metrics & reload endpoints are not protected by basic auth")
-		r.GET("/metrics", gin.WrapH(promhttp.Handler()))
-		r.GET("/reload", blocklistHandler.Reload)
-	} else {
-		parts := strings.SplitN(app.MetricsAuth, ":", 2)
-		if len(parts) == 2 {
-			app.Logger.Info("Protecting /metrics and /reload endpoints with basic auth")
-			user := parts[0]
-			pass := parts[1]
-			authorized := r.Group("/", gin.BasicAuth(gin.Accounts{user: pass}))
-			authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
-			authorized.GET("/reload", blocklistHandler.Reload)
-		} else {
-			return nil, errors.Newf("invalid metrics-auth value: %s", app.MetricsAuth)
-		}
-	}
-	r.POST("/check", blocklistHandler.Check)
+	authorized := r.Group("/", middlewares.RequireBasicAuth(app.MetricsAuth, app.Logger))
+	authorized.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
 	if len(app.AllowedHosts) == 0 {
 		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
 	}
 	serverName := app.AllowedHosts[0]
-	r.GET("/.mobileconfig", routes.NewMobileconfigHandler(serverName))
-	r.GET("/", routes.RootHandler)
-	r.GET("/robots.txt", routes.RobotsTxtHandler)
 
 	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
-	dohHandler := routes.NewDoHHandler(requestHandler)
-	r.GET("/dns-query", dohHandler)
-	r.POST("/dns-query", dohHandler)
+
+	routes.NewPublicGroup(r, serverName,
+		handlers.NewMobileconfigHandler(serverName),
+		handlers.NewDoHHandler(requestHandler))
+
+	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode, blocklistHandler.Check, blocklistHandler.Reload)
+
 	return r, nil
 }
 

@@ -23,17 +23,17 @@ GET http://localhost:8080/.mobileconfig
 
 
 ### Reload blocklist
-GET http://localhost:8080/reload
+POST http://admin.localhost:8080/api/reload
 User-Agent: test-client
 
 ### Check blocklist (JSON)
-POST http://localhost:8080/check
+POST http://admin.localhost:8080/api/check
 Content-Type: application/json
 
 ["google.com", "www.ex.co", "ads.net"]
 
 ### Check blocklist (Plain text)
-POST http://localhost:8080/check
+POST http://admin.localhost:8080/api/check
 Content-Type: text/plain
 
 google.com
@@ -50,3 +50,13 @@ Accept: application/dns-message
 ### DoH GET
 GET http://localhost:8080/dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB
 Accept: application/dns-message
+
+
+### Admin UI
+GET http://admin.localhost:8080/
+Accept: text/html
+
+
+### Who Am I
+GET http://admin.localhost:8080/api/whoami
+Accept: application/json
