@@ -91,7 +91,7 @@ func (r *RoundRobinClient) Exchange(msg *dns.Msg) (*dns.Msg, string, error) {
 	startIdx := r.selectUpstreamIndex()
 
 	var lastErr error
-	for i := 0; i < n; i++ {
+	for i := range n {
 		idx := (startIdx + i) % n
 		server := &r.upstreams[idx]
 

@@ -2,7 +2,6 @@ package internal
 
 import (
 	"bytes"
-	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -43,8 +42,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		},
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// RunServer will return when ctx is cancelled, but it starts multiple servers in a group.
 	// We need to run it in a goroutine.
