@@ -20,13 +20,25 @@ func TestBroadcaster(t *testing.T) {
 	defer b.Unsubscribe(subscriber)
 
 	// Broadcast a message
-	msg := []byte("hello")
-	b.Broadcast(msg)
+	event := Event{Domain: "example.com"}
+	b.Broadcast(event)
 
 	// Verify receipt
 	select {
 	case received := <-subscriber:
-		assert.Equal(t, msg, received)
+		assert.Equal(t, "example.com", received.Domain)
+		assert.Equal(t, uint64(1), received.Sequence)
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("timed out waiting for message")
+	}
+
+	// Broadcast another message to check sequence
+	b.Broadcast(Event{Domain: "test.com"})
+
+	select {
+	case received := <-subscriber:
+		assert.Equal(t, "test.com", received.Domain)
+		assert.Equal(t, uint64(2), received.Sequence)
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timed out waiting for message")
 	}
@@ -35,8 +47,8 @@ func TestBroadcaster(t *testing.T) {
 func TestEventJSONMarshaling(t *testing.T) {
 	now := time.Date(2024, 1, 1, 12, 0, 0, 123456789, time.UTC)
 	event := Event{
-		Domain: "example.com",
-		Time:   now,
+		Domain:    "example.com",
+		Timestamp: now,
 	}
 
 	data, err := json.Marshal(event)
@@ -46,8 +58,8 @@ func TestEventJSONMarshaling(t *testing.T) {
 	err = json.Unmarshal(data, &m)
 	require.NoError(t, err)
 
-	timeStr, ok := m["time"].(string)
+	timestampStr, ok := m["ts"].(string)
 	require.True(t, ok, "time field should be a string")
 
-	assert.Equal(t, now.Format(time.RFC3339Nano), timeStr, "timestamp should match the expected RFC3339Nano format")
+	assert.Equal(t, now.Format(time.RFC3339Nano), timestampStr, "timestamp should match the expected RFC3339Nano format")
 }

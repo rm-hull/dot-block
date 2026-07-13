@@ -2,7 +2,6 @@ package forwarder
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -225,11 +224,11 @@ func (d *DNSDispatcher) snapshotWorker() {
 			// Broadcast event in the background
 			if d.broadcaster != nil {
 				event := sse.Event{
-					Domain:   snapshot.PrimaryDomain(),
-					ClientIP: snapshot.IPAddr(),
-					Source:   snapshot.Source(),
-					Blocked:  snapshot.IsBlocked(),
-					Time:     time.Now(),
+					Domain:    snapshot.PrimaryDomain(),
+					ClientIP:  snapshot.IPAddr(),
+					Source:    snapshot.Source(),
+					Blocked:   snapshot.IsBlocked(),
+					Timestamp: time.Now(),
 				}
 
 				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {
@@ -241,8 +240,7 @@ func (d *DNSDispatcher) snapshotWorker() {
 					}
 				}
 
-				msg, _ := json.Marshal(event)
-				d.broadcaster.Broadcast(msg)
+				d.broadcaster.Broadcast(event)
 			}
 		case <-d.done:
 			return
