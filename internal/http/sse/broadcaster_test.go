@@ -33,7 +33,7 @@ func TestBroadcaster(t *testing.T) {
 }
 
 func TestEventJSONMarshaling(t *testing.T) {
-	now := time.Now()
+	now := time.Date(2024, 1, 1, 12, 0, 0, 123456789, time.UTC)
 	event := Event{
 		Domain: "example.com",
 		Time:   now,
@@ -49,7 +49,5 @@ func TestEventJSONMarshaling(t *testing.T) {
 	timeStr, ok := m["time"].(string)
 	require.True(t, ok, "time field should be a string")
 
-	// RFC3339Nano includes fractional seconds if they are non-zero.
-	// We check if there's a dot in the timestamp, which indicates sub-second precision.
-	assert.Contains(t, timeStr, ".", "timestamp should include fractional seconds for millisecond accuracy")
+	assert.Equal(t, now.Format(time.RFC3339Nano), timeStr, "timestamp should match the expected RFC3339Nano format")
 }
