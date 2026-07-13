@@ -20,14 +20,10 @@ export function UserAvatar() {
     return null;
   }
 
-  const gravatarUrl = `https://www.gravatar.com/avatar/${encodeURIComponent(
-    data.email.trim().toLowerCase()
-  )}`
-
   return (
     <Avatar.Root size="sm" colorPalette={pickPalette(data.user)}>
       <Avatar.Fallback name={data.user} />
-      <Avatar.Image src={gravatarUrl} />
+      <Avatar.Image src={`https://www.gravatar.com/avatar/${data.emailHash}`} />
     </Avatar.Root>
   )
 }
