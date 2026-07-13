@@ -7,6 +7,7 @@ import (
 )
 
 type Event struct {
+	Sequence uint64    `json:"sequence"`
 	Domain   string    `json:"domain"`
 	ClientIP string    `json:"client_ip"`
 	Source   string    `json:"source"`
@@ -17,29 +18,30 @@ type Event struct {
 }
 
 type Broadcaster struct {
-	subscribers map[chan []byte]struct{}
-	logger      *slog.Logger
-	mu          sync.RWMutex
+	subscribers  map[chan Event]struct{}
+	nextSequence uint64
+	logger       *slog.Logger
+	mu           sync.RWMutex
 }
 
 func NewBroadcaster(logger *slog.Logger) *Broadcaster {
 	return &Broadcaster{
-		subscribers: make(map[chan []byte]struct{}),
+		subscribers: make(map[chan Event]struct{}),
 		logger:      logger,
 	}
 }
 
-func (b *Broadcaster) Subscribe() chan []byte {
+func (b *Broadcaster) Subscribe() chan Event {
 	b.logger.Debug("New subscriber added")
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ch := make(chan []byte, 10)
+	ch := make(chan Event, 10)
 	b.subscribers[ch] = struct{}{}
 	return ch
 }
 
-func (b *Broadcaster) Unsubscribe(ch chan []byte) {
+func (b *Broadcaster) Unsubscribe(ch chan Event) {
 	b.logger.Debug("Subscriber removed")
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -50,13 +52,18 @@ func (b *Broadcaster) Unsubscribe(ch chan []byte) {
 	}
 }
 
-func (b *Broadcaster) Broadcast(msg []byte) {
+func (b *Broadcaster) Broadcast(event Event) {
+	b.mu.Lock()
+	event.Sequence = b.nextSequence
+	b.nextSequence++
+	b.mu.Unlock()
+
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
 	for ch := range b.subscribers {
 		select {
-		case ch <- msg:
+		case ch <- event:
 		default:
 			// Buffer full, drop message for this slow client
 		}
