@@ -15,14 +15,14 @@ func RequireProxyAuth(devMode bool) gin.HandlerFunc {
 			return
 		}
 
-		user := c.GetHeader("X-Auth-Request-Email")
+		user := c.GetHeader("X-Auth-Request-User")
 		if user == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing auth"})
 			return
 		}
 
 		c.Set("user", user)
-		c.Set("email", c.GetHeader("X-Auth-Request-User"))
+		c.Set("email", c.GetHeader("X-Auth-Request-Email"))
 		c.Next()
 	}
 }
