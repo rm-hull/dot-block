@@ -1,6 +1,7 @@
 import { fetchWhoAmI } from '@/service/whoami'
 import { Avatar } from '@chakra-ui/react'
 import { useQuery } from '@tanstack/react-query'
+import { Tooltip } from '@/components/ui/tooltip'
 
 const colorPalette = ["red", "blue", "green", "yellow", "purple", "orange"]
 
@@ -22,9 +23,11 @@ export function UserAvatar() {
   }
 
   return (
-    <Avatar.Root size="sm" colorPalette={pickPalette(data.user)}>
-      <Avatar.Fallback name={data.user} />
-      <Avatar.Image src={`https://www.gravatar.com/avatar/${data.emailHash}`} />
-    </Avatar.Root>
+    <Tooltip content={data.email}>
+      <Avatar.Root size="sm" colorPalette={pickPalette(data.user)} cursor="pointer">
+        <Avatar.Fallback name={data.user} />
+        <Avatar.Image src={`https://www.gravatar.com/avatar/${data.emailHash}`} />
+      </Avatar.Root>
+    </Tooltip>
   )
 }
