@@ -1,5 +1,6 @@
-import { Box, Flex, HStack, Avatar, Span } from '@chakra-ui/react'
+import { Box, Flex, HStack, Span } from '@chakra-ui/react'
 import { RouterLink } from '@/components/ui/router-link'
+import { UserAvatar } from './UserAvatar'
 
 export function Navbar() {
   return (
@@ -34,10 +35,7 @@ export function Navbar() {
           </HStack>
         </HStack>
 
-        <Avatar.Root size="sm">
-          <Avatar.Fallback name="User Name" />
-          <Avatar.Image src="https://bit.ly/broken-link" />
-        </Avatar.Root>
+        <UserAvatar />
       </Flex>
     </Box>
   )
