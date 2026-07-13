@@ -14,8 +14,6 @@ type Event struct {
 	ClientIP  string    `json:"ip"`
 	Source    string    `json:"src"`
 	Blocked   bool      `json:"blocked"`
-	ASN       string    `json:"asn,omitempty"`
-	Country   string    `json:"country,omitempty"`
 }
 
 type Broadcaster struct {

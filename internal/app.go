@@ -224,7 +224,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 
 	broadcaster := sse.NewBroadcaster(app.Logger)
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, geoIpLookup, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}

@@ -11,7 +11,6 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
-	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
@@ -59,7 +58,6 @@ type DNSDispatcher struct {
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
-	geoIp       geoblock.GeoIpLookup
 	broadcaster *sse.Broadcaster
 	enableECS   bool
 	snapshotCh  chan *metrics.RequestSnapshot
@@ -72,7 +70,6 @@ func NewDNSDispatcher(
 	dnsClient *RoundRobinClient,
 	blockList *blocklist.BlockList,
 	noiseFilter *noisefilter.NoiseFilter,
-	geoIp geoblock.GeoIpLookup,
 	broadcaster *sse.Broadcaster,
 	ttlFloor time.Duration,
 	logger *slog.Logger,
@@ -92,7 +89,6 @@ func NewDNSDispatcher(
 		metrics:     dnsMetrics,
 		logger:      logger,
 		noiseFilter: noiseFilter,
-		geoIp:       geoIp,
 		broadcaster: broadcaster,
 		enableECS:   enableECS,
 		snapshotCh:  make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
@@ -221,7 +217,6 @@ func (d *DNSDispatcher) snapshotWorker() {
 			}
 			snapshot.Record(d.metrics)
 
-			// Broadcast event in the background
 			if d.broadcaster != nil {
 				event := sse.Event{
 					Domain:    snapshot.PrimaryDomain(),
@@ -229,15 +224,6 @@ func (d *DNSDispatcher) snapshotWorker() {
 					Source:    snapshot.Source(),
 					Blocked:   snapshot.IsBlocked(),
 					Timestamp: time.Now(),
-				}
-
-				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {
-					if geodata, err := d.geoIp.GetAll(snapshot.IPAddr()); err == nil && geodata != nil {
-						event.Country = geodata.ISOCode
-						if geodata.ASN != "" && geodata.Provider != "" {
-							event.ASN = geodata.ASN + ":" + geodata.Provider
-						}
-					}
 				}
 
 				d.broadcaster.Broadcast(event)
