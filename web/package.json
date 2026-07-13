@@ -23,6 +23,7 @@
     "@babel/core": "^8.0.1",
     "@eslint/js": "^10.0.1",
     "@rolldown/plugin-babel": "^0.2.3",
+    "@tanstack/react-router-devtools": "^1.167.0",
     "@tanstack/router-cli": "^1.167.18",
     "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.19",
