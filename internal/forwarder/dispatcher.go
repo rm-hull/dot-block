@@ -224,11 +224,11 @@ func (d *DNSDispatcher) snapshotWorker() {
 			// Broadcast event in the background
 			if d.broadcaster != nil {
 				event := sse.Event{
-					Domain:   snapshot.PrimaryDomain(),
-					ClientIP: snapshot.IPAddr(),
-					Source:   snapshot.Source(),
-					Blocked:  snapshot.IsBlocked(),
-					Time:     time.Now(),
+					Domain:    snapshot.PrimaryDomain(),
+					ClientIP:  snapshot.IPAddr(),
+					Source:    snapshot.Source(),
+					Blocked:   snapshot.IsBlocked(),
+					Timestamp: time.Now(),
 				}
 
 				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {

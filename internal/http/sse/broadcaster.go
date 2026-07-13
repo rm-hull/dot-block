@@ -3,23 +3,24 @@ package sse
 import (
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type Event struct {
-	Sequence uint64    `json:"sequence"`
-	Domain   string    `json:"domain"`
-	ClientIP string    `json:"client_ip"`
-	Source   string    `json:"source"`
-	Blocked  bool      `json:"blocked"`
-	ASN      string    `json:"asn,omitempty"`
-	Country  string    `json:"country,omitempty"`
-	Time     time.Time `json:"time"`
+	Timestamp time.Time `json:"ts"`
+	Sequence  uint64    `json:"seq"`
+	Domain    string    `json:"domain"`
+	ClientIP  string    `json:"ip"`
+	Source    string    `json:"src"`
+	Blocked   bool      `json:"blocked"`
+	ASN       string    `json:"asn,omitempty"`
+	Country   string    `json:"country,omitempty"`
 }
 
 type Broadcaster struct {
 	subscribers  map[chan Event]struct{}
-	nextSequence uint64
+	nextSequence atomic.Uint64
 	logger       *slog.Logger
 	mu           sync.RWMutex
 }
@@ -53,10 +54,7 @@ func (b *Broadcaster) Unsubscribe(ch chan Event) {
 }
 
 func (b *Broadcaster) Broadcast(event Event) {
-	b.mu.Lock()
-	event.Sequence = b.nextSequence
-	b.nextSequence++
-	b.mu.Unlock()
+	event.Sequence = b.nextSequence.Add(1)
 
 	b.mu.RLock()
 	defer b.mu.RUnlock()
