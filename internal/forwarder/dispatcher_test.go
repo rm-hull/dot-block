@@ -26,13 +26,17 @@ type MockGeoIpLookup struct {
 	mock.Mock
 }
 
-func (m *MockGeoIpLookup) GetAll(ipAddress string) (*geoblock.GeoData, error) {
-	args := m.Called(ipAddress)
+func (m *MockGeoIpLookup) GetAll(ipAddr string) (*geoblock.GeoData, error) {
+	args := m.Called(ipAddr)
 	return new(args.Get(0).(geoblock.GeoData)), args.Error(1)
 }
 
 func (m *MockGeoIpLookup) Reopen() error {
 	return nil
+}
+
+func (m *MockGeoIpLookup) IsValid(ipAddr string) bool {
+	return true
 }
 
 // MockResponseWriter is a mock implementation of dns.ResponseWriter.

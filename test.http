@@ -19,22 +19,25 @@ GET http://localhost:8080/.mobileconfig
 
 
 ### Reload blocklist
-POST http://admin.localhost:8080/api/reload
+POST http://admin.localhost:8080/api/blocklist/reload
 User-Agent: test-client
 
 ### Check blocklist (JSON)
-POST http://admin.localhost:8080/api/check
+POST http://admin.localhost:8080/api/blocklist/check
 Content-Type: application/json
 
 ["google.com", "www.ex.co", "ads.net"]
 
 ### Check blocklist (Plain text)
-POST http://admin.localhost:8080/api/check
+POST http://admin.localhost:8080/api/blocklist/check
 Content-Type: text/plain
 
 google.com
 www.ex.co
 ads.net
+
+### ASN Lookup
+GET http://admin.localhost:8080/api/asn/24.123.12.0
 
 ### DoH POST
 POST http://localhost:8080/dns-query

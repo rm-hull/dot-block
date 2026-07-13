@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/sse"
@@ -24,7 +25,15 @@ func NewPublicGroup(r *gin.Engine, publicHost string, mobileConfigHandler gin.Ha
 	return public
 }
 
-func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheckHandler gin.HandlerFunc, blocklistReloadHandler gin.HandlerFunc, broadcaster *sse.Broadcaster) *gin.RouterGroup {
+func NewAdminGroup(
+	r *gin.Engine,
+	adminHost string,
+	devMode bool,
+	blocklistCheckHandler gin.HandlerFunc,
+	blocklistReloadHandler gin.HandlerFunc,
+	broadcaster *sse.Broadcaster,
+	geoIp geoblock.GeoIpLookup,
+) *gin.RouterGroup {
 
 	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
 	admin := r.Group("/")
@@ -33,41 +42,11 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 		api := admin.Group("/api")
 		api.Use(middlewares.RequireProxyAuth(devMode))
 		{
-			api.POST("/check", blocklistCheckHandler)
-			api.POST("/reload", blocklistReloadHandler)
-			api.GET("/events", func(c *gin.Context) {
-				if broadcaster == nil {
-					c.AbortWithStatus(http.StatusServiceUnavailable)
-					return
-				}
-				subscriber := broadcaster.Subscribe()
-				defer broadcaster.Unsubscribe(subscriber)
-
-				c.Header("Content-Type", "text/event-stream")
-				c.Header("Cache-Control", "no-cache")
-				c.Header("Connection", "keep-alive")
-
-				for {
-					select {
-					case event, ok := <-subscriber:
-						if !ok {
-							return
-						}
-						c.SSEvent("message", event)
-						c.Writer.Flush()
-					case <-c.Request.Context().Done():
-						return
-					}
-				}
-			})
-			api.GET("/whoami", func(c *gin.Context) {
-				user, _ := c.Get("user")
-				email, _ := c.Get("email")
-				c.JSON(http.StatusOK, gin.H{
-					"user":  user,
-					"email": email,
-				})
-			})
+			api.POST("/blocklist/check", blocklistCheckHandler)
+			api.POST("/blocklist/reload", blocklistReloadHandler)
+			api.GET("/asn/:ip", asnLookupHandler(geoIp))
+			api.GET("/events", sseHandler(broadcaster))
+			api.GET("/whoami", whoAmIHandler)
 		}
 
 		distFS := web.DistFS()
@@ -102,4 +81,68 @@ func NewAdminGroup(r *gin.Engine, adminHost string, devMode bool, blocklistCheck
 	}
 
 	return admin
+}
+
+func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if broadcaster == nil {
+			c.AbortWithStatus(http.StatusServiceUnavailable)
+			return
+		}
+		subscriber := broadcaster.Subscribe()
+		defer broadcaster.Unsubscribe(subscriber)
+
+		c.Header("Content-Type", "text/event-stream")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("Connection", "keep-alive")
+
+		for {
+			select {
+			case event, ok := <-subscriber:
+				if !ok {
+					return
+				}
+				c.SSEvent("message", event)
+				c.Writer.Flush()
+			case <-c.Request.Context().Done():
+				return
+			}
+		}
+	}
+}
+
+func whoAmIHandler(c *gin.Context) {
+	user, _ := c.Get("user")
+	email, _ := c.Get("email")
+	c.JSON(http.StatusOK, gin.H{
+		"user":  user,
+		"email": email,
+	})
+}
+
+func asnLookupHandler(geoIp geoblock.GeoIpLookup) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ipAddr := c.Param("ip")
+		if ipAddr == "" {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing IP address"})
+			return
+		}
+		if !geoIp.IsValid(ipAddr) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid IP address"})
+			return
+		}
+
+		geoData, err := geoIp.GetAll(ipAddr)
+		if err != nil {
+			_ = c.Error(err)
+			c.AbortWithStatus(http.StatusInternalServerError)
+			return
+		}
+		if geoData == nil {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		c.JSON(http.StatusOK, geoData)
+	}
 }

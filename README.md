@@ -156,8 +156,8 @@ If `--metrics-auth` is configured, the `/metrics` endpoint is protected by basic
 
 While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`):
 
-- `POST /api/reload`: Triggers an asynchronous reload of the blocklists.
-- `POST /api/check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+- `POST /api/blocklist/reload`: Triggers an asynchronous reload of the blocklists.
+- `POST /api/blocklist/check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.
 - `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
 
