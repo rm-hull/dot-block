@@ -1,7 +1,9 @@
 import { Provider } from "@/components/ui/provider"
+import { Navbar } from "@/components/Navbar"
 import { Outlet, createRootRoute } from "@tanstack/react-router"
 import React from "react"
 
+// eslint-disable-next-line react-refresh/only-export-components
 const TanStackRouterDevtools =
   import.meta.env.PROD
     ? () => null
@@ -14,6 +16,7 @@ const TanStackRouterDevtools =
 export const Route = createRootRoute({
   component: () => (
     <Provider>
+      <Navbar />
       <Outlet />
       <React.Suspense>
         <TanStackRouterDevtools />
