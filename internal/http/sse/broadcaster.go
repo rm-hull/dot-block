@@ -3,16 +3,17 @@ package sse
 import (
 	"log/slog"
 	"sync"
+	"time"
 )
 
 type Event struct {
-	Domain   string `json:"domain"`
-	ClientIP string `json:"client_ip"`
-	Source   string `json:"source"`
-	Blocked  bool   `json:"blocked"`
-	ASN      string `json:"asn,omitempty"`
-	Country  string `json:"country,omitempty"`
-	Time     string `json:"time"`
+	Domain   string    `json:"domain"`
+	ClientIP string    `json:"client_ip"`
+	Source   string    `json:"source"`
+	Blocked  bool      `json:"blocked"`
+	ASN      string    `json:"asn,omitempty"`
+	Country  string    `json:"country,omitempty"`
+	Time     time.Time `json:"time"`
 }
 
 type Broadcaster struct {
