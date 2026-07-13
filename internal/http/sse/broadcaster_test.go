@@ -1,12 +1,14 @@
 package sse
 
 import (
+	"encoding/json"
 	"io"
 	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBroadcaster(t *testing.T) {
@@ -28,4 +30,26 @@ func TestBroadcaster(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("timed out waiting for message")
 	}
+}
+
+func TestEventJSONMarshaling(t *testing.T) {
+	now := time.Now()
+	event := Event{
+		Domain: "example.com",
+		Time:   now,
+	}
+
+	data, err := json.Marshal(event)
+	require.NoError(t, err)
+
+	var m map[string]any
+	err = json.Unmarshal(data, &m)
+	require.NoError(t, err)
+
+	timeStr, ok := m["time"].(string)
+	require.True(t, ok, "time field should be a string")
+
+	// RFC3339Nano includes fractional seconds if they are non-zero.
+	// We check if there's a dot in the timestamp, which indicates sub-second precision.
+	assert.Contains(t, timeStr, ".", "timestamp should include fractional seconds for millisecond accuracy")
 }

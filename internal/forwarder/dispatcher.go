@@ -229,7 +229,7 @@ func (d *DNSDispatcher) snapshotWorker() {
 					ClientIP: snapshot.IPAddr(),
 					Source:   snapshot.Source(),
 					Blocked:  snapshot.IsBlocked(),
-					Time:     time.Now().Format(time.RFC3339),
+					Time:     time.Now(),
 				}
 
 				if d.geoIp != nil && snapshot.IPAddr() != "unknown" {
