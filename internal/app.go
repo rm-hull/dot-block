@@ -230,7 +230,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	defer dispatcher.Close()
 
-	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher)
+	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher, geoIpLookup)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -365,7 +365,13 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 	return proxyListener, nil
 }
 
-func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklistUpdater *blocklist.BlocklistUpdater, dispatcher *forwarder.DNSDispatcher) (*gin.Engine, error) {
+func (app *App) startHttpServer(
+	dnsClient *forwarder.RoundRobinClient,
+	blocklistUpdater *blocklist.BlocklistUpdater,
+	dispatcher *forwarder.DNSDispatcher,
+	geoIpLookup geoblock.GeoIpLookup,
+) (*gin.Engine, error) {
+
 	if !app.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -414,7 +420,9 @@ func (app *App) startHttpServer(dnsClient *forwarder.RoundRobinClient, blocklist
 	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode,
 		blocklistHandler.Check,
 		blocklistHandler.Reload,
-		dispatcher.GetBroadcaster())
+		dispatcher.GetBroadcaster(),
+		geoIpLookup,
+	)
 
 	return r, nil
 }

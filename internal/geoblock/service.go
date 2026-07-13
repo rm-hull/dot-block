@@ -19,7 +19,8 @@ type GeoData struct {
 
 type GeoIpLookup interface {
 	Reopen() error
-	GetAll(ipAddress string) (*GeoData, error)
+	GetAll(ipAddr string) (*GeoData, error)
+	IsValid(ipAddr string) bool
 }
 
 type geoBlocker struct {
@@ -60,7 +61,7 @@ func (g *geoBlocker) Reopen() error {
 	return nil
 }
 
-func (g *geoBlocker) GetAll(ipAddress string) (*GeoData, error) {
+func (g *geoBlocker) GetAll(ipAddr string) (*GeoData, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 
@@ -68,16 +69,25 @@ func (g *geoBlocker) GetAll(ipAddress string) (*GeoData, error) {
 		return nil, errors.New("geoblock database not initialized")
 	}
 
-	ip, err := netip.ParseAddr(ipAddress)
+	ip, err := netip.ParseAddr(ipAddr)
 	if err != nil {
-		return nil, errors.Newf("invalid IP address: %w", err)
+		return nil, errors.Wrap(err, "invalid IP address")
 	}
 
 	var geodata GeoData
 	err = g.db.Lookup(ip).Decode(&geodata)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to decode response")
+	}
+
+	if geodata.ISOCode == "" && geodata.Country == "" && geodata.ASN == "" && geodata.Provider == "" && geodata.Domain == "" {
+		return nil, nil
 	}
 
 	return &geodata, nil
+}
+
+func (g *geoBlocker) IsValid(ipAddr string) bool {
+	_, err := netip.ParseAddr(ipAddr)
+	return err == nil
 }
