@@ -122,6 +122,10 @@ func whoAmIHandler(c *gin.Context) {
 
 func asnLookupHandler(geoIp geoblock.GeoIpLookup) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if geoIp == nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "GeoIP lookup service is disabled"})
+			return
+		}
 		ipAddr := c.Param("ip")
 		if ipAddr == "" {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "missing IP address"})
