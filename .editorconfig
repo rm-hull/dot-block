@@ -1,4 +1,4 @@
- # EditorConfig is awesome: https://EditorConfig.org
+# EditorConfig is awesome: https://EditorConfig.org
 
 # Top-most EditorConfig file
 root = true
@@ -38,7 +38,7 @@ indent_size = 2
 indent_style = space
 indent_size = 2
 
-[*.{json}]
+[*.{json,js,ts,jsx,tsx}]
 indent_style = space
 indent_size = 2
 
