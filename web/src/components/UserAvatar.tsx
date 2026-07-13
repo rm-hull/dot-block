@@ -13,6 +13,7 @@ export function UserAvatar() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['whoami'],
     queryFn: fetchWhoAmI,
+    retry: false,
   })
 
   console.log({ data })
