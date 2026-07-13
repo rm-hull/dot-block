@@ -17,7 +17,6 @@ export function UserAvatar() {
     retry: false,
   })
 
-  console.log({ data })
   if (isLoading || error || !data) {
     return null;
   }
