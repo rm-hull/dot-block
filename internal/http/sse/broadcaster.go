@@ -10,10 +10,13 @@ import (
 type Event struct {
 	Timestamp time.Time `json:"ts"`
 	Sequence  uint64    `json:"seq"`
+	QueryType string    `json:"queryType"`
 	Domain    string    `json:"domain"`
+	Result    string    `json:"result"`
 	ClientIP  string    `json:"ip"`
 	Source    string    `json:"src"`
 	Blocked   bool      `json:"blocked"`
+	Cached    bool      `json:"cached"`
 }
 
 type Broadcaster struct {

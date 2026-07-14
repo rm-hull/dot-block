@@ -26,8 +26,10 @@ type RequestSnapshot struct {
 	upstreamTTLs   []upstreamTTLInfo
 	errorCategory  string
 	forwarded      bool
+	fromCache      bool
 	requestLatency float64
 	rcode          string
+	queryType      string
 }
 
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
@@ -97,6 +99,26 @@ func (t *RequestSnapshot) Forwarded() {
 
 func (t *RequestSnapshot) SetRcode(rcode string) {
 	t.rcode = rcode
+}
+
+func (t *RequestSnapshot) SetFromCache(fromCache bool) {
+	t.fromCache = fromCache
+}
+
+func (t *RequestSnapshot) FromCache() bool {
+	return t.fromCache
+}
+
+func (t *RequestSnapshot) SetQueryType(queryType string) {
+	t.queryType = queryType
+}
+
+func (t *RequestSnapshot) QueryType() string {
+	return t.queryType
+}
+
+func (t *RequestSnapshot) Rcode() string {
+	return t.rcode
 }
 
 func (t *RequestSnapshot) Record(metrics *DnsMetrics) {

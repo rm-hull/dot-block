@@ -151,6 +151,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}
 		if len(req.Question) > 0 {
 			requestCtx.snapshot.SetPrimaryDomain(req.Question[0].Name)
+			requestCtx.snapshot.SetQueryType(getQueryType(&req.Question[0]))
 		}
 
 		defer func() {
@@ -219,10 +220,13 @@ func (d *DNSDispatcher) snapshotWorker() {
 
 			if d.broadcaster != nil {
 				event := sse.Event{
+					QueryType: snapshot.QueryType(),
 					Domain:    snapshot.PrimaryDomain(),
+					Result:    snapshot.Rcode(),
 					ClientIP:  snapshot.IPAddr(),
 					Source:    snapshot.Source(),
 					Blocked:   snapshot.IsBlocked(),
+					Cached:    snapshot.FromCache(),
 					Timestamp: time.Now(),
 				}
 
@@ -309,6 +313,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	requestCtx.snapshot.AddQueryCount(queryType, false)
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q, requestCtx.subnet)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
+		requestCtx.snapshot.SetFromCache(true)
 		return cachedRRs, dns.RcodeSuccess, nil
 	}
 
