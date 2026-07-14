@@ -115,7 +115,7 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 		isoCode := "unknown"
 
 		if metrics.geoIpLookup != nil {
-			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil {
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record != nil {
 				if record.ASN != "" {
 					provider = record.ASN + ":" + record.Provider
 				}
