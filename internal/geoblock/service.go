@@ -10,11 +10,11 @@ import (
 )
 
 type GeoData struct {
-	ISOCode  string `maxminddb:"country_code"`
-	Country  string `maxminddb:"country"`
-	ASN      string `maxminddb:"asn"`
-	Provider string `maxminddb:"as_name"`
-	Domain   string `maxminddb:"as_domain"`
+	ISOCode  string `maxminddb:"country_code" json:"iso_code"`
+	Country  string `maxminddb:"country" json:"country"`
+	ASN      string `maxminddb:"asn" json:"asn"`
+	Provider string `maxminddb:"as_name" json:"provider"`
+	Domain   string `maxminddb:"as_domain" json:"domain"`
 }
 
 type GeoIpLookup interface {
