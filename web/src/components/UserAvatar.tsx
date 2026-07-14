@@ -1,7 +1,6 @@
-import { fetchWhoAmI } from '@/service/whoami'
 import { Avatar } from '@chakra-ui/react'
-import { useQuery } from '@tanstack/react-query'
 import { Tooltip } from '@/components/ui/tooltip'
+import { useAvatar } from '@/hooks/useAvatar'
 
 const colorPalette = ["red", "blue", "green", "yellow", "purple", "orange"]
 
@@ -12,12 +11,7 @@ const pickPalette = (name: string) => {
 }
 
 export function UserAvatar() {
-  const { data, isLoading, error } = useQuery({
-    queryKey: ['whoami'],
-    queryFn: fetchWhoAmI,
-    retry: false,
-  })
-
+  const { data, isLoading, error } = useAvatar();
   if (isLoading || error || !data) {
     return null;
   }
