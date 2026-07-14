@@ -4,8 +4,10 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.eigsys.de/gin-cachecontrol/v2"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
@@ -44,8 +46,8 @@ func NewAdminGroup(
 		{
 			api.POST("/blocklist/check", blocklistCheckHandler)
 			api.POST("/blocklist/reload", blocklistReloadHandler)
-			api.GET("/asn/:ip", asnLookupHandler(geoIp))
-			api.GET("/events", sseHandler(broadcaster))
+			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
+			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
 		}
 
@@ -93,7 +95,6 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 		defer broadcaster.Unsubscribe(subscriber)
 
 		c.Header("Content-Type", "text/event-stream")
-		c.Header("Cache-Control", "no-cache")
 		c.Header("Connection", "keep-alive")
 
 		for {
