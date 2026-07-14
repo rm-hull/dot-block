@@ -1,6 +1,6 @@
 import { dateReviver } from "@/utils/date";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 const MAX_ITEMS = 50;
 
@@ -26,7 +26,6 @@ const initialState: State = {
 };
 
 export function useEvents(sseUrl: string) {
-  const [error, setError] = useState<Error | undefined>(undefined);
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["events"],
