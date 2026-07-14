@@ -1,0 +1,4 @@
+.flag {
+    border: 0.5px solid var(--chakra-colors-fg-subtle);
+    border-radius: 2px;
+}

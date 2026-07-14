@@ -3,6 +3,8 @@ import countries from 'i18n-iso-countries'
 import enLocale from 'i18n-iso-countries/langs/en.json';
 import { Tooltip } from './ui/tooltip';
 
+import style from "./Flag.module.css"
+
 interface FlagProps {
   isoCode?: keyof typeof Flags
   width?: number
@@ -22,7 +24,7 @@ export function Flag({ isoCode, width = 32 }: FlagProps) {
 
   return (
     <Tooltip content={`${countries.getName(isoCode, "en")} (${isoCode})`}>
-      <FlagComponent width={width} />
+      <FlagComponent width={width} className={style.flag} />
     </Tooltip>
   )
 }
