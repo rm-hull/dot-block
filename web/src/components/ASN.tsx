@@ -10,7 +10,7 @@ export function ASN({ ipAddr }: ASNProps) {
   const { data, isLoading, error } = useASN(ipAddr)
 
   if (error) {
-    return <div>{error.toString()}</div>; // TODO:
+    return <Badge colorPalette="red">{error.toString()}</Badge>;
   }
   return (
     <Skeleton asChild loading={isLoading} width={200}>

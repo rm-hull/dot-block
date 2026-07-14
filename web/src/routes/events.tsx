@@ -44,7 +44,7 @@ function EventPage() {
                 <Table.Cell>{event.ts.toISOString().slice(11)}</Table.Cell>
                 <Table.Cell>{event.domain}</Table.Cell>
                 <Table.Cell>{event.ip}</Table.Cell>
-                <Table.Cell><ASN ipAddr={"193.54.22.12"} /></Table.Cell>
+                <Table.Cell><ASN ipAddr={event.ip} /></Table.Cell>
                 <Table.Cell>{event.src}</Table.Cell>
                 <Table.Cell>{<Badge colorPalette={event.blocked ? "red" : "green"}>{event.blocked.toString()}</Badge>}</Table.Cell>
               </Table.Row>

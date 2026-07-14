@@ -1,7 +1,9 @@
 import { Provider } from "@/components/ui/provider"
 import { Navbar } from "@/components/Navbar"
-import { Outlet, createRootRoute } from "@tanstack/react-router"
+import { CatchBoundary, Outlet, createRootRoute } from "@tanstack/react-router"
 import React from "react"
+import { ErrorFallback } from "@rm-hull/chakra-error-fallback";
+import { Toaster } from "@/components/ui/toaster";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const TanStackRouterDevtools =
@@ -16,8 +18,11 @@ const TanStackRouterDevtools =
 export const Route = createRootRoute({
   component: () => (
     <Provider>
-      <Navbar />
-      <Outlet />
+      <CatchBoundary getResetKey={() => "reset"} errorComponent={ErrorFallback}>
+        <Toaster />
+        <Navbar />
+        <Outlet />
+      </CatchBoundary>
       <React.Suspense>
         <TanStackRouterDevtools />
       </React.Suspense>
