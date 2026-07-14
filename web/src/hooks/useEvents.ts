@@ -7,10 +7,13 @@ const MAX_ITEMS = 50;
 export interface Event {
   ts: Date;
   seq: number;
+  queryType: string;
   domain: string;
+  result: string;
   ip: string;
   src: string;
   blocked: boolean;
+  cached: boolean;
 }
 
 interface State {

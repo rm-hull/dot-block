@@ -30,11 +30,13 @@ function EventPage() {
             <Table.Row>
               <Table.ColumnHeader>#</Table.ColumnHeader>
               <Table.ColumnHeader>Timestamp</Table.ColumnHeader>
+              <Table.ColumnHeader>Query</Table.ColumnHeader>
               <Table.ColumnHeader>Domain</Table.ColumnHeader>
+              <Table.ColumnHeader>Result</Table.ColumnHeader>
               <Table.ColumnHeader>Client IP</Table.ColumnHeader>
               <Table.ColumnHeader>ASN</Table.ColumnHeader>
               <Table.ColumnHeader>Source</Table.ColumnHeader>
-              <Table.ColumnHeader>Blocked</Table.ColumnHeader>
+              <Table.ColumnHeader>Status</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -42,11 +44,13 @@ function EventPage() {
               <Table.Row key={event.seq}>
                 <Table.Cell>{event.seq}</Table.Cell>
                 <Table.Cell>{event.ts.toISOString().slice(11)}</Table.Cell>
+                <Table.Cell>{event.queryType}</Table.Cell>
                 <Table.Cell>{event.domain}</Table.Cell>
+                <Table.Cell>{event.result}</Table.Cell>
                 <Table.Cell>{event.ip}</Table.Cell>
                 <Table.Cell><ASN ipAddr={event.ip} /></Table.Cell>
                 <Table.Cell>{event.src}</Table.Cell>
-                <Table.Cell>{<Badge colorPalette={event.blocked ? "red" : "green"}>{event.blocked.toString()}</Badge>}</Table.Cell>
+                <Table.Cell>{event.blocked && <Badge colorPalette="red">blocked</Badge>} {event.cached && <Badge colorPalette="purple">cached</Badge>}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

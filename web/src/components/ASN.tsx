@@ -13,7 +13,7 @@ export function ASN({ ipAddr }: ASNProps) {
     return <Badge colorPalette="red">{error.toString()}</Badge>;
   }
   return (
-    <Skeleton asChild loading={isLoading} width={200}>
+    <Skeleton asChild loading={isLoading}>
       <HStack>
         <Badge colorPalette="blue">{data?.asn}: {data?.provider}</Badge>
         <Flag isoCode={data?.iso_code} width={20} />
