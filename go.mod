@@ -5,8 +5,8 @@ go 1.26
 require (
 	github.com/caddyserver/certmagic v0.25.4
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
-	github.com/getsentry/sentry-go v0.47.0
-	github.com/getsentry/sentry-go/gin v0.47.0
+	github.com/getsentry/sentry-go v0.48.0
+	github.com/getsentry/sentry-go/gin v0.48.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
@@ -17,6 +17,7 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/samber/slog-gin v1.21.1
 	github.com/stretchr/testify v1.11.1
+	go.eigsys.de/gin-cachecontrol/v2 v2.6.0
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.44.0
 	go.opentelemetry.io/otel/sdk v1.44.0
@@ -69,7 +70,6 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect
 	github.com/zeebo/blake3 v0.2.4 // indirect
-	go.eigsys.de/gin-cachecontrol/v2 v2.6.0 // indirect
 	go.mongodb.org/mongo-driver v1.17.9 // indirect
 	go.mongodb.org/mongo-driver/v2 v2.8.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
