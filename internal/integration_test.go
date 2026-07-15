@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -16,14 +17,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func getFreePort(t *testing.T) int {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
+}
+
 func TestIntegration_DNSFunctionality(t *testing.T) {
+	// Pick 3 free ports for the test
+	dnsPort := getFreePort(t)
+	dotPort := getFreePort(t)
+	httpPort := getFreePort(t)
+
 	// App configuration for integration test
 	app := App{
 		Logger:         slog.Default(),
 		DevMode:        true,
-		DnsPort:        8053,
-		DotPort:        8853,
-		HttpPort:       8080, // Fixed port for DoH tests
+		DnsPort:        dnsPort,
+		DotPort:        dotPort,
+		HttpPort:       httpPort,
 		Upstreams:      []string{"8.8.8.8", "1.1.1.1"},
 		BlockListURLs:  []string{"file://../data/blocklist.txt"},
 		AllowedHosts:   []string{"127.0.0.1"},
@@ -42,7 +56,8 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		},
 	}
 
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 
 	// RunServer will return when ctx is cancelled, but it starts multiple servers in a group.
 	// We need to run it in a goroutine.
@@ -51,16 +66,20 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		errCh <- app.RunServer(ctx)
 	}()
 
-	// Wait for the server to start by polling the TCP port
+	// Wait for the server to start by polling the DNS TCP port
 	start := time.Now()
 	for {
 		select {
 		case err := <-errCh:
+			// Check if it's a port already in use error
+			if err != nil && (contains(err.Error(), "address already in use") || contains(err.Error(), "bind: address already in use")) {
+				t.Fatalf("Port already in use: %v", err)
+			}
 			t.Fatalf("RunServer exited unexpectedly: %v", err)
 		default:
 		}
 
-		conn, err := net.DialTimeout("tcp", "127.0.0.1:8053", 50*time.Millisecond)
+		conn, err := net.DialTimeout("tcp", fmt.Sprintf("127.0.0.1:%d", dnsPort), 50*time.Millisecond)
 		if err == nil {
 			_ = conn.Close()
 			break
@@ -81,70 +100,70 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		{
 			name:          "UDP - Good Domain",
 			protocol:      "udp",
-			port:          8053,
+			port:          dnsPort,
 			domain:        "google.com.",
 			expectBlocked: false,
 		},
 		{
 			name:          "UDP - Blocked Domain",
 			protocol:      "udp",
-			port:          8053,
+			port:          dnsPort,
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
 		{
 			name:          "TCP - Good Domain",
 			protocol:      "tcp",
-			port:          8053,
+			port:          dnsPort,
 			domain:        "google.com.",
 			expectBlocked: false,
 		},
 		{
 			name:          "TCP - Blocked Domain",
 			protocol:      "tcp",
-			port:          8053,
+			port:          dnsPort,
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
 		{
 			name:          "DoT (Plain) - Good Domain",
 			protocol:      "tcp",
-			port:          8853,
+			port:          dotPort,
 			domain:        "google.com.",
 			expectBlocked: false,
 		},
 		{
 			name:          "DoT (Plain) - Blocked Domain",
 			protocol:      "tcp",
-			port:          8853,
+			port:          dotPort,
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
 		{
 			name:          "DoH GET - Good Domain",
 			protocol:      "doh-get",
-			port:          8080,
+			port:          httpPort,
 			domain:        "google.com.",
 			expectBlocked: false,
 		},
 		{
 			name:          "DoH GET - Blocked Domain",
 			protocol:      "doh-get",
-			port:          8080,
+			port:          httpPort,
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
 		{
 			name:          "DoH POST - Good Domain",
 			protocol:      "doh-post",
-			port:          8080,
+			port:          httpPort,
 			domain:        "google.com.",
 			expectBlocked: false,
 		},
 		{
 			name:          "DoH POST - Blocked Domain",
 			protocol:      "doh-post",
-			port:          8080,
+			port:          httpPort,
 			domain:        "doubleclick.net.",
 			expectBlocked: true,
 		},
@@ -217,4 +236,17 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 			}
 		})
 	}
+}
+
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsInternal(s, substr)))
+}
+
+func containsInternal(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
