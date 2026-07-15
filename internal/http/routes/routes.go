@@ -6,13 +6,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"go.eigsys.de/gin-cachecontrol/v2"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/http/web"
+	cachecontrol "go.eigsys.de/gin-cachecontrol/v2"
 )
 
 func NewPublicGroup(r *gin.Engine, publicHost string, mobileConfigHandler gin.HandlerFunc, dohHandler gin.HandlerFunc) *gin.RouterGroup {
@@ -42,8 +43,17 @@ func NewAdminGroup(
 	admin.Use(middlewares.RequireHost(adminHost))
 	{
 		api := admin.Group("/api")
+		api.Use(cors.New(cors.Config{
+			AllowOrigins:     []string{"*"},
+			AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+			AllowHeaders:     []string{"Authorization", "Content-Type"},
+			ExposeHeaders:    []string{"Content-Length"},
+			AllowCredentials: true,
+			MaxAge:           12 * time.Hour,
+		}))
 		api.Use(middlewares.RequireProxyAuth(devMode))
 		{
+			api.OPTIONS("/*path", corsPreflightHandler)
 			api.POST("/blocklist/check", blocklistCheckHandler)
 			api.POST("/blocklist/reload", blocklistReloadHandler)
 			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
@@ -110,6 +120,10 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 			}
 		}
 	}
+}
+
+func corsPreflightHandler(c *gin.Context) {
+	c.Status(http.StatusNoContent)
 }
 
 func whoAmIHandler(c *gin.Context) {

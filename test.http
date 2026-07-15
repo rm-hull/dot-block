@@ -61,6 +61,13 @@ GET http://admin.localhost:8080/api/whoami
 Accept: application/json
 
 
+### CORS preflight
+OPTIONS http://admin.localhost:8080/api/whoami
+Origin: http://example.com
+Access-Control-Request-Method: GET
+Access-Control-Request-Headers: Authorization, Content-Type
+
+
 ### DNS Events Stream (SSE)
 GET http://admin.localhost:8080/api/events
 Accept: text/event-stream
