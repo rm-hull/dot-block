@@ -12,6 +12,9 @@ export function ASN({ ipAddr }: ASNProps) {
   if (error) {
     return <Badge colorPalette="red">{error.toString()}</Badge>;
   }
+  if (!data && !isLoading) {
+    return null;
+  }
   return (
     <Skeleton asChild loading={isLoading}>
       <HStack>

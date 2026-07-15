@@ -8,10 +8,10 @@ export interface ASN {
   domain: string;
 }
 
-export async function fetchASN(ipAddr: string): Promise<ASN> {
+export async function fetchASN(ipAddr: string): Promise<ASN | null> {
   const response = await fetch(`/api/asn/${ipAddr}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch ASN geo-deta");
+  if (response.status === 404) {
+    return null;
   }
   return response.json();
 }
