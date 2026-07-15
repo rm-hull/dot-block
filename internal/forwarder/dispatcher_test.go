@@ -760,6 +760,72 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 	}
 }
 
+func TestDNSDispatcher_HandleDNSRequest_CacheHit_CNAME(t *testing.T) {
+	// A server that returns a CNAME and an A record for the target
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeSuccess)
+		m.Authoritative = true
+
+		cname := &dns.CNAME{
+			Hdr: dns.RR_Header{
+				Name:   dns.Fqdn("www.netflix.com."),
+				Rrtype: dns.TypeCNAME,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			Target: dns.Fqdn("prod.ftl.netflix.com."),
+		}
+		aRecord := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   dns.Fqdn("prod.ftl.netflix.com."),
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			A: net.ParseIP("1.2.3.4"),
+		}
+
+		m.Answer = []dns.RR{cname, aRecord}
+		_ = w.WriteMsg(m)
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	req := new(dns.Msg)
+	req.SetQuestion("www.netflix.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// First request: should be a cache miss and populate the cache
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+
+	// Verify we got both records back
+	assert.Len(t, writer.WrittenMsg.Answer, 2)
+
+	// Second request: should be a cache hit
+	writer2 := new(MockResponseWriter)
+	writer2.On("WriteMsg", mock.Anything).Return(nil)
+
+	// Wait briefly for the cache worker to process the set
+	time.Sleep(100 * time.Millisecond)
+
+	dispatcher.HandleDNSRequest("test")(writer2, req)
+
+	assert.NotNil(t, writer2.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer2.WrittenMsg.Rcode)
+	assert.Len(t, writer2.WrittenMsg.Answer, 2, "Should have retrieved the cached CNAME chain")
+}
+
 type mockIPResponseWriter struct {
 	ip         string
 	port       int
