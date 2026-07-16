@@ -32,7 +32,7 @@ export type RRType =
 
 export type Source = "TCP" | "UDP" | "DoH" | "DoT";
 
-export interface Event {
+export interface DnsEvent {
   ts: Date;
   seq: number;
   queryType: RRType;
@@ -45,7 +45,7 @@ export interface Event {
 }
 
 interface State {
-  events: Event[];
+  events: DnsEvent[];
   total: number;
   countsBySrc: Record<Source, number>;
 }
@@ -65,7 +65,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
   });
 
   // Buffer of events received since the last flush.
-  const bufferRef = useRef<Event[]>([]);
+  const bufferRef = useRef<DnsEvent[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
     };
 
     es.onmessage = (e) => {
-      const event = JSON.parse(e.data, dateReviver) as Event;
+      const event = JSON.parse(e.data, dateReviver) as DnsEvent;
       bufferRef.current.push(event);
 
       // Schedule a flush if one isn't already pending (throttle, not debounce).
