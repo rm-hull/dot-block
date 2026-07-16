@@ -44,15 +44,17 @@ export interface DnsEvent {
   cached: boolean;
 }
 
-interface State {
+interface EventFeed {
   events: DnsEvent[];
   total: number;
+  connected: boolean;
   countsBySrc: Record<Source, number>;
 }
 
-const initialState: State = {
+const initial: EventFeed = {
   events: [],
   total: 0,
+  connected: false,
   countsBySrc: { DoT: 0, DoH: 0, TCP: 0, UDP: 0 },
 };
 
@@ -61,7 +63,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
   const query = useQuery({
     queryKey: ["events"],
     queryFn: skipToken,
-    initialData: initialState,
+    initialData: initial,
   });
 
   // Buffer of events received since the last flush.
@@ -78,7 +80,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
       const batch = bufferRef.current;
       bufferRef.current = [];
 
-      queryClient.setQueryData<State>(["events"], (old = initialState) => {
+      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => {
         // batch arrived oldest->newest; prepend newest-first to match existing order
         const events = [...batch].reverse().concat(old.events);
         const trimmed =
@@ -92,9 +94,17 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
         return {
           events: trimmed,
           total: old.total + batch.length,
+          connected: old.connected,
           countsBySrc,
         };
       });
+    };
+
+    es.onopen = () => {
+      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => ({
+        ...old,
+        connected: true,
+      }));
     };
 
     es.onmessage = (e) => {
@@ -113,7 +123,13 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
       }
     };
 
-    es.onerror = (err) => console.error("SSE error", err);
+    es.onerror = (err) => {
+      console.error("SSE error", err);
+      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => ({
+        ...old,
+        connected: false,
+      }));
+    };
 
     return () => {
       es.close();
