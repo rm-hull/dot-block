@@ -2,7 +2,7 @@ import { ASN } from '@/components/ASN';
 import { QueryType } from '@/components/QueryType';
 import { Result } from '@/components/Result';
 import { Timestamp } from '@/components/Timestamp';
-import { useEvents, type Event } from '@/hooks/useEvents';
+import { useEvents } from '@/hooks/useEvents';
 import { Badge, Container, Table } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 
