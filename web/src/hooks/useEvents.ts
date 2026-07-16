@@ -98,7 +98,13 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
     };
 
     es.onmessage = (e) => {
-      const event = JSON.parse(e.data, dateReviver) as DnsEvent;
+      let event: DnsEvent;
+      try {
+        event = JSON.parse(e.data, dateReviver) as DnsEvent;
+      } catch (err) {
+        console.error("Failed to parse SSE event", err, e.data);
+        return;
+      }
       bufferRef.current.push(event);
 
       // Schedule a flush if one isn't already pending (throttle, not debounce).
