@@ -117,7 +117,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 250) {
       }
       bufferRef.current = [];
     };
-  }, [queryClient, sseUrl]);
+  }, [queryClient, sseUrl, batchIntervalMs]);
 
   return query;
 }
