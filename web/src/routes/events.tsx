@@ -1,4 +1,7 @@
 import { ASN } from '@/components/ASN';
+import { QueryType } from '@/components/QueryType';
+import { Result } from '@/components/Result';
+import { Timestamp } from '@/components/Timestamp';
 import { useEvents, type Event } from '@/hooks/useEvents';
 import { Badge, Container, Table } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
@@ -24,33 +27,33 @@ function EventPage() {
 
   return (
     <Container>
-      <Table.ScrollArea height="calc(100vh - 60px)">
+      <Table.ScrollArea height="calc(100vh - 61px)">
         <Table.Root size="sm" stickyHeader interactive>
           <Table.Header>
             <Table.Row>
-              <Table.ColumnHeader>#</Table.ColumnHeader>
-              <Table.ColumnHeader>Timestamp</Table.ColumnHeader>
-              <Table.ColumnHeader>Query</Table.ColumnHeader>
-              <Table.ColumnHeader>Domain</Table.ColumnHeader>
-              <Table.ColumnHeader>Result</Table.ColumnHeader>
-              <Table.ColumnHeader>Client IP</Table.ColumnHeader>
-              <Table.ColumnHeader>ASN</Table.ColumnHeader>
-              <Table.ColumnHeader>Source</Table.ColumnHeader>
-              <Table.ColumnHeader>Status</Table.ColumnHeader>
+              <Table.ColumnHeader width={65}>#</Table.ColumnHeader>
+              <Table.ColumnHeader width={100}>Timestamp</Table.ColumnHeader>
+              <Table.ColumnHeader width={50}>Query</Table.ColumnHeader>
+              <Table.ColumnHeader maxWidth={200}>Domain</Table.ColumnHeader>
+              <Table.ColumnHeader width={100}>Result</Table.ColumnHeader>
+              <Table.ColumnHeader width={75}>Client IP</Table.ColumnHeader>
+              <Table.ColumnHeader maxWidth={200}>ASN</Table.ColumnHeader>
+              <Table.ColumnHeader width={75}>Source</Table.ColumnHeader>
+              <Table.ColumnHeader width={100}>Status</Table.ColumnHeader>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {data?.events.toSorted(byDescSeq).map((event) => (
               <Table.Row key={event.seq}>
                 <Table.Cell>{event.seq}</Table.Cell>
-                <Table.Cell>{event.ts.toISOString().slice(11)}</Table.Cell>
-                <Table.Cell>{event.queryType}</Table.Cell>
-                <Table.Cell>{event.domain}</Table.Cell>
-                <Table.Cell>{event.result}</Table.Cell>
+                <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
+                <Table.Cell><QueryType rrtype={event.queryType} /></Table.Cell>
+                <Table.Cell truncate maxWidth={200}>{event.domain}</Table.Cell>
+                <Table.Cell><Result rcode={event.result} /></Table.Cell>
                 <Table.Cell>{event.ip}</Table.Cell>
-                <Table.Cell><ASN ipAddr={event.ip} /></Table.Cell>
+                <Table.Cell truncate maxWidth={200}><ASN ipAddr={event.ip} /></Table.Cell>
                 <Table.Cell>{event.src}</Table.Cell>
-                <Table.Cell>{event.blocked && <Badge colorPalette="red">blocked</Badge>} {event.cached && <Badge colorPalette="purple">cached</Badge>}</Table.Cell>
+                <Table.Cell>{event.blocked && <Badge colorPalette="red">Blocked</Badge>} {event.cached && <Badge colorPalette="purple">Cached</Badge>}</Table.Cell>
               </Table.Row>
             ))}
           </Table.Body>

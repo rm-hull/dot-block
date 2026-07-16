@@ -4,14 +4,42 @@ import { useEffect } from "react";
 
 const MAX_ITEMS = 50;
 
+// Commmon RCodes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6 for full list
+export type RCode =
+  | "NOERROR"
+  | "FORMERR"
+  | "SERVFAIL"
+  | "NXDOMAIN"
+  | "NOTIMP"
+  | "REFUSED"
+  | "YXDOMAIN"
+  | "XRRSET"
+  | "NOTAUTH"
+  | "NOTZONE";
+
+// Common RRTypes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4 for full list
+export type RRType =
+  | "A"
+  | "AAAA"
+  | "CERT"
+  | "CNAME"
+  | "HTTPS"
+  | "NS"
+  | "PTR"
+  | "MX"
+  | "TXT"
+  | "SOA";
+
+export type Source = "TCP" | "UDP" | "DoH" | "DoT";
+
 export interface Event {
   ts: Date;
   seq: number;
-  queryType: string;
+  queryType: RRType;
   domain: string;
-  result: string;
+  result: RCode;
   ip: string;
-  src: string;
+  src: Source;
   blocked: boolean;
   cached: boolean;
 }
@@ -19,13 +47,13 @@ export interface Event {
 interface State {
   events: Event[];
   total: number;
-  countsBySrc: Record<string, number>;
+  countsBySrc: Record<Source, number>;
 }
 
 const initialState: State = {
   events: [],
   total: 0,
-  countsBySrc: {},
+  countsBySrc: { DoT: 0, DoH: 0, TCP: 0, UDP: 0 },
 };
 
 export function useEvents(sseUrl: string) {
