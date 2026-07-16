@@ -71,10 +71,10 @@ export function useEvents(sseUrl: string) {
       const event = JSON.parse(e.data, dateReviver) as Event;
 
       queryClient.setQueryData<State>(["events"], (old = initialState) => {
-        const events = [...old.events, event];
+        const events = [event, ...old.events];
         const trimmed =
           events.length > MAX_ITEMS
-            ? events.slice(events.length - MAX_ITEMS)
+            ? events.slice(0, MAX_ITEMS)
             : events;
 
         const key = event.src;

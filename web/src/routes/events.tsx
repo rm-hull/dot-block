@@ -6,12 +6,6 @@ import { useEvents, type Event } from '@/hooks/useEvents';
 import { Badge, Container, Table } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 
-function byDescSeq(a: Event, b: Event): number {
-  const aSeq = typeof a.seq === 'number' ? a.seq : Number(a.seq ?? 0)
-  const bSeq = typeof b.seq === 'number' ? b.seq : Number(b.seq ?? 0)
-  return bSeq - aSeq
-}
-
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
 
@@ -43,7 +37,7 @@ function EventPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {data?.events.toSorted(byDescSeq).map((event) => (
+            {data?.events.map((event) => (
               <Table.Row key={event.seq}>
                 <Table.Cell>{event.seq}</Table.Cell>
                 <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
