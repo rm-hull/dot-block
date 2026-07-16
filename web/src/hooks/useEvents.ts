@@ -1,6 +1,6 @@
 import { dateReviver } from "@/utils/date";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 const MAX_ITEMS = 50;
 
@@ -56,7 +56,7 @@ const initialState: State = {
   countsBySrc: { DoT: 0, DoH: 0, TCP: 0, UDP: 0 },
 };
 
-export function useEvents(sseUrl: string) {
+export function useEvents(sseUrl: string, batchIntervalMs = 250) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["events"],
@@ -64,36 +64,59 @@ export function useEvents(sseUrl: string) {
     initialData: initialState,
   });
 
+  // Buffer of events received since the last flush.
+  const bufferRef = useRef<Event[]>([]);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     const es = new EventSource(sseUrl);
 
-    es.onmessage = (e) => {
-      const event = JSON.parse(e.data, dateReviver) as Event;
+    const flush = () => {
+      timerRef.current = null;
+      if (bufferRef.current.length === 0) return;
+
+      const batch = bufferRef.current;
+      bufferRef.current = [];
 
       queryClient.setQueryData<State>(["events"], (old = initialState) => {
-        const events = [event, ...old.events];
+        // batch arrived oldest->newest; prepend newest-first to match existing order
+        const events = [...batch].reverse().concat(old.events);
         const trimmed =
-          events.length > MAX_ITEMS
-            ? events.slice(0, MAX_ITEMS)
-            : events;
+          events.length > MAX_ITEMS ? events.slice(0, MAX_ITEMS) : events;
 
-        const key = event.src;
-        const countsBySrc = {
-          ...old.countsBySrc,
-          [key]: (old.countsBySrc[key] ?? 0) + 1,
-        };
+        const countsBySrc = { ...old.countsBySrc };
+        for (const event of batch) {
+          countsBySrc[event.src] = (countsBySrc[event.src] ?? 0) + 1;
+        }
 
         return {
           events: trimmed,
-          total: old.total + 1,
+          total: old.total + batch.length,
           countsBySrc,
         };
       });
     };
 
+    es.onmessage = (e) => {
+      const event = JSON.parse(e.data, dateReviver) as Event;
+      bufferRef.current.push(event);
+
+      // Schedule a flush if one isn't already pending (throttle, not debounce).
+      if (timerRef.current === null) {
+        timerRef.current = setTimeout(flush, batchIntervalMs);
+      }
+    };
+
     es.onerror = (err) => console.error("SSE error", err);
 
-    return () => es.close();
+    return () => {
+      es.close();
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      bufferRef.current = [];
+    };
   }, [queryClient, sseUrl]);
 
   return query;
