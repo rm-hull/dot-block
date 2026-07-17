@@ -58,7 +58,7 @@ const initial: EventFeed = {
   countsBySrc: { DoT: 0, DoH: 0, TCP: 0, UDP: 0 },
 };
 
-export function useEvents(sseUrl: string, batchIntervalMs = 250) {
+export function useEvents(sseUrl: string, batchIntervalMs = 100) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["events"],
