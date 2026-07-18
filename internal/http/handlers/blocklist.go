@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
@@ -25,6 +26,52 @@ func (h *BlocklistHandler) Reload(c *gin.Context) {
 		"message": "Blocklist reload triggered",
 		"urls":    h.updater.URLs,
 	})
+}
+
+func (h *BlocklistHandler) Disable(c *gin.Context) {
+	var payload struct {
+		Duration string `json:"duration"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
+	}
+
+	d, err := time.ParseDuration(payload.Duration)
+	if err != nil {
+		// Try ISO 8601 duration
+		if after, ok := strings.CutPrefix(payload.Duration, "PT"); ok {
+			d, err = time.ParseDuration(strings.ToLower(after))
+		}
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid duration format"})
+			return
+		}
+	}
+
+	if d <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Duration must be greater than zero"})
+		return
+	}
+
+	disabledUntil := h.updater.Blocklist.Disable(d)
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Blocklist temporarily disabled",
+		"duration": d.String(),
+		"until":    disabledUntil,
+	})
+}
+
+func (h *BlocklistHandler) Reenable(c *gin.Context) {
+	if h.updater.Blocklist.Reenable() {
+		c.JSON(http.StatusOK, gin.H{"message": "Blocklist re-enabled"})
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Blocklist is not currently disabled"})
+	}
+}
+
+func (h *BlocklistHandler) Status(c *gin.Context) {
+	c.JSON(http.StatusOK, h.updater.Blocklist.Status())
 }
 
 func (h *BlocklistHandler) Check(c *gin.Context) {

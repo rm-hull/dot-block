@@ -36,6 +36,20 @@ google.com
 www.ex.co
 ads.net
 
+### Disable blocklist
+POST http://admin.localhost:8080/api/blocklist/disable
+Content-Type: application/json
+
+{"duration": "PT5M"}
+
+### Re-enable blocklist
+POST http://admin.localhost:8080/api/blocklist/reenable
+Content-Type: application/json
+
+### Blocklist status
+GET http://admin.localhost:8080/api/blocklist/status
+
+
 ### ASN Lookup
 GET http://admin.localhost:8080/api/asn/24.123.12.0
 

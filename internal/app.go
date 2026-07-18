@@ -418,8 +418,7 @@ func (app *App) startHttpServer(
 		handlers.NewDoHHandler(requestHandler))
 
 	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode,
-		blocklistHandler.Check,
-		blocklistHandler.Reload,
+		blocklistHandler,
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
 	)

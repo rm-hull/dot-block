@@ -32,8 +32,7 @@ func NewAdminGroup(
 	r *gin.Engine,
 	adminHost string,
 	devMode bool,
-	blocklistCheckHandler gin.HandlerFunc,
-	blocklistReloadHandler gin.HandlerFunc,
+	blocklistHandler *handlers.BlocklistHandler,
 	broadcaster *sse.Broadcaster,
 	geoIp geoblock.GeoIpLookup,
 ) *gin.RouterGroup {
@@ -54,8 +53,11 @@ func NewAdminGroup(
 		api.Use(middlewares.RequireProxyAuth(devMode))
 		{
 			api.OPTIONS("/*path", corsPreflightHandler)
-			api.POST("/blocklist/check", blocklistCheckHandler)
-			api.POST("/blocklist/reload", blocklistReloadHandler)
+			api.POST("/blocklist/check", blocklistHandler.Check)
+			api.POST("/blocklist/reload", blocklistHandler.Reload)
+			api.POST("/blocklist/disable", blocklistHandler.Disable)
+			api.POST("/blocklist/reenable", blocklistHandler.Reenable)
+			api.GET("/blocklist/status", blocklistHandler.Status)
 			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
 			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
