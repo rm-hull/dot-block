@@ -221,8 +221,8 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 			if tt.expectBlocked {
 				// Based on internal/forwarder/dispatcher.go, blocked domains return a SOA record with ns.blocked.local.
 				foundBlockedSOA := false
-				for _, ans := range resp.Answer {
-					if soa, ok := ans.(*dns.SOA); ok {
+				for _, rr := range append(resp.Answer, resp.Ns...) {
+					if soa, ok := rr.(*dns.SOA); ok {
 						if soa.Ns == "ns.blocked.local." {
 							foundBlockedSOA = true
 							break
