@@ -164,37 +164,35 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			}
 		}()
 
-		resp := new(dns.Msg)
-		resp.SetReply(req)
-		resp.Question = req.Question
+		resp := d.newReply(req)
 
 		unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 
 		for _, q := range req.Question {
-			answers, authority, extra, rcode, err := d.processQuestion(requestCtx, &q)
+			res, err := d.processQuestion(requestCtx, &q)
 			if err != nil {
 				resp.Rcode = dns.RcodeServerFailure
 				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
 
-			if rcode != dns.RcodeSuccess {
-				resp.Rcode = rcode
+			if res.rcode != dns.RcodeSuccess {
+				resp.Rcode = res.rcode
 				d.sendResponse(requestCtx, writer, resp)
 				return
 			}
 
-			if len(authority) > 0 {
-				resp.Ns = append(resp.Ns, authority...)
+			if len(res.authority) > 0 {
+				resp.Ns = append(resp.Ns, res.authority...)
 			}
 
-			if len(extra) > 0 {
-				resp.Extra = append(resp.Extra, extra...)
+			if len(res.extra) > 0 {
+				resp.Extra = append(resp.Extra, res.extra...)
 			}
 
-			if len(answers) > 0 {
-				resp.Answer = append(resp.Answer, answers...)
-			} else if len(authority) == 0 && len(extra) == 0 && !isDNSSDQuery(q.Name) {
+			if len(res.answer) > 0 {
+				resp.Answer = append(resp.Answer, res.answer...)
+			} else if len(res.authority) == 0 && len(res.extra) == 0 && !isDNSSDQuery(q.Name) {
 				unansweredQuestions = append(unansweredQuestions, q)
 			}
 		}
@@ -223,6 +221,13 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 
 		d.sendResponse(requestCtx, writer, resp)
 	}
+}
+
+func (d *DNSDispatcher) newReply(req *dns.Msg) *dns.Msg {
+	resp := new(dns.Msg)
+	resp.SetReply(req)
+	resp.Question = req.Question
+	return resp
 }
 
 func (d *DNSDispatcher) snapshotWorker() {
@@ -254,9 +259,14 @@ func (d *DNSDispatcher) snapshotWorker() {
 	}
 }
 
-func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Question) (
-	answer []dns.RR, authority []dns.RR, extra []dns.RR, rcode int, err error,
-) {
+type QuestionResolution struct {
+	answer    []dns.RR
+	authority []dns.RR
+	extra     []dns.RR
+	rcode     int
+}
+
+func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Question) (QuestionResolution, error) {
 
 	tracer := telemetry.GetTracer("dns-dispatcher")
 	_, span := tracer.Start(requestCtx.ctx, "processQuestion",
@@ -277,50 +287,11 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		d.reportError(requestCtx, "blocklist", err, q.Name, "qtype", queryType)
-		return nil, nil, nil, dns.RcodeServerFailure, err
+		return QuestionResolution{rcode: dns.RcodeServerFailure}, err
 	}
 
 	if isBlocked {
-		requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name)
-		requestCtx.snapshot.AddBlockedDomain(q.Name)
-		requestCtx.snapshot.AddQueryCount(queryType, true)
-		span.SetAttributes(attribute.Bool("dns.blocked", true))
-
-		soa := &dns.SOA{
-			Hdr: dns.RR_Header{
-				Name:   q.Name,
-				Rrtype: dns.TypeSOA,
-				Class:  dns.ClassINET,
-				Ttl:    uint32(d.defaultTTL),
-			},
-			Ns:      "ns.blocked.local.",
-			Mbox:    "hostmaster.blocked.local.",
-			Serial:  1,
-			Refresh: 3600,
-			Retry:   900,
-			Expire:  604800,
-			Minttl:  uint32(d.defaultTTL),
-		}
-
-		// Inject EDE for blocked domain
-		ede := &dns.EDNS0_EDE{
-			InfoCode:  dns.ExtendedErrorCodeBlocked,
-			ExtraText: fmt.Sprintf("Blocked by policy: %s", q.Name),
-		}
-
-		var extra []dns.RR
-		if optIn := requestCtx.req.IsEdns0(); optIn != nil {
-			o := new(dns.OPT)
-			o.Hdr.Name = "."
-			o.Hdr.Rrtype = dns.TypeOPT
-			o.SetUDPSize(optIn.UDPSize())
-			o.SetVersion(optIn.Version())
-			o.SetDo(optIn.Do())
-			o.Option = append(o.Option, ede)
-			extra = []dns.RR{o}
-		}
-
-		return nil, []dns.RR{soa}, extra, dns.RcodeSuccess, nil
+		return d.constructBlockedResponse(requestCtx, q, queryType), nil
 	}
 
 	if isReservedLocalhost(q.Name) {
@@ -334,18 +305,18 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 			},
 			A: net.ParseIP("127.0.0.1"),
 		}
-		return []dns.RR{a}, nil, nil, dns.RcodeSuccess, nil
+		return QuestionResolution{answer: []dns.RR{a}, rcode: dns.RcodeSuccess}, nil
 	}
 
 	if isReservedTLD(q.Name) {
 		requestCtx.logger.DebugContext(requestCtx.ctx, "Blocking reserved TLD", "name", q.Name)
-		return nil, nil, nil, dns.RcodeNameError, nil
+		return QuestionResolution{rcode: dns.RcodeNameError}, nil
 	}
 
 	if isDNSSDQuery(q.Name) {
 		requestCtx.logger.DebugContext(requestCtx.ctx, "Short-circuiting DNS-SD query", "name", q.Name)
 		requestCtx.snapshot.AddQueryCount(queryType, false)
-		return nil, nil, nil, dns.RcodeNameError, nil
+		return QuestionResolution{rcode: dns.RcodeNameError}, nil
 	}
 
 	requestCtx.snapshot.AddDomain(q.Name)
@@ -353,10 +324,52 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q, requestCtx.subnet)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		requestCtx.snapshot.SetFromCache(true)
-		return cachedRRs, nil, nil, dns.RcodeSuccess, nil
+		return QuestionResolution{answer: cachedRRs, rcode: dns.RcodeSuccess}, nil
 	}
 
-	return nil, nil, nil, dns.RcodeSuccess, nil
+	return QuestionResolution{rcode: dns.RcodeSuccess}, nil
+}
+
+func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string) QuestionResolution {
+	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name)
+	requestCtx.snapshot.AddBlockedDomain(q.Name)
+	requestCtx.snapshot.AddQueryCount(queryType, true)
+
+	soa := &dns.SOA{
+		Hdr: dns.RR_Header{
+			Name:   q.Name,
+			Rrtype: dns.TypeSOA,
+			Class:  dns.ClassINET,
+			Ttl:    uint32(d.defaultTTL),
+		},
+		Ns:      "ns.blocked.local.",
+		Mbox:    "hostmaster.blocked.local.",
+		Serial:  1,
+		Refresh: 3600,
+		Retry:   900,
+		Expire:  604800,
+		Minttl:  uint32(d.defaultTTL),
+	}
+
+	// Inject EDE for blocked domain
+	ede := &dns.EDNS0_EDE{
+		InfoCode:  dns.ExtendedErrorCodeBlocked,
+		ExtraText: fmt.Sprintf("Blocked by policy: %s", q.Name),
+	}
+
+	var extra []dns.RR
+	if optIn := requestCtx.req.IsEdns0(); optIn != nil {
+		o := new(dns.OPT)
+		o.Hdr.Name = "."
+		o.Hdr.Rrtype = dns.TypeOPT
+		o.SetUDPSize(optIn.UDPSize())
+		o.SetVersion(optIn.Version())
+		o.SetDo(optIn.Do())
+		o.Option = append(o.Option, ede)
+		extra = []dns.RR{o}
+	}
+
+	return QuestionResolution{authority: []dns.RR{soa}, extra: extra, rcode: dns.RcodeSuccess}
 }
 
 func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQuestions []dns.Question, req *dns.Msg) (int, []dns.RR, error) {
