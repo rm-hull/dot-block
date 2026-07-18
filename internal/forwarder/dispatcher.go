@@ -217,16 +217,6 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			}
 
 			resp.Answer = append(resp.Answer, answers...)
-			if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
-				resp.Rcode = dns.RcodeNameError
-			}
-		}
-
-		if len(resp.Answer) == 0 && len(resp.Ns) > 0 && resp.Rcode == dns.RcodeSuccess {
-			// Preserve success for authority-only responses such as blocked-domain SOA replies.
-			// Upstream negative responses are already propagated earlier via resolveUpstream.
-		} else if len(resp.Answer) == 0 && len(resp.Ns) > 0 {
-			resp.Rcode = dns.RcodeNameError
 		}
 
 		d.sendResponse(requestCtx, writer, resp)
