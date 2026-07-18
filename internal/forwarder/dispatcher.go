@@ -187,7 +187,17 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			}
 
 			if len(res.extra) > 0 {
-				resp.Extra = append(resp.Extra, res.extra...)
+				for _, rr := range res.extra {
+					if opt, ok := rr.(*dns.OPT); ok {
+						if existingOpt := resp.IsEdns0(); existingOpt != nil {
+							existingOpt.Option = append(existingOpt.Option, opt.Option...)
+						} else {
+							resp.Extra = append(resp.Extra, opt)
+						}
+					} else {
+						resp.Extra = append(resp.Extra, rr)
+					}
+				}
 			}
 
 			if len(res.answer) > 0 {
