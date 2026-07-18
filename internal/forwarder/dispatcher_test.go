@@ -153,15 +153,19 @@ func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Should have 2 answers: google.com A record and ads.0xbt.net SOA record
-	assert.Len(t, writer.WrittenMsg.Answer, 2)
+	// The upstream answer should stay in the answer section, and the blocked domain should be returned as authority data.
+	assert.Len(t, writer.WrittenMsg.Answer, 1, "should have one upstream answer")
+	assert.Len(t, writer.WrittenMsg.Ns, 1, "should have one blocked authority record")
 
 	foundA := false
 	foundSOA := false
 	for _, rr := range writer.WrittenMsg.Answer {
 		if _, ok := rr.(*dns.A); ok {
 			foundA = true
-		} else if _, ok := rr.(*dns.SOA); ok {
+		}
+	}
+	for _, rr := range writer.WrittenMsg.Ns {
+		if _, ok := rr.(*dns.SOA); ok {
 			foundSOA = true
 		}
 	}
@@ -217,12 +221,48 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	// Assert that the response has an RcodeSuccess Rcode
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	assert.Len(t, writer.WrittenMsg.Answer, 1, "should have one answer")
-	assert.Len(t, writer.WrittenMsg.Ns, 0, "should have no NS record")
+	assert.Len(t, writer.WrittenMsg.Answer, 0, "should have no answers")
+	assert.Len(t, writer.WrittenMsg.Ns, 1, "should have one authority record")
+	assert.Len(t, writer.WrittenMsg.Extra, 0, "should have no OPT record without EDNS")
 
-	soa, ok := writer.WrittenMsg.Answer[0].(*dns.SOA)
-	assert.True(t, ok, "should be a SOA record")
+	soa, ok := writer.WrittenMsg.Ns[0].(*dns.SOA)
+	assert.True(t, ok, "should be a SOA record in the authority section")
 	assert.Equal(t, "ns.blocked.local.", soa.Ns, "unexpected Ns name")
+}
+
+func TestDNSDispatcher_HandleDNSRequest_BlockedIncludesEDE(t *testing.T) {
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		t.Fail()
+	})
+
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	req := new(dns.Msg)
+	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
+	req.SetEdns0(1232, false)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	require.NotNil(t, writer.WrittenMsg)
+	require.Len(t, writer.WrittenMsg.Ns, 1)
+	require.Len(t, writer.WrittenMsg.Extra, 1)
+
+	opt, ok := writer.WrittenMsg.Extra[0].(*dns.OPT)
+	require.True(t, ok, "expected an OPT record to carry EDE")
+	require.Len(t, opt.Option, 1)
+
+	ede, ok := opt.Option[0].(*dns.EDNS0_EDE)
+	require.True(t, ok, "expected EDE option")
+	assert.Equal(t, dns.ExtendedErrorCodeBlocked, ede.InfoCode)
+	assert.Contains(t, ede.ExtraText, "Blocked by policy")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
@@ -250,12 +290,13 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	// Assert that the response writer was called with a non-nil message
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
-	assert.Len(t, writer.WrittenMsg.Answer, 2)
+	assert.Len(t, writer.WrittenMsg.Answer, 1)
+	assert.Len(t, writer.WrittenMsg.Ns, 1)
 	assert.Len(t, writer.WrittenMsg.Question, 2)
 
-	// Verify that the blocked domain has a SOA record in the answer section
+	// Verify that the blocked domain has a SOA record in the authority section
 	foundSOA := false
-	for _, rr := range writer.WrittenMsg.Answer {
+	for _, rr := range writer.WrittenMsg.Ns {
 		if soa, ok := rr.(*dns.SOA); ok {
 			if soa.Hdr.Name == "ads.0xbt.net." {
 				assert.Equal(t, "ns.blocked.local.", soa.Ns, "unexpected Ns name for blocked domain")
@@ -264,7 +305,7 @@ func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 			}
 		}
 	}
-	assert.True(t, foundSOA, "SOA record for ads.0xbt.net. not found in answers")
+	assert.True(t, foundSOA, "SOA record for ads.0xbt.net. not found in authority section")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit(t *testing.T) {
