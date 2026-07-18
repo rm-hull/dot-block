@@ -57,7 +57,6 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 	if isBlocked {
 		// Check if blocklist is temporarily disabled
 		if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
-			blockList.logger.Warn("Blocked domain query, but blocklist is temporarily disabled", "domain", domain)
 			return false, nil
 		}
 		return true, nil
@@ -100,7 +99,7 @@ func (blocklist *BlockList) Reenable() bool {
 
 type BlocklistStatus struct {
 	Disabled          bool       `json:"disabled"`
-	Unitl             *time.Time `json:"until,omitempty"`
+	Until             *time.Time `json:"until,omitempty"`
 	ApproxSize        uint32     `json:"approx_size"`
 	FalsePositiveRate float64    `json:"false_positive_rate"`
 }
@@ -110,9 +109,14 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 	blocklist.mutex.RLock()
 	defer blocklist.mutex.RUnlock()
 
+	var until *time.Time
+	disabled := blocklist.disabledUntil != nil && time.Now().Before(*blocklist.disabledUntil)
+	if disabled {
+		until = blocklist.disabledUntil
+	}
 	status := BlocklistStatus{
-		Disabled:          blocklist.disabledUntil != nil && time.Now().Before(*blocklist.disabledUntil),
-		Unitl:             blocklist.disabledUntil,
+		Disabled:          disabled,
+		Until:             until,
 		ApproxSize:        blocklist.bloomFilter.ApproximatedSize(),
 		FalsePositiveRate: blocklist.fpRate,
 	}

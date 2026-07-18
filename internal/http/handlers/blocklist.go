@@ -49,6 +49,11 @@ func (h *BlocklistHandler) Disable(c *gin.Context) {
 		}
 	}
 
+	if d <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Duration must be greater than zero"})
+		return
+	}
+
 	disabledUntil := h.updater.Blocklist.Disable(d)
 	c.JSON(http.StatusOK, gin.H{
 		"message":  "Blocklist temporarily disabled",
