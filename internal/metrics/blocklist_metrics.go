@@ -17,9 +17,9 @@ type BlockListMetrics struct {
 }
 
 var (
-	sizeMetric *prometheus.GaugeVec
+	sizeMetric    *prometheus.GaugeVec
 	reloadsMetric *prometheus.CounterVec
-	once sync.Once
+	once          sync.Once
 )
 
 func initMetrics() {
