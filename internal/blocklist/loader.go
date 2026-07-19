@@ -4,11 +4,11 @@ import (
 	"bufio"
 	"log/slog"
 	"os"
+	"regexp"
 	"strings"
-
-	"github.com/cockroachdb/errors"
 )
 
+var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
 var prefixes = []string{"0.0.0.0 ", "*.", "www."}
 
 type ScannerFunc func(string) bool
@@ -39,7 +39,7 @@ func countFromFile(path string) (uint, error) {
 	var count uint
 	file, err := os.Open(path)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to open blocklist file for counting")
+		return 0, err
 	}
 	defer func() { _ = file.Close() }()
 	err = scanBlocklist(file, nil, func(_ string) bool {
@@ -52,8 +52,39 @@ func countFromFile(path string) (uint, error) {
 func streamFromFile(path string, logger *slog.Logger, handler ScannerFunc) error {
 	file, err := os.Open(path)
 	if err != nil {
-		return errors.Wrap(err, "failed to open blocklist file for streaming")
+		return err
 	}
 	defer func() { _ = file.Close() }()
 	return scanBlocklist(file, logger, handler)
+}
+
+func extractMetadata(path string) (map[string]string, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+
+	metadata := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "#" {
+			break // end of metadata header
+		}
+		after, ok := strings.CutPrefix(line, "# ")
+		if !ok {
+			continue
+		}
+		if key, value, found := strings.Cut(after, ": "); found {
+			metadata[snakeCase(key)] = value
+		}
+	}
+	return metadata, scanner.Err()
+}
+
+func snakeCase(s string) string {
+	s = strings.ToLower(s)
+	s = nonAlphanumeric.ReplaceAllString(s, "_")
+	return strings.Trim(s, "_")
 }

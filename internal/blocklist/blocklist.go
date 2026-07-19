@@ -15,27 +15,30 @@ import (
 )
 
 type BlockList struct {
-	name          string
-	url           string
-	lastUpdated   *time.Time
-	fpRate        float64
-	bloomFilter   *bloom.BloomFilter
-	metrics       *metrics.BlockListMetrics
-	logger        *slog.Logger
-	mutex         *sync.RWMutex
-	disabledUntil *time.Time
+	name            string
+	url             string
+	metadata        map[string]string
+	lastUpdated     *time.Time
+	minFpRate       float64
+	estimatedFpRate float64
+	bloomFilter     *bloom.BloomFilter
+	size            uint
+	metrics         *metrics.BlockListMetrics
+	logger          *slog.Logger
+	mutex           *sync.RWMutex
+	disabledUntil   *time.Time
 }
 
 func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
 	metrics, _ := metrics.NewBlockListMetrics()
 
 	blocklist := &BlockList{
-		name:    name,
-		url:     url,
-		fpRate:  fpRate,
-		metrics: metrics,
-		logger:  logger,
-		mutex:   &sync.RWMutex{},
+		name:      name,
+		url:       url,
+		minFpRate: fpRate,
+		metrics:   metrics,
+		logger:    logger,
+		mutex:     &sync.RWMutex{},
 	}
 
 	return blocklist
@@ -82,12 +85,12 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 
 func (blocklist *BlockList) Load(items []string) {
 	n := uint(len(items))
-	bf := bloom.NewWithEstimates(n, blocklist.fpRate)
+	bf := bloom.NewWithEstimates(n, blocklist.minFpRate)
 	for _, item := range items {
 		bf.AddString(item)
 	}
 
-	blocklist.applyBloomFilter(bf, n)
+	blocklist.applyBloomFilter(bf, n, nil)
 }
 
 func (blocklist *BlockList) Disable(duration time.Duration) time.Time {
@@ -116,14 +119,14 @@ func (blocklist *BlockList) Reenable() bool {
 }
 
 type BlocklistStatus struct {
-	URL               string     `json:"url"`
-	LastUpdated       *time.Time `json:"last_updated,omitempty"`
-	DisabledUntil     *time.Time `json:"disabled_until,omitempty"`
-	ApproxSize        uint32     `json:"approx_size"`
-	FalsePositiveRate float64    `json:"false_positive_rate"`
+	URL               string            `json:"url"`
+	Size              uint              `json:"size"`
+	MetaData          map[string]string `json:"metadata,omitempty"`
+	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
+	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
+	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
 
-// Status returns whether the blocklist is currently disabled and until when
 func (blocklist *BlockList) Status() *BlocklistStatus {
 	blocklist.mutex.RLock()
 	defer blocklist.mutex.RUnlock()
@@ -134,26 +137,33 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 	}
 	status := BlocklistStatus{
 		URL:               blocklist.url,
+		Size:              blocklist.size,
+		MetaData:          blocklist.metadata,
 		LastUpdated:       blocklist.lastUpdated,
 		DisabledUntil:     disabledUntil,
-		ApproxSize:        blocklist.bloomFilter.ApproximatedSize(),
-		FalsePositiveRate: blocklist.fpRate,
+		FalsePositiveRate: blocklist.estimatedFpRate,
 	}
 
 	return &status
 }
 
-func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint) {
-	m, k := bloom.EstimateParameters(n, blocklist.fpRate)
-	blocklist.logger.Info("Bloom filter created",
-		"name", blocklist.name,
-		"actual_fp_rate", bloom.EstimateFalsePositiveRate(m, k, n),
-		"approx_size", bf.ApproximatedSize())
+func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, metadata map[string]string) {
+	m, k := bloom.EstimateParameters(n, blocklist.minFpRate)
+	estimatedFpRate := bloom.EstimateFalsePositiveRate(m, k, n)
 
 	blocklist.mutex.Lock()
 	blocklist.bloomFilter = bf
+	blocklist.size = n
+	blocklist.metadata = metadata
 	blocklist.lastUpdated = new(time.Now())
+	blocklist.estimatedFpRate = estimatedFpRate
 	blocklist.mutex.Unlock()
+
+	blocklist.logger.Info("Bloom filter created",
+		"name", blocklist.name,
+		"actual_size", n,
+		"estimated_size", bf.ApproximatedSize(),
+		"estimated_fp_rate", estimatedFpRate)
 
 	blocklist.metrics.Update(n)
 }
@@ -180,7 +190,7 @@ func (blockList *BlockList) Fetch() error {
 		count = 1
 	}
 
-	bloomFilter := bloom.NewWithEstimates(count, blockList.fpRate)
+	bloomFilter := bloom.NewWithEstimates(count, blockList.minFpRate)
 	scannerFunc := func(host string) bool {
 		bloomFilter.AddString(host)
 		return false
@@ -190,6 +200,11 @@ func (blockList *BlockList) Fetch() error {
 		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.url)
 	}
 
-	blockList.applyBloomFilter(bloomFilter, count)
+	metadata, err := extractMetadata(path)
+	if err != nil {
+		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.url)
+	}
+
+	blockList.applyBloomFilter(bloomFilter, count, metadata)
 	return nil
 }
