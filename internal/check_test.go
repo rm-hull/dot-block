@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
@@ -23,7 +24,7 @@ func TestCheckHandler(t *testing.T) {
 	// Use a small blocklist for testing
 	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{blockList})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{blockList}, 1*time.Minute)
 
 	handler := handlers.NewBlocklistHandler(updater, logger)
 

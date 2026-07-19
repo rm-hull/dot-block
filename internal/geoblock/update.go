@@ -1,11 +1,13 @@
 package geoblock
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"path"
+	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/rm-hull/dot-block/internal/downloader"
@@ -49,7 +51,9 @@ func Fetch(fileName string, logger *slog.Logger) ([]string, error) {
 	}
 
 	files := make([]string, 0)
-	err := downloader.TransientDownload(logger, dataDir, "ipinfo", url, token, func(srcPath string, header http.Header) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	err := downloader.TransientDownload(ctx, logger, dataDir, "ipinfo", url, token, func(srcPath string, header http.Header) error {
 		logger.Info("Moving downloaded file", "to", fileName)
 		if err := os.Rename(srcPath, fileName); err != nil {
 			return errors.Wrapf(err, "failed to move file from %q to %q", srcPath, fileName)

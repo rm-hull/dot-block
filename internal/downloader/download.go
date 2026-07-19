@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
@@ -8,7 +9,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/cockroachdb/errors"
 	"github.com/dustin/go-humanize"
@@ -32,7 +32,7 @@ func isValidUrl(uri string) bool {
 	return err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "file")
 }
 
-func Download(logger *slog.Logger, dataDir, purpose, uri, redact string) (string, http.Header, bool, error) {
+func Download(ctx context.Context, logger *slog.Logger, dataDir, purpose, uri, redact string) (string, http.Header, bool, error) {
 	if path, ok := isValidFile(uri); ok {
 		return path, http.Header{}, false, nil
 	}
@@ -46,13 +46,13 @@ func Download(logger *slog.Logger, dataDir, purpose, uri, redact string) (string
 		redactedUri = strings.ReplaceAll(uri, redact, "********")
 	}
 	logger.Info("Retrieving file", "purpose", purpose, "uri", redactedUri)
-	req, err := http.NewRequest("GET", uri, nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", uri, nil)
 	if err != nil {
 		return "", nil, false, errors.Wrapf(err, "failed to create request")
 	}
 
 	req.Header.Add("User-Agent", "dot-block downloader (https://github.com/rm-hull/dot-block)")
-	client := &http.Client{Timeout: 5 * time.Minute}
+	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", nil, false, errors.Wrapf(err, "failed to fetch from %s", redactedUri)
@@ -97,8 +97,8 @@ func Download(logger *slog.Logger, dataDir, purpose, uri, redact string) (string
 	return tmpfile, resp.Header, true, nil
 }
 
-func TransientDownload(logger *slog.Logger, dataDir, purpose, uri, redact string, handler func(tmpfile string, header http.Header) error) error {
-	tmpfile, header, isTemp, err := Download(logger, dataDir, purpose, uri, redact)
+func TransientDownload(ctx context.Context, logger *slog.Logger, dataDir, purpose, uri, redact string, handler func(tmpfile string, header http.Header) error) error {
+	tmpfile, header, isTemp, err := Download(ctx, logger, dataDir, purpose, uri, redact)
 	if err != nil {
 		return err
 	}

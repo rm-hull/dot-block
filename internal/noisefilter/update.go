@@ -1,9 +1,11 @@
 package noisefilter
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rm-hull/dot-block/internal/downloader"
 )
@@ -31,7 +33,9 @@ func (job *NoiseFilterUpdater) Run() {
 }
 
 func Fetch(url string, nf *NoiseFilter, logger *slog.Logger) error {
-	err := downloader.TransientDownload(logger, "", "noisefilter", url, "", func(tmpFile string, header http.Header) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+	err := downloader.TransientDownload(ctx, logger, "", "noisefilter", url, "", func(tmpFile string, header http.Header) error {
 		f, err := os.Open(tmpFile)
 		if err != nil {
 			return err

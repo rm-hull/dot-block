@@ -1,6 +1,7 @@
 package blocklist
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"strings"
@@ -180,8 +181,8 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 	blocklist.metrics.Update(n)
 }
 
-func (blockList *BlockList) Fetch() error {
-	path, _, isTemp, err := downloader.Download(blockList.logger, "", "blocklist", blockList.url, "")
+func (blockList *BlockList) Fetch(ctx context.Context) error {
+	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.url, "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to download blocklist for counting: %s", blockList.url)
 	}

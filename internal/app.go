@@ -465,7 +465,7 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 	}
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
-	updater := blocklist.NewUpdater(blockLists)
+	updater := blocklist.NewUpdater(blockLists, 1*time.Minute)
 	if _, err := crontab.AddJob(app.CronSchedule.Downloader, updater); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}

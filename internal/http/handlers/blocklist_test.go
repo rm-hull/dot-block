@@ -16,7 +16,7 @@ import (
 func setupHandler(t *testing.T) (*BlocklistHandler, *slog.Logger) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
 	return NewBlocklistHandler(updater, logger), logger
 }
 
@@ -32,7 +32,7 @@ func TestBlocklistHandler_Disable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	w := httptest.NewRecorder()
@@ -52,7 +52,7 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	w := httptest.NewRecorder()
@@ -72,7 +72,7 @@ func TestBlocklistHandler_Reenable(t *testing.T) {
 	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
 	// Pre-disable it
 	bl.Disable(time.Hour)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	w := httptest.NewRecorder()
@@ -91,7 +91,7 @@ func TestBlocklistHandler_Reload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	bl := blocklist.NewBlockList("test", "http://localhost:9999/does-not-exist", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	w := httptest.NewRecorder()
@@ -106,7 +106,7 @@ func TestBlocklistHandler_Reload(t *testing.T) {
 func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	w := httptest.NewRecorder()
@@ -123,7 +123,7 @@ func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 func TestBlocklistHandler_CheckTooManyDomains(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
 	h := NewBlocklistHandler(updater, logger)
 
 	// Create a JSON array with 101 items (limit is 100)
