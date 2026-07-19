@@ -22,7 +22,7 @@ func NewBlocklistHandler(updater *blocklist.Updater, logger *slog.Logger) *Block
 
 func (h *BlocklistHandler) Reload(c *gin.Context) {
 	go h.updater.Run()
-	m := make(map[string]string, 0)
+	m := make(map[string]string, len(h.updater.Blocklists))
 	for _, blockList := range h.updater.Blocklists {
 		m[blockList.Name()] = blockList.URL()
 	}
