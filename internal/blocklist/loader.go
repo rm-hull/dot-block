@@ -72,6 +72,9 @@ func extractMetadata(path string) (map[string]string, error) {
 		if line == "#" {
 			break // end of metadata header
 		}
+		if line != "" && !strings.HasPrefix(line, "#") {
+			break
+		}
 		after, ok := strings.CutPrefix(line, "# ")
 		if !ok {
 			continue
