@@ -61,6 +61,13 @@ func (blockList *BlockList) URL() string {
 	return blockList.url
 }
 
+func (BlockList *BlockList) Metadata(attr, defaultValue string) string {
+	if value, ok := BlockList.metadata[attr]; ok {
+		return value
+	}
+	return defaultValue
+}
+
 // Returns whether the URL (or part of the URL) is on a block list.
 // If true, might be a false positive, but if false (i.e. allowed) is definitely not blocked
 func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {

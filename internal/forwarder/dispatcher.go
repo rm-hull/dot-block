@@ -355,7 +355,7 @@ func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *
 	// Inject EDE for blocked domain
 	ede := &dns.EDNS0_EDE{
 		InfoCode:  dns.ExtendedErrorCodeBlocked,
-		ExtraText: fmt.Sprintf("Blocked by: %s", cause.Name()),
+		ExtraText: fmt.Sprintf("Blocked by: %s", cause.Metadata("title", cause.Name())),
 	}
 
 	var extra []dns.RR
