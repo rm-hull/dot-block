@@ -202,7 +202,7 @@ func (blockList *BlockList) Fetch() error {
 
 	metadata, err := extractMetadata(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to extract metadata from file %s (url: %s)", path, blockList.url)
 	}
 
 	blockList.applyBloomFilter(bloomFilter, count, metadata)
