@@ -39,7 +39,7 @@ type BlocklistStatus struct {
 }
 
 func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
-	metrics, _ := metrics.NewBlockListMetrics()
+	metrics, _ := metrics.NewBlockListMetrics(name)
 
 	blocklist := &BlockList{
 		name:      name,
