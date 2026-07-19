@@ -1,5 +1,5 @@
 # dot-block custom blocklist
-# Last modified: 13 June 2026 20:37 BST
+# Last modified: 19 July 2026 01:15 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -88,3 +88,8 @@ dms.licdn.com
 b.delivery.consentmanager.net
 avsxappcaptiveportal.com
 d37j8pfxu2iogi.cloudfront.net
+mobile.events.data.microsoft.com
+us-mobile.events.data.microsoft.com
+eu-mobile.events.data.microsoft.com
+au-mobile.events.data.microsoft.com
+jp-mobile.events.data.microsoft.com
