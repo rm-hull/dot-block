@@ -10,7 +10,7 @@ func NewUpdater(blocklists []BlockList) *Updater {
 
 func (job *Updater) Run() {
 	for _, blockList := range job.Blocklists {
-		if err := blockList.LoadFromURL(); err != nil {
+		if err := blockList.Fetch(); err != nil {
 			blockList.logger.Error("failed to download blocklist for cron reload",
 				"error", err,
 				"name", blockList.name,
