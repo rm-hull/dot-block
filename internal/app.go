@@ -164,14 +164,9 @@ func (app *App) RunServer(ctx context.Context) error {
 			return errors.Wrap(err, "failed to initialize GeoData database")
 		}
 	}
-	blockList := blocklist.NewBlockList("combined", nil, 0.0001, app.Logger)
-	if err := blocklist.LoadFromURLs(blockList, app.BlockListURLs); err != nil {
-		return errors.Wrap(err, "failed to load blocklists")
-	}
-	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
-	blocklistUpdater := blocklist.NewBlocklistUpdater(blockList, app.BlockListURLs)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, blocklistUpdater); err != nil {
-		return errors.Wrap(err, "failed to create blocklist downloader cron job")
+	blockLists, blocklistUpdater, err := app.NewBlockLists(crontab)
+	if err != nil {
+		return errors.Wrap(err, "failed to create blocklist(s)")
 	}
 
 	noiseFilter := noisefilter.NewNoiseFilter()
@@ -224,7 +219,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 
 	broadcaster := sse.NewBroadcaster(app.Logger)
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockList, noiseFilter, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
@@ -367,7 +362,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 
 func (app *App) startHttpServer(
 	dnsClient *forwarder.RoundRobinClient,
-	blocklistUpdater *blocklist.BlocklistUpdater,
+	blocklistUpdater *blocklist.Updater,
 	dispatcher *forwarder.DNSDispatcher,
 	geoIpLookup geoblock.GeoIpLookup,
 ) (*gin.Engine, error) {
@@ -460,4 +455,21 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 		return nil, errors.Wrap(err, "failed to create ipinfo.io updater cron job")
 	}
 	return geoIpLookup, nil
+}
+
+func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *blocklist.Updater, error) {
+	blockLists := make([]*blocklist.BlockList, 0)
+	for idx, url := range app.BlockListURLs {
+		blockList := blocklist.NewBlockList(fmt.Sprintf("Blocklist #%d", idx), url, 0.0001, app.Logger)
+		blockLists = append(blockLists, blockList)
+	}
+
+	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
+	updater := blocklist.NewUpdater(blockLists)
+	if _, err := crontab.AddJob(app.CronSchedule.Downloader, updater); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to create blocklist downloader cron job")
+	}
+	updater.Run()
+
+	return blockLists, updater, nil
 }

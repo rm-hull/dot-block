@@ -88,7 +88,8 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	blockList := blocklist.NewBlockList("test", []string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList("dispatcher_test", "http://dummy.url", 0.0001, logger)
+	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
@@ -100,7 +101,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), 1*time.Minute, logger, enableECS)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), 1*time.Minute, logger, enableECS)
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -262,7 +263,7 @@ func TestDNSDispatcher_HandleDNSRequest_BlockedIncludesEDE(t *testing.T) {
 	ede, ok := opt.Option[0].(*dns.EDNS0_EDE)
 	require.True(t, ok, "expected EDE option")
 	assert.Equal(t, dns.ExtendedErrorCodeBlocked, ede.InfoCode)
-	assert.Contains(t, ede.ExtraText, "Blocked by policy")
+	assert.Contains(t, ede.ExtraText, "Blocked by: dispatcher_test")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
@@ -421,7 +422,8 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList("test", []string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
@@ -433,7 +435,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), -1*time.Second, logger, false)
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), -1*time.Second, logger, false)
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -752,14 +754,16 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			blockList := blocklist.NewBlockList("test", []string{}, 0.0001, logger)
+			blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+			blockList.Load([]string{"ads.com"})
+
 			cache := NewDNSCache(100, logger)
 			mockGeo := new(MockGeoIpLookup)
 			mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo)
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 
-			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, blockList, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), 1*time.Minute, logger, tt.enableECS)
+			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger), 1*time.Minute, logger, tt.enableECS)
 			defer dispatcher.Close()
 
 			// Mock ResponseWriter with the specific client IP

@@ -40,7 +40,7 @@ ads.net
 POST http://admin.localhost:8080/api/blocklist/disable
 Content-Type: application/json
 
-{"duration": "PT5M"}
+{"name": "Blocklist #0", "duration": "PT5M"}
 
 ### Re-enable blocklist
 POST http://admin.localhost:8080/api/blocklist/reenable

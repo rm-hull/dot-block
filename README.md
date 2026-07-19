@@ -156,8 +156,11 @@ If `--metrics-auth` is configured, the `/metrics` endpoint is protected by basic
 
 While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`):
 
-- `POST /api/blocklist/reload`: Triggers an asynchronous reload of the blocklists.
-- `POST /api/blocklist/check`: Checks whether provided domains are blocked. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
+- `POST /api/blocklist/reload`: Triggers an asynchronous reload of all configured blocklists.
+- `GET /api/blocklist/status`: Returns the current status of all blocklists, including metadata, record counts, and enabled status.
+- `POST /api/blocklist/disable`: Temporarily disables one or all blocklists. Requires a JSON payload: `{"name": "...", "duration": "1h"}`.
+- `POST /api/blocklist/reenable`: Re-enables all blocklists.
+- `POST /api/blocklist/check`: Checks whether provided domains are blocked against any of the enabled blocklists. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.
 - `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
 
@@ -224,7 +227,7 @@ DoT Block can be configured using the following command-line flags:
 | Flag | Description | Default |
 | :--- | :--- | :--- |
 | `--allowed-hosts` | List of domains used for the CertManager allow policy. | `nil` |
-| `--blocklist-url` | List of URL blocklists (wildcard hostname format). | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt`, `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt` |
+| `--blocklist-url` | List of URLs to fetch blocklists from (comma-separated). Each list is managed independently for granular control. | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt` |
 | `--noise-filter-url` | URL of noise filter (CSV format: category,rcode,domain_suffix). | `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.txt` |
 | `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
 | `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
