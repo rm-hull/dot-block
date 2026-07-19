@@ -88,7 +88,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", []string{"ads.0xbt.net"}, 0.0001, logger)
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
@@ -421,7 +421,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList([]string{"ads.0xbt.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", []string{"ads.0xbt.net"}, 0.0001, logger)
 
 	cache := NewDNSCache(100, logger)
 	mockGeo := new(MockGeoIpLookup)
@@ -752,7 +752,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			blockList := blocklist.NewBlockList([]string{}, 0.0001, logger)
+			blockList := blocklist.NewBlockList("test", []string{}, 0.0001, logger)
 			cache := NewDNSCache(100, logger)
 			mockGeo := new(MockGeoIpLookup)
 			mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)

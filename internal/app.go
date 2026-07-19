@@ -164,7 +164,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			return errors.Wrap(err, "failed to initialize GeoData database")
 		}
 	}
-	blockList := blocklist.NewBlockList(nil, 0.0001, app.Logger)
+	blockList := blocklist.NewBlockList("combined", nil, 0.0001, app.Logger)
 	if err := blocklist.LoadFromURLs(blockList, app.BlockListURLs); err != nil {
 		return errors.Wrap(err, "failed to load blocklists")
 	}

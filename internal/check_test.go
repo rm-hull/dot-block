@@ -21,7 +21,7 @@ func TestCheckHandler(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	// Use a small blocklist for testing
-	blockList := blocklist.NewBlockList([]string{"blocked.com", "ads.net"}, 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", []string{"blocked.com", "ads.net"}, 0.0001, logger)
 	updater := blocklist.NewBlocklistUpdater(blockList, []string{})
 
 	handler := handlers.NewBlocklistHandler(updater, logger)

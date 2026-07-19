@@ -12,6 +12,7 @@ import (
 )
 
 type BlockList struct {
+	name          string
 	fpRate        float64
 	bloomFilter   *bloom.BloomFilter
 	metrics       *metrics.BlockListMetrics
@@ -20,10 +21,11 @@ type BlockList struct {
 	disabledUntil *time.Time
 }
 
-func NewBlockList(items []string, fpRate float64, logger *slog.Logger) *BlockList {
+func NewBlockList(name string, items []string, fpRate float64, logger *slog.Logger) *BlockList {
 	metrics, _ := metrics.NewBlockListMetrics()
 
 	blocklist := &BlockList{
+		name:    name,
 		fpRate:  fpRate,
 		metrics: metrics,
 		logger:  logger,
@@ -32,6 +34,10 @@ func NewBlockList(items []string, fpRate float64, logger *slog.Logger) *BlockLis
 
 	blocklist.Load(items)
 	return blocklist
+}
+
+func (BlockList *BlockList) Name() string {
+	return BlockList.name
 }
 
 // Returns whether the URL (or part of the URL) is on a block list.
@@ -80,7 +86,10 @@ func (blocklist *BlockList) Disable(duration time.Duration) time.Time {
 	blocklist.mutex.Lock()
 	blocklist.disabledUntil = &t
 	blocklist.mutex.Unlock()
-	blocklist.logger.Warn("Blocklist temporarily disabled", "until", t)
+	blocklist.logger.Warn("Blocklist temporarily disabled",
+		"name", blocklist.name,
+		"until", t)
+
 	return t
 }
 
@@ -93,7 +102,7 @@ func (blocklist *BlockList) Reenable() bool {
 	}
 
 	blocklist.disabledUntil = nil
-	blocklist.logger.Info("Blocklist re-enabled")
+	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.name)
 	return true
 }
 
@@ -126,7 +135,10 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 
 func (blocklist *BlockList) ApplyBloomFilter(bf *bloom.BloomFilter, n uint) {
 	m, k := bloom.EstimateParameters(n, blocklist.fpRate)
-	blocklist.logger.Info("Bloom filter created", "actual_fp_rate", bloom.EstimateFalsePositiveRate(m, k, n), "approx_size", bf.ApproximatedSize())
+	blocklist.logger.Info("Bloom filter created",
+		"name", blocklist.name,
+		"actual_fp_rate", bloom.EstimateFalsePositiveRate(m, k, n),
+		"approx_size", bf.ApproximatedSize())
 
 	blocklist.mutex.Lock()
 	blocklist.bloomFilter = bf
