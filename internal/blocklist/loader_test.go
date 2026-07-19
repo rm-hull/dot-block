@@ -8,16 +8,25 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestMain(m *testing.M) {
+	// Any global setup can go here
+	os.Exit(m.Run())
+}
+
+func setupTempFile(t *testing.T, content string) string {
+	tmpDir, err := os.MkdirTemp("", "blocklist-test")
+	assert.NoError(t, err)
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
+
+	tmpFile := filepath.Join(tmpDir, "list.txt")
+	err = os.WriteFile(tmpFile, []byte(content), 0644)
+	assert.NoError(t, err)
+	return tmpFile
+}
+
 func TestLoader_Metadata(t *testing.T) {
-	// Create a temporary file with header metadata
-	tmpDir, _ := os.MkdirTemp("", "blocklist-test")
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
 
-	tmpFile := filepath.Join(tmpDir, "metadata.txt")
-	content := "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n"
-	_ = os.WriteFile(tmpFile, []byte(content), 0644)
-
-	// Test extractMetadata
 	metadata, err := extractMetadata(tmpFile)
 	assert.NoError(t, err)
 	assert.Equal(t, "Test Blocklist", metadata["title"])
@@ -25,28 +34,15 @@ func TestLoader_Metadata(t *testing.T) {
 }
 
 func TestLoader_Count(t *testing.T) {
-	// Create a temporary file
-	tmpDir, _ := os.MkdirTemp("", "blocklist-test")
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	tmpFile := setupTempFile(t, "# Title: Test\nexample.com\n# Comment\nmalicious.net\n")
 
-	tmpFile := filepath.Join(tmpDir, "count.txt")
-	content := "# Title: Test\nexample.com\n# Comment\nmalicious.net\n"
-	_ = os.WriteFile(tmpFile, []byte(content), 0644)
-
-	// Test countFromFile
 	count, err := countFromFile(tmpFile)
 	assert.NoError(t, err)
-	// Current behavior: counts comments when logger is nil
-	assert.Equal(t, uint(4), count)
+	assert.Equal(t, 2, int(count))
 }
 
 func TestLoader_Stream(t *testing.T) {
-	tmpDir, _ := os.MkdirTemp("", "blocklist-test")
-	defer func() { _ = os.RemoveAll(tmpDir) }()
-
-	tmpFile := filepath.Join(tmpDir, "list.txt")
-	content := "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n"
-	_ = os.WriteFile(tmpFile, []byte(content), 0644)
+	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
 
 	var hosts []string
 	scannerFunc := func(host string) bool {

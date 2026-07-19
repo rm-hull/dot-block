@@ -17,8 +17,11 @@ func scanBlocklist(file *os.File, logger *slog.Logger, handler ScannerFunc) erro
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") && logger != nil {
-			logger.Info("Blocklist", "comment", line)
+		if strings.HasPrefix(line, "# ") {
+			if logger != nil {
+				logger.Info("Blocklist", "comment", line)
+			}
+			continue
 		} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
 			continue // ignore double-octothorpe and empty comments
 		} else {
