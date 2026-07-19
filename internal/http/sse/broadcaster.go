@@ -17,6 +17,7 @@ type Event struct {
 	Source    string    `json:"src"`
 	Blocked   bool      `json:"blocked"`
 	Cached    bool      `json:"cached"`
+	Cause     string    `json:"cause,omitempty"`
 }
 
 type Broadcaster struct {

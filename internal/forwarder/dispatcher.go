@@ -248,6 +248,7 @@ func (d *DNSDispatcher) snapshotWorker() {
 					Source:    snapshot.Source(),
 					Blocked:   snapshot.IsBlocked(),
 					Cached:    snapshot.FromCache(),
+					Cause:     snapshot.BlockCause(),
 					Timestamp: time.Now(),
 				}
 
@@ -332,7 +333,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 
 func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string, cause *blocklist.BlockList) QuestionResolution {
 	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name, "cause", cause.Name())
-	requestCtx.snapshot.AddBlockedDomain(q.Name)
+	requestCtx.snapshot.AddBlockedDomain(q.Name, cause.Name())
 	requestCtx.snapshot.AddQueryCount(queryType, true)
 
 	soa := &dns.SOA{
