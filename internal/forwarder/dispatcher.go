@@ -55,7 +55,7 @@ type DNSDispatcher struct {
 	defaultTTL  float64
 	ttlFloor    time.Duration
 	cache       *DNSCache
-	blockList   *blocklist.BlockList
+	blockLists  []blocklist.BlockList
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
@@ -69,7 +69,7 @@ func NewDNSDispatcher(
 	cache *DNSCache,
 	dnsMetrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
-	blockList *blocklist.BlockList,
+	blockLists []blocklist.BlockList,
 	noiseFilter *noisefilter.NoiseFilter,
 	broadcaster *sse.Broadcaster,
 	ttlFloor time.Duration,
@@ -86,7 +86,7 @@ func NewDNSDispatcher(
 		defaultTTL:  300, // TODO: pass in
 		ttlFloor:    ttlFloor,
 		cache:       cache,
-		blockList:   blockList,
+		blockLists:  blockLists,
 		metrics:     dnsMetrics,
 		logger:      logger,
 		noiseFilter: noiseFilter,
@@ -282,7 +282,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 		"name", q.Name,
 		"type", queryType)
 
-	isBlocked, err := d.blockList.IsBlocked(q.Name)
+	isBlocked, cause, err := d.isBlocked(q.Name)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -291,7 +291,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	}
 
 	if isBlocked {
-		return d.constructBlockedResponse(requestCtx, q, queryType), nil
+		return d.constructBlockedResponse(requestCtx, q, queryType, cause), nil
 	}
 
 	if isReservedLocalhost(q.Name) {
@@ -330,8 +330,8 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	return QuestionResolution{rcode: dns.RcodeSuccess}, nil
 }
 
-func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string) QuestionResolution {
-	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name)
+func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string, cause *blocklist.BlockList) QuestionResolution {
+	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name, "cause", cause.Name())
 	requestCtx.snapshot.AddBlockedDomain(q.Name)
 	requestCtx.snapshot.AddQueryCount(queryType, true)
 
@@ -354,7 +354,7 @@ func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *
 	// Inject EDE for blocked domain
 	ede := &dns.EDNS0_EDE{
 		InfoCode:  dns.ExtendedErrorCodeBlocked,
-		ExtraText: fmt.Sprintf("Blocked by policy: %s", q.Name),
+		ExtraText: fmt.Sprintf("Blocked by: %s", cause.Name()),
 	}
 
 	var extra []dns.RR
@@ -639,4 +639,13 @@ func isReservedTLD(name string) bool {
 
 func isReservedLocalhost(name string) bool {
 	return strings.ToLower(name) == "localhost."
+}
+
+func (d *DNSDispatcher) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
+	for _, blockList := range d.blockLists {
+		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
+			return isBlocked, &blockList, err
+		}
+	}
+	return false, nil, nil
 }

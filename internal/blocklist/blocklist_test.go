@@ -13,7 +13,8 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	// Use a dummy handler that won't panic when passed nil
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	// Create a blocklist with one entry
-	blockList := NewBlockList("test", []string{"example.com"}, 0.0001, logger)
+	blockList := NewBlockList("test", "http://dummy_url", 0.0001, logger)
+	blockList.Load([]string{"example.com"})
 
 	// Initially, example.com should be blocked
 	isBlocked, err := blockList.IsBlocked("example.com")

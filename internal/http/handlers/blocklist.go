@@ -12,24 +12,30 @@ import (
 )
 
 type BlocklistHandler struct {
-	updater *blocklist.BlocklistUpdater
+	updater *blocklist.Updater
 	logger  *slog.Logger
 }
 
-func NewBlocklistHandler(updater *blocklist.BlocklistUpdater, logger *slog.Logger) *BlocklistHandler {
+func NewBlocklistHandler(updater *blocklist.Updater, logger *slog.Logger) *BlocklistHandler {
 	return &BlocklistHandler{updater: updater, logger: logger}
 }
 
 func (h *BlocklistHandler) Reload(c *gin.Context) {
 	go h.updater.Run()
+	m := make(map[string]string, 0)
+	for _, blockList := range h.updater.Blocklists {
+		m[blockList.Name()] = blockList.URL()
+	}
+
 	c.JSON(http.StatusAccepted, gin.H{
-		"message": "Blocklist reload triggered",
-		"urls":    h.updater.URLs,
+		"message":    "Blocklist reload triggered",
+		"blocklists": m,
 	})
 }
 
 func (h *BlocklistHandler) Disable(c *gin.Context) {
 	var payload struct {
+		Name     string `json:"name,omitempty"`
 		Duration string `json:"duration"`
 	}
 	if err := c.ShouldBindJSON(&payload); err != nil {
@@ -54,24 +60,29 @@ func (h *BlocklistHandler) Disable(c *gin.Context) {
 		return
 	}
 
-	disabledUntil := h.updater.Blocklist.Disable(d)
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Blocklist temporarily disabled",
-		"duration": d.String(),
-		"until":    disabledUntil,
-	})
+	for _, bl := range h.updater.Blocklists {
+		if payload.Name == bl.Name() || payload.Name == "" {
+			bl.Disable(d)
+		}
+	}
+
+	h.Status(c)
 }
 
 func (h *BlocklistHandler) Reenable(c *gin.Context) {
-	if h.updater.Blocklist.Reenable() {
-		c.JSON(http.StatusOK, gin.H{"message": "Blocklist re-enabled"})
-	} else {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Blocklist is not currently disabled"})
+	for _, bl := range h.updater.Blocklists {
+		bl.Reenable()
 	}
+
+	h.Status(c)
 }
 
 func (h *BlocklistHandler) Status(c *gin.Context) {
-	c.JSON(http.StatusOK, h.updater.Blocklist.Status())
+	blocklists := make(map[string]*blocklist.BlocklistStatus)
+	for _, bl := range h.updater.Blocklists {
+		blocklists[bl.Name()] = bl.Status()
+	}
+	c.JSON(http.StatusOK, blocklists)
 }
 
 func (h *BlocklistHandler) Check(c *gin.Context) {
@@ -112,7 +123,7 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 	blocked := make([]string, 0)
 
 	for _, domain := range domains {
-		isBlocked, err := h.updater.Blocklist.IsBlocked(domain)
+		isBlocked, _, err := h.isBlocked(domain)
 		if err != nil {
 			h.logger.Error("blocklist check failed", "error", err, "domain", domain)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
@@ -129,4 +140,13 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 		"allowed": allowed,
 		"blocked": blocked,
 	})
+}
+
+func (h *BlocklistHandler) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
+	for _, blockList := range h.updater.Blocklists {
+		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
+			return isBlocked, &blockList, err
+		}
+	}
+	return false, nil, nil
 }

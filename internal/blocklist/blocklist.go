@@ -2,17 +2,21 @@ package blocklist
 
 import (
 	"log/slog"
+	"os"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/bits-and-blooms/bloom/v3"
+	"github.com/cockroachdb/errors"
+	"github.com/rm-hull/dot-block/internal/downloader"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"golang.org/x/net/publicsuffix"
 )
 
 type BlockList struct {
 	name          string
+	url           string
 	fpRate        float64
 	bloomFilter   *bloom.BloomFilter
 	metrics       *metrics.BlockListMetrics
@@ -21,23 +25,27 @@ type BlockList struct {
 	disabledUntil *time.Time
 }
 
-func NewBlockList(name string, items []string, fpRate float64, logger *slog.Logger) *BlockList {
+func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
 	metrics, _ := metrics.NewBlockListMetrics()
 
 	blocklist := &BlockList{
 		name:    name,
+		url:     url,
 		fpRate:  fpRate,
 		metrics: metrics,
 		logger:  logger,
 		mutex:   &sync.RWMutex{},
 	}
 
-	blocklist.Load(items)
 	return blocklist
 }
 
 func (BlockList *BlockList) Name() string {
 	return BlockList.name
+}
+
+func (blockList *BlockList) URL() string {
+	return blockList.url
 }
 
 // Returns whether the URL (or part of the URL) is on a block list.
@@ -145,4 +153,35 @@ func (blocklist *BlockList) ApplyBloomFilter(bf *bloom.BloomFilter, n uint) {
 	blocklist.mutex.Unlock()
 
 	blocklist.metrics.Update(n)
+}
+
+func (bl *BlockList) LoadFromURL() error {
+	path, _, isTemp, err := downloader.Download(bl.logger, "", "blocklist", bl.url, "")
+	if err != nil {
+		return errors.Wrapf(err, "failed to download blocklist for counting: %s", bl.url)
+	}
+
+	defer func() {
+		if isTemp {
+			_ = os.Remove(path)
+		}
+	}()
+
+	count, err := countFromFile(path, bl.logger)
+	if err != nil {
+		return errors.Wrapf(err, "failed to count hosts in file %s (url: %s)", path, bl.url)
+	}
+
+	// Avoid creating a bloom filter with 0 items, which will panic
+	if count == 0 {
+		count = 1
+	}
+
+	bf := bloom.NewWithEstimates(count, bl.fpRate)
+	if err := streamFromFile(path, bl.logger, func(host string) { bf.AddString(host) }); err != nil {
+		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, bl.url)
+	}
+
+	bl.ApplyBloomFilter(bf, count)
+	return nil
 }

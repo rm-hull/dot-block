@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -30,6 +31,9 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	dnsPort := getFreePort(t)
 	dotPort := getFreePort(t)
 	httpPort := getFreePort(t)
+
+	handler := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})
+	slog.SetDefault(slog.New(handler))
 
 	// App configuration for integration test
 	app := App{
