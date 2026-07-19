@@ -457,14 +457,14 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	return geoIpLookup, nil
 }
 
-func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.BlockList, *blocklist.Updater, error) {
-	blockLists := make([]blocklist.BlockList, 0)
+func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *blocklist.Updater, error) {
+	blockLists := make([]*blocklist.BlockList, 0)
 	for idx, url := range app.BlockListURLs {
 		blockList := blocklist.NewBlockList(fmt.Sprintf("Blocklist #%d", idx), url, 0.0001, app.Logger)
 		if err := blockList.Fetch(); err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to load blocklist: %s", url)
 		}
-		blockLists = append(blockLists, *blockList)
+		blockLists = append(blockLists, blockList)
 	}
 
 	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)

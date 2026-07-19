@@ -23,7 +23,7 @@ func TestCheckHandler(t *testing.T) {
 	// Use a small blocklist for testing
 	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
-	updater := blocklist.NewUpdater([]blocklist.BlockList{*blockList})
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{blockList})
 
 	handler := handlers.NewBlocklistHandler(updater, logger)
 

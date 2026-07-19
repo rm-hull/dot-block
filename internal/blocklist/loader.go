@@ -11,11 +11,13 @@ import (
 
 var prefixes = []string{"0.0.0.0 ", "*.", "www."}
 
-func scanBlocklist(file *os.File, logger *slog.Logger, handler func(string)) error {
+type ScannerFunc func(string) bool
+
+func scanBlocklist(file *os.File, logger *slog.Logger, handler ScannerFunc) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
+		if strings.HasPrefix(line, "# ") && logger != nil {
 			logger.Info("Blocklist", "comment", line)
 		} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
 			continue // ignore double-octothorpe and empty comments
@@ -25,26 +27,29 @@ func scanBlocklist(file *os.File, logger *slog.Logger, handler func(string)) err
 					line = after
 				}
 			}
-			handler(line)
+			if handler(line) { // finish early?
+				break
+			}
 		}
 	}
 	return scanner.Err()
 }
 
-func countFromFile(path string, logger *slog.Logger) (uint, error) {
+func countFromFile(path string) (uint, error) {
 	var count uint
 	file, err := os.Open(path)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to open blocklist file for counting")
 	}
 	defer func() { _ = file.Close() }()
-	err = scanBlocklist(file, logger, func(_ string) {
+	err = scanBlocklist(file, nil, func(_ string) bool {
 		count++
+		return false
 	})
 	return count, err
 }
 
-func streamFromFile(path string, logger *slog.Logger, handler func(string)) error {
+func streamFromFile(path string, logger *slog.Logger, handler ScannerFunc) error {
 	file, err := os.Open(path)
 	if err != nil {
 		return errors.Wrap(err, "failed to open blocklist file for streaming")
@@ -52,9 +57,3 @@ func streamFromFile(path string, logger *slog.Logger, handler func(string)) erro
 	defer func() { _ = file.Close() }()
 	return scanBlocklist(file, logger, handler)
 }
-
-// func streamHosts(url string, logger *slog.Logger, handler func(string)) error {
-// 	return downloader.TransientDownload(logger, "", "blocklist-stream", url, "", func(tmpFile string, header http.Header) error {
-// 		return streamFromFile(tmpFile, logger, handler)
-// 	})
-// }

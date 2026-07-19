@@ -145,7 +145,7 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 func (h *BlocklistHandler) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
 	for _, blockList := range h.updater.Blocklists {
 		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
-			return isBlocked, &blockList, err
+			return isBlocked, blockList, err
 		}
 	}
 	return false, nil, nil

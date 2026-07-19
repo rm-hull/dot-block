@@ -55,7 +55,7 @@ type DNSDispatcher struct {
 	defaultTTL  float64
 	ttlFloor    time.Duration
 	cache       *DNSCache
-	blockLists  []blocklist.BlockList
+	blockLists  []*blocklist.BlockList
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
@@ -69,7 +69,7 @@ func NewDNSDispatcher(
 	cache *DNSCache,
 	dnsMetrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
-	blockLists []blocklist.BlockList,
+	blockLists []*blocklist.BlockList,
 	noiseFilter *noisefilter.NoiseFilter,
 	broadcaster *sse.Broadcaster,
 	ttlFloor time.Duration,
@@ -644,7 +644,7 @@ func isReservedLocalhost(name string) bool {
 func (d *DNSDispatcher) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
 	for _, blockList := range d.blockLists {
 		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
-			return isBlocked, &blockList, err
+			return isBlocked, blockList, err
 		}
 	}
 	return false, nil, nil

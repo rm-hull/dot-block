@@ -1,10 +1,10 @@
 package blocklist
 
 type Updater struct {
-	Blocklists []BlockList
+	Blocklists []*BlockList
 }
 
-func NewUpdater(blocklists []BlockList) *Updater {
+func NewUpdater(blocklists []*BlockList) *Updater {
 	return &Updater{Blocklists: blocklists}
 }
 
