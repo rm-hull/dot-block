@@ -47,7 +47,7 @@ func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) 
 		url:       url,
 		minFpRate: fpRate,
 		metrics:   metrics,
-		logger:    logger,
+		logger:    logger.With("name", name),
 		mutex:     &sync.RWMutex{},
 	}
 
