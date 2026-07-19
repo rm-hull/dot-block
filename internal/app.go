@@ -461,9 +461,6 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 	blockLists := make([]*blocklist.BlockList, 0)
 	for idx, url := range app.BlockListURLs {
 		blockList := blocklist.NewBlockList(fmt.Sprintf("Blocklist #%d", idx), url, 0.0001, app.Logger)
-		if err := blockList.Fetch(); err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to load blocklist: %s", url)
-		}
 		blockLists = append(blockLists, blockList)
 	}
 
@@ -472,6 +469,7 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 	if _, err := crontab.AddJob(app.CronSchedule.Downloader, updater); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
+	updater.Run()
 
 	return blockLists, updater, nil
 }

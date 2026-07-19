@@ -29,6 +29,15 @@ type BlockList struct {
 	disabledUntil   *time.Time
 }
 
+type BlocklistStatus struct {
+	URL               string            `json:"url"`
+	Size              uint              `json:"size"`
+	MetaData          map[string]string `json:"metadata,omitempty"`
+	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
+	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
+	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
+}
+
 func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
 	metrics, _ := metrics.NewBlockListMetrics()
 
@@ -59,6 +68,11 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 
 	blockList.mutex.RLock()
 	defer blockList.mutex.RUnlock()
+
+	// Check whether blocklist was initializaed first
+	if blockList.bloomFilter == nil {
+		return false, nil
+	}
 
 	isBlocked := blockList.bloomFilter.TestString(domain)
 
@@ -116,15 +130,6 @@ func (blocklist *BlockList) Reenable() bool {
 	blocklist.disabledUntil = nil
 	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.name)
 	return true
-}
-
-type BlocklistStatus struct {
-	URL               string            `json:"url"`
-	Size              uint              `json:"size"`
-	MetaData          map[string]string `json:"metadata,omitempty"`
-	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
-	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
-	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
 
 func (blocklist *BlockList) Status() *BlocklistStatus {
