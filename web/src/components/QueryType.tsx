@@ -18,6 +18,7 @@ const mapping: Record<RRType, { descr: string }> = {
   MX: { descr: "Mail exchange server" },
   TXT: { descr: "Text record" },
   SOA: { descr: "Start of authority" },
+  SRV: { descr: "Server selection" }
 }
 
 export function QueryType({ rrtype }: QueryTypeProps) {

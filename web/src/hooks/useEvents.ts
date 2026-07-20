@@ -31,6 +31,7 @@ const rrTypes = [
   "MX",
   "TXT",
   "SOA",
+  "SRV",
 ] as const;
 export type RRType = (typeof rrTypes)[number];
 
