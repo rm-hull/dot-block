@@ -4,7 +4,7 @@ import { QueryType } from '@/components/QueryType';
 import { Result } from '@/components/Result';
 import { Timestamp } from '@/components/Timestamp';
 import { useEvents } from '@/hooks/useEvents';
-import { Badge, Box, Card, Code, Collapsible, Container, HStack, Stack, Stat, Table, VStack } from '@chakra-ui/react'
+import { Badge, Card, Code, Collapsible, Container, HStack, Stat, Table, VStack } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { LuChevronRight } from 'react-icons/lu';
 
