@@ -5,32 +5,37 @@ import { useEffect, useRef } from "react";
 const MAX_ITEMS = 50;
 
 // Commmon RCodes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6 for full list
-export type RCode =
-  | "NOERROR"
-  | "FORMERR"
-  | "SERVFAIL"
-  | "NXDOMAIN"
-  | "NOTIMP"
-  | "REFUSED"
-  | "YXDOMAIN"
-  | "XRRSET"
-  | "NOTAUTH"
-  | "NOTZONE";
+const rCodes = [
+  "NOERROR",
+  "FORMERR",
+  "SERVFAIL",
+  "NXDOMAIN",
+  "NOTIMP",
+  "REFUSED",
+  "YXDOMAIN",
+  "XRRSET",
+  "NOTAUTH",
+  "NOTZONE",
+] as const;
+export type RCode = (typeof rCodes)[number];
 
 // Common RRTypes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-4 for full list
-export type RRType =
-  | "A"
-  | "AAAA"
-  | "CERT"
-  | "CNAME"
-  | "HTTPS"
-  | "NS"
-  | "PTR"
-  | "MX"
-  | "TXT"
-  | "SOA";
+const rrTypes = [
+  "A",
+  "AAAA",
+  "CERT",
+  "CNAME",
+  "HTTPS",
+  "NS",
+  "PTR",
+  "MX",
+  "TXT",
+  "SOA",
+] as const;
+export type RRType = (typeof rrTypes)[number];
 
-export type Source = "TCP" | "UDP" | "DoH" | "DoT";
+const sources = ["TCP", "UDP", "DoH", "DoT"] as const;
+export type Source = (typeof sources)[number];
 
 export interface DnsEvent {
   ts: Date;
@@ -47,15 +52,38 @@ export interface DnsEvent {
 interface EventFeed {
   events: DnsEvent[];
   total: number;
+  cached: number;
+  blocked: number;
   connected: boolean;
   countsBySrc: Record<Source, number>;
+  countsByQueryType: Record<RRType, number>;
+  countsByResult: Record<RCode, number>;
+  countsByTimestamp: Record<number, number>;
 }
+
+const createZeroedCounts = <T extends readonly string[]>(values: T) =>
+  Object.fromEntries(values.map((value) => [value, 0])) as Record<
+    T[number],
+    number
+  >;
+
+const incrementCount = <K extends PropertyKey>(
+  counts: Record<K, number>,
+  key: K,
+) => {
+  counts[key] = (counts[key] ?? 0) + 1;
+};
 
 const initial: EventFeed = {
   events: [],
   total: 0,
+  cached: 0,
+  blocked: 0,
   connected: false,
-  countsBySrc: { DoT: 0, DoH: 0, TCP: 0, UDP: 0 },
+  countsBySrc: createZeroedCounts(sources),
+  countsByQueryType: createZeroedCounts(rrTypes),
+  countsByResult: createZeroedCounts(rCodes),
+  countsByTimestamp: {},
 };
 
 export function useEvents(sseUrl: string, batchIntervalMs = 100) {
@@ -87,15 +115,38 @@ export function useEvents(sseUrl: string, batchIntervalMs = 100) {
           events.length > MAX_ITEMS ? events.slice(0, MAX_ITEMS) : events;
 
         const countsBySrc = { ...old.countsBySrc };
+        const countsByQueryType = { ...old.countsByQueryType };
+        const countsByResult = { ...old.countsByResult };
+        const countsByTimestamp = { ...old.countsByTimestamp };
+
+        let cached = 0;
+        let blocked = 0;
+
         for (const event of batch) {
-          countsBySrc[event.src] = (countsBySrc[event.src] ?? 0) + 1;
+          incrementCount(countsBySrc, event.src);
+          incrementCount(countsByQueryType, event.queryType);
+          incrementCount(countsByResult, event.result);
+
+          // Floor to the nearest minute
+          incrementCount(
+            countsByTimestamp,
+            Math.floor(event.ts.getTime() / 60000) * 60000,
+          );
+
+          if (event.cached) cached++;
+          if (event.blocked) blocked++;
         }
 
         return {
           events: trimmed,
           total: old.total + batch.length,
+          cached: old.cached + cached,
+          blocked: old.blocked + blocked,
           connected: old.connected,
           countsBySrc,
+          countsByQueryType,
+          countsByResult,
+          countsByTimestamp,
         };
       });
     };
