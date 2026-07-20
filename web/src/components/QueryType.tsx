@@ -21,7 +21,8 @@ const mapping: Record<RRType, { descr: string }> = {
 }
 
 export function QueryType({ rrtype }: QueryTypeProps) {
-  const { descr } = mapping[rrtype]
+  const descr = mapping[rrtype]?.descr ?? `Unknown record type: ${rrtype}`
+
   return (
     <Tooltip content={descr}>
       <Badge colorPalette={"gray"}>{rrtype}</Badge>

@@ -21,10 +21,14 @@ const mapping: Record<RCode, { descr: string; color: string }> = {
 }
 
 export function Result({ rcode }: ResultProps) {
-  const { color, descr } = mapping[rcode]
+  const { color, descr } = mapping[rcode] ?? {
+    color: "gray",
+    descr: `Unknown result code: ${rcode}`,
+  }
+
   return (
     <Tooltip content={descr}>
-      <Badge colorPalette={color ?? "gray"}>{rcode}</Badge>
+      <Badge colorPalette={color}>{rcode}</Badge>
     </Tooltip>
   );
 }
