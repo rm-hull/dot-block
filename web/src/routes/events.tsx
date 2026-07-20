@@ -2,11 +2,13 @@ import { ASN } from '@/components/ASN';
 import { PieChartStat, type DataPoint } from '@/components/PieChartStat';
 import { QueryType } from '@/components/QueryType';
 import { Result } from '@/components/Result';
+import TimeSeriesChart from '@/components/TimeSeriesChart';
 import { Timestamp } from '@/components/Timestamp';
 import { useEvents } from '@/hooks/useEvents';
-import { Badge, Card, Code, Collapsible, Container, HStack, Stat, Table, VStack } from '@chakra-ui/react'
+import { Badge, Card, Collapsible, Container, HStack, Table, VStack } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { LuChevronRight } from 'react-icons/lu';
+import { PercentageStat } from '@/components/PercentageStat';
 
 const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
 
@@ -56,24 +58,12 @@ function EventPage() {
             <VStack alignItems="normal">
               <Card.Root>
                 <Card.Body>
-                  <Stat.Root>
-                    <Stat.Label>Cache</Stat.Label>
-                    <Stat.ValueText alignItems="baseline">
-                      {((data?.cached ?? 0) * 100 / (data?.total ?? 1)).toFixed(1)} <Stat.ValueUnit>%</Stat.ValueUnit>
-                    </Stat.ValueText>
-                    <Stat.HelpText>Hit rate</Stat.HelpText>
-                  </Stat.Root>
+                  <PercentageStat title="Cache" value={data?.cached} total={data?.total} helpText="Hit rate" />
                 </Card.Body>
               </Card.Root>
               <Card.Root>
                 <Card.Body>
-                  <Stat.Root>
-                    <Stat.Label>Blocklist</Stat.Label>
-                    <Stat.ValueText alignItems="baseline">
-                      {((data?.blocked ?? 0) * 100 / (data?.total ?? 1)).toFixed(1)} <Stat.ValueUnit>%</Stat.ValueUnit>
-                    </Stat.ValueText>
-                    <Stat.HelpText>Blocked URLs</Stat.HelpText>
-                  </Stat.Root>
+                  <PercentageStat title="Blocklist" value={data?.blocked} total={data?.total} helpText="Blocked URLs" />
                 </Card.Body>
               </Card.Root>
             </VStack>
@@ -96,12 +86,10 @@ function EventPage() {
               </Card.Body>
             </Card.Root>
             <Card.Root>
-              <Card.Header>Timestamp</Card.Header>
-              <Code>
-                <pre>
-                  {JSON.stringify(data?.countsByTimestamp, null, 2)}
-                </pre>
-              </Code>
+              <Card.Header>Requests/minute</Card.Header>
+              <Card.Body>
+                <TimeSeriesChart data={data?.countsByTimestamp} />
+              </Card.Body>
             </Card.Root>
           </HStack>
         </Collapsible.Content>
