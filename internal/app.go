@@ -128,7 +128,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		app.Logger.Warn("No .env file found")
 	}
 	godx.Diagnostics(app.Logger)
-	app.Logger.Info("Configuation on startup", "app", app)
+	app.Logger.Info("Configuration on startup", "app", app)
 	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block")
 	if err != nil {
 		app.Logger.Error("failed to initialize tracing", "error", err)
