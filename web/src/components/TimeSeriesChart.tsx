@@ -68,7 +68,6 @@ export default function TimeSeriesChart({
           stroke={chart.color("border")}
         />
         <YAxis allowDecimals={false} stroke={chart.color("border")} />
-        <Chart.Tooltip labelFormatter={(label) => formatTime(label)} />
         {chart.series.map((item) => (
           <Area
             key={item.name}
@@ -86,17 +85,3 @@ export default function TimeSeriesChart({
     </Chart.Root>
   );
 }
-
-/*
-Usage:
-
-import EventsTimeSeriesChart from "./EventsTimeSeriesChart";
-
-const data = {
-  "1784579040000": 41,
-  "1784579100000": 61,
-  // ...
-};
-
-<EventsTimeSeriesChart data={data} />
-*/

@@ -22,7 +22,7 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-icons": "^5.7.0",
-    "recharts": "^3.9.2"
+    "recharts": "^3.10.0"
   },
   "devDependencies": {
     "@babel/core": "^8.0.1",
