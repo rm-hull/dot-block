@@ -214,8 +214,12 @@ func (d *DNSCheck) Name() string {
 
 func (d *DNSCheck) Pass() bool {
 	msg := new(dns.Msg)
-	msg.SetQuestion("google.com.", dns.TypeA)
+	msg.SetQuestion(".", dns.TypeSOA)
 
-	_, _, err := d.client.Exchange(msg, d.addr)
-	return err == nil
+	resp, _, err := d.client.Exchange(msg, d.addr)
+	if err != nil {
+		return false
+	}
+
+	return resp != nil && resp.Rcode == dns.RcodeSuccess
 }
