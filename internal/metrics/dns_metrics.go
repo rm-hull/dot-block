@@ -167,7 +167,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 	})
 
 	droppedCacheUpdates := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "dns_cache_dropped_updates_total",
+		Name: "dns_dropped_cache_updates_total",
 		Help: "Total number of cache updates dropped because the update channel was full",
 	})
 
