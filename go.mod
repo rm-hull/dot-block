@@ -16,7 +16,8 @@ require (
 	github.com/miekg/dns v1.1.72
 	github.com/oschwald/maxminddb-golang/v2 v2.4.1
 	github.com/pires/go-proxyproto v0.15.0
-	github.com/prometheus/client_golang v1.24.0
+	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/client_model v0.6.2
 	github.com/samber/slog-gin v1.21.1
 	github.com/stretchr/testify v1.11.1
 	go.eigsys.de/gin-cachecontrol/v2 v2.6.0
@@ -40,7 +41,7 @@ require (
 	github.com/cockroachdb/redact v1.1.8 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgryski/go-metro v0.0.0-20250106013310-edb8663e5e33 // indirect
-	github.com/go-logr/logr v1.4.3 // indirect
+	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
@@ -49,7 +50,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/kamstrup/intmap v0.5.2 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/compress v1.19.1 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/libdns/libdns v1.1.1 // indirect
@@ -59,10 +60,9 @@ require (
 	github.com/oapi-codegen/runtime v1.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_model v0.6.2 // indirect
-	github.com/prometheus/common v0.70.0 // indirect
+	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
-	github.com/rabbitmq/amqp091-go v1.12.0 // indirect
+	github.com/rabbitmq/amqp091-go v1.13.0 // indirect
 	github.com/redis/go-redis/v9 v9.21.0 // indirect
 	github.com/rogpeppe/go-internal v1.15.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
@@ -77,13 +77,13 @@ require (
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.44.0 // indirect
 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260715232425-e75dac1f907d // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260724162435-b2f20204f0df // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260724162435-b2f20204f0df // indirect
 	google.golang.org/grpc v1.82.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
@@ -97,7 +97,7 @@ require (
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/cockroachdb/errors v1.14.0
 	github.com/dustin/go-humanize v1.0.1
-	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/go-pkgz/expirable-cache/v3 v3.1.0
@@ -108,13 +108,13 @@ require (
 	github.com/goccy/go-yaml v1.19.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
-	github.com/leodido/go-urn v1.4.0 // indirect
-	github.com/mattn/go-isatty v0.0.23 // indirect
+	github.com/leodido/go-urn v1.5.0 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/quic-go/qpack v0.6.0 // indirect
-	github.com/quic-go/quic-go v0.60.0 // indirect
+	github.com/quic-go/quic-go v0.61.0 // indirect
 	github.com/rm-hull/godx v0.2.4
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.10.2
