@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -73,7 +74,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		select {
 		case err := <-errCh:
 			// Check if it's a port already in use error
-			if err != nil && (contains(err.Error(), "address already in use") || contains(err.Error(), "bind: address already in use")) {
+			if err != nil && (strings.Contains(err.Error(), "address already in use") || strings.Contains(err.Error(), "bind: address already in use")) {
 				t.Fatalf("Port already in use: %v", err)
 			}
 			t.Fatalf("RunServer exited unexpectedly: %v", err)
@@ -239,15 +240,4 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	}
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && (s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || containsInternal(s, substr)))
-}
 
-func containsInternal(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
