@@ -84,14 +84,13 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 
 	isBlocked := blockList.bloomFilter.TestString(domain)
 
-	// Try the apex domain
-	apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
-	if err != nil {
-		if !strings.HasPrefix(err.Error(), "publicsuffix: cannot derive eTLD+1") {
-			return false, err
+	// Try the apex domain (e.g. for "ads.example.com", check "example.com")
+	// EffectiveTLDPlusOne returns an error for bare TLDs (e.g. "com") or domains
+	// with invalid labels, which is expected — we simply skip the apex domain check.
+	if !isBlocked {
+		if apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain); err == nil {
+			isBlocked = blockList.bloomFilter.TestString(apexDomain)
 		}
-	} else if !isBlocked {
-		isBlocked = blockList.bloomFilter.TestString(apexDomain)
 	}
 
 	if isBlocked {
