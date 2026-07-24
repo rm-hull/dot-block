@@ -158,7 +158,7 @@ While the public endpoints are available on the main domain, the management APIs
 
 - `POST /api/blocklist/reload`: Triggers an asynchronous reload of all configured blocklists.
 - `GET /api/blocklist/status`: Returns the current status of all blocklists, including metadata, record counts, and enabled status.
-- `POST /api/blocklist/disable`: Temporarily disables one or all blocklists. Requires a JSON payload: `{"name": "...", "duration": "1h"}`.
+- `POST /api/blocklist/disable`: Temporarily disables one or all blocklists. Requires a JSON payload: `{"name": "...", "duration": "1h"}`. The `duration` field accepts both Go duration format (e.g. `1h`, `30m`, `90s`) and ISO 8601 duration format (e.g. `PT1H`, `PT30M`, `P1D`).
 - `POST /api/blocklist/reenable`: Re-enables all blocklists.
 - `POST /api/blocklist/check`: Checks whether provided domains are blocked against any of the enabled blocklists. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.

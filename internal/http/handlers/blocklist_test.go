@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -160,4 +161,85 @@ func TestBlocklistHandler_CheckInvalidDomain(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "Invalid domain")
+}
+
+func TestParseDuration(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    time.Duration
+		wantErr bool
+	}{
+		// Go duration format
+		{"Go duration - 1h", "1h", time.Hour, false},
+		{"Go duration - 30m", "30m", 30 * time.Minute, false},
+		{"Go duration - 90s", "90s", 90 * time.Second, false},
+		{"Go duration - 1h30m", "1h30m", 90 * time.Minute, false},
+		{"Go duration - 500ms", "500ms", 500 * time.Millisecond, false},
+
+		// ISO 8601 duration format
+		{"ISO8601 - PT1H", "PT1H", time.Hour, false},
+		{"ISO8601 - PT30M", "PT30M", 30 * time.Minute, false},
+		{"ISO8601 - PT90S", "PT90S", 90 * time.Second, false},
+		{"ISO8601 - PT1H30M", "PT1H30M", 90 * time.Minute, false},
+		{"ISO8601 - P1D", "P1D", 24 * time.Hour, false},
+		{"ISO8601 - P1DT2H", "P1DT2H", 26 * time.Hour, false},
+		// Note: iso8601duration library does not support fractional hours (PT0.5H returns 0s)
+
+		// Invalid
+		{"Invalid - empty", "", 0, true},
+		{"Invalid - garbage", "not-a-duration", 0, true},
+		// Note: bare "P" is accepted by the library as 0 duration (not an error)
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseDuration(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
+	h := NewBlocklistHandler(updater, logger)
+
+	tests := []struct {
+		name        string
+		duration    string
+		expectCode  int
+	}{
+		{"ISO8601 PT1H", "PT1H", http.StatusOK},
+		{"ISO8601 PT30M", "PT30M", http.StatusOK},
+		{"ISO8601 P1D", "P1D", http.StatusOK},
+		{"Go duration 1h", "1h", http.StatusOK},
+		{"Go duration 30m", "30m", http.StatusOK},
+		{"Invalid", "not-a-duration", http.StatusBadRequest},
+		{"Zero", "0", http.StatusBadRequest},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Re-enable before each test
+			bl.Reenable()
+
+			w := httptest.NewRecorder()
+			payload := fmt.Sprintf(`{"name": "test", "duration": "%s"}`, tt.duration)
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest("POST", "/disable", strings.NewReader(payload))
+			c.Request.Header.Set("Content-Type", "application/json")
+
+			h.Disable(c)
+
+			assert.Equal(t, tt.expectCode, w.Code)
+		})
+	}
 }

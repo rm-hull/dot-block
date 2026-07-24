@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
+	iso8601 "github.com/channelmeter/iso8601duration"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
@@ -43,16 +45,10 @@ func (h *BlocklistHandler) Disable(c *gin.Context) {
 		return
 	}
 
-	d, err := time.ParseDuration(payload.Duration)
+	d, err := parseDuration(payload.Duration)
 	if err != nil {
-		// Try ISO 8601 duration
-		if after, ok := strings.CutPrefix(payload.Duration, "PT"); ok {
-			d, err = time.ParseDuration(strings.ToLower(after))
-		}
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid duration format"})
-			return
-		}
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid duration format"})
+		return
 	}
 
 	if d <= 0 {
@@ -149,4 +145,21 @@ func (h *BlocklistHandler) isBlocked(fqdn string) (bool, *blocklist.BlockList, e
 		}
 	}
 	return false, nil, nil
+}
+
+// parseDuration parses a duration string that may be in Go duration format
+// (e.g. "1h30m", "5m") or ISO 8601 duration format (e.g. "PT1H30M", "P1D").
+// It first attempts Go duration parsing, then falls back to ISO 8601.
+func parseDuration(s string) (time.Duration, error) {
+	// Try Go duration format first (e.g. "1h30m", "5m", "90s")
+	if d, err := time.ParseDuration(s); err == nil {
+		return d, nil
+	}
+
+	// Try ISO 8601 duration format (e.g. "PT1H30M", "P1D", "PT90S")
+	if d, err := iso8601.FromString(s); err == nil {
+		return d.ToDuration(), nil
+	}
+
+	return 0, fmt.Errorf("invalid duration format: %s", s)
 }

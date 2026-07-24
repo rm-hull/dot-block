@@ -4,6 +4,7 @@ go 1.26
 
 require (
 	github.com/caddyserver/certmagic v0.25.4
+	github.com/channelmeter/iso8601duration v0.0.0-20150204201828-8da3af7a2a61
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
 	github.com/getsentry/sentry-go v0.48.0
 	github.com/getsentry/sentry-go/gin v0.48.0
