@@ -49,6 +49,7 @@ type DnsMetrics struct {
 	CacheReaperCalls    prometheus.Counter
 	DroppedCacheUpdates prometheus.Counter
 	DroppedTelemetry    prometheus.Counter
+	DroppedSSEEvents    prometheus.Counter
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
 	PooledConnDeaths    *prometheus.CounterVec
@@ -175,6 +176,11 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		Help: "Total number of telemetry events dropped because the worker channel was full",
 	})
 
+	droppedSSEEvents := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "dns_dropped_sse_events_total",
+		Help: "Total number of SSE events dropped because the subscriber buffer was full",
+	})
+
 	poolEvictions := prometheus.NewCounterVec(prometheus.CounterOpts{
 		Name: "dns_pool_evictions_total",
 		Help: "Total number of connections evicted from the pool due to it being full, broken down by upstream server",
@@ -208,6 +214,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		cacheReaperCalls,
 		droppedCacheUpdates,
 		droppedTelemetry,
+		droppedSSEEvents,
 		poolEvictions,
 		upstreamFailures,
 		pooledConnDeaths,
@@ -234,6 +241,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		CacheReaperCalls:    cacheReaperCalls,
 		DroppedCacheUpdates: droppedCacheUpdates,
 		DroppedTelemetry:    droppedTelemetry,
+		DroppedSSEEvents:    droppedSSEEvents,
 		PoolEvictions:       poolEvictions,
 		UpstreamFailures:    upstreamFailures,
 		PooledConnDeaths:    pooledConnDeaths,

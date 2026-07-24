@@ -5,6 +5,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Event struct {
@@ -21,16 +23,18 @@ type Event struct {
 }
 
 type Broadcaster struct {
-	subscribers  map[chan Event]struct{}
-	nextSequence atomic.Uint64
-	logger       *slog.Logger
-	mu           sync.RWMutex
+	subscribers   map[chan Event]struct{}
+	nextSequence  atomic.Uint64
+	logger        *slog.Logger
+	droppedEvents prometheus.Counter
+	mu            sync.RWMutex
 }
 
-func NewBroadcaster(logger *slog.Logger) *Broadcaster {
+func NewBroadcaster(logger *slog.Logger, droppedEvents prometheus.Counter) *Broadcaster {
 	return &Broadcaster{
-		subscribers: make(map[chan Event]struct{}),
-		logger:      logger,
+		subscribers:   make(map[chan Event]struct{}),
+		logger:        logger,
+		droppedEvents: droppedEvents,
 	}
 }
 
@@ -66,6 +70,10 @@ func (b *Broadcaster) Broadcast(event Event) {
 		case ch <- event:
 		default:
 			// Buffer full, drop message for this slow client
+			if b.droppedEvents != nil {
+				b.droppedEvents.Inc()
+			}
+			b.logger.Debug("SSE event dropped for slow subscriber", "subscriber_buffer_size", cap(ch))
 		}
 	}
 }

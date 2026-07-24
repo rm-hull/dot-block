@@ -218,7 +218,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
-	broadcaster := sse.NewBroadcaster(app.Logger)
+	broadcaster := sse.NewBroadcaster(app.Logger, metrics.DroppedSSEEvents)
 	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
