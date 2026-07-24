@@ -20,7 +20,7 @@ func (job *Updater) Run() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), job.Timeout)
 	defer cancel()
-	
+
 	for _, blockList := range job.Blocklists {
 		wg.Add(1)
 		go func(bl *BlockList) {

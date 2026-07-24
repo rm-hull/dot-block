@@ -18,13 +18,13 @@ type cacheUpdate struct {
 }
 
 type DNSCache struct {
-	cache    cache.Cache[string, []dns.RR]
-	logger   *slog.Logger
-	updateCh chan cacheUpdate
-	done     chan struct{}
+	cache     cache.Cache[string, []dns.RR]
+	logger    *slog.Logger
+	updateCh  chan cacheUpdate
+	done      chan struct{}
 	closeOnce sync.Once
-	onDrop   func()
-	lastWarn time.Time
+	onDrop    func()
+	lastWarn  time.Time
 }
 
 func NewDNSCache(maxSize int, logger *slog.Logger) *DNSCache {

@@ -239,5 +239,3 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		})
 	}
 }
-
-

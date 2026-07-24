@@ -213,9 +213,9 @@ func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 	h := NewBlocklistHandler(updater, logger)
 
 	tests := []struct {
-		name        string
-		duration    string
-		expectCode  int
+		name       string
+		duration   string
+		expectCode int
 	}{
 		{"ISO8601 PT1H", "PT1H", http.StatusOK},
 		{"ISO8601 PT30M", "PT30M", http.StatusOK},
