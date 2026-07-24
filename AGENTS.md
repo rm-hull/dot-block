@@ -15,6 +15,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 ## Development Principles
 - **Test-First:** Always verify existing behavior with tests and write failing tests before implementing changes. Use `github.com/stretchr/testify` for assertions.
 - **Verify:** ALWAYS run a full build (`go build ./...`) and run tests (`go test ./...`) after making code changes to ensure no regressions.
+- **Lint:** ALWAYS run `golangci-lint-v2 run ./...` and `go vet ./...` as part of build verification to ensure code quality and catch issues early.
 - **Doc-Sync:** Whenever a feature, flag, or default value is changed, update the corresponding documentation (e.g., `README.md`) immediately.
 
 ## Development Workflow

@@ -46,7 +46,7 @@ func TestDNSCheck_Pass_SOA_Root(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	server := &dns.Server{
 		PacketConn: l,
@@ -55,7 +55,7 @@ func TestDNSCheck_Pass_SOA_Root(t *testing.T) {
 	go func() {
 		_ = server.ActivateAndServe()
 	}()
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	addr := l.LocalAddr().String()
 
@@ -87,7 +87,7 @@ func TestDNSCheck_Pass_Failure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	server := &dns.Server{
 		PacketConn: l,
@@ -96,7 +96,7 @@ func TestDNSCheck_Pass_Failure(t *testing.T) {
 	go func() {
 		_ = server.ActivateAndServe()
 	}()
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	addr := l.LocalAddr().String()
 
@@ -175,7 +175,7 @@ func TestDNSCheck_WithRoundRobinClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to listen: %v", err)
 	}
-	defer l.Close()
+	defer func() { _ = l.Close() }()
 
 	server := &dns.Server{
 		PacketConn: l,
@@ -184,7 +184,7 @@ func TestDNSCheck_WithRoundRobinClient(t *testing.T) {
 	go func() {
 		_ = server.ActivateAndServe()
 	}()
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	addr := l.LocalAddr().String()
 
