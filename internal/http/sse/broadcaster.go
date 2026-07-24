@@ -43,7 +43,7 @@ func (b *Broadcaster) Subscribe() chan Event {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	ch := make(chan Event, 10)
+	ch := make(chan Event, 100)
 	b.subscribers[ch] = struct{}{}
 	return ch
 }

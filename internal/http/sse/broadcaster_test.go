@@ -82,8 +82,8 @@ func TestBroadcasterDropsEventsForSlowSubscribers(t *testing.T) {
 	subscriber := b.Subscribe()
 	defer b.Unsubscribe(subscriber)
 
-	// Fill the subscriber buffer (capacity 10) and then some
-	for i := 0; i < 15; i++ {
+	// Fill the subscriber buffer (capacity 100) and then some
+	for i := 0; i < 110; i++ {
 		b.Broadcast(Event{Domain: "example.com"})
 	}
 
