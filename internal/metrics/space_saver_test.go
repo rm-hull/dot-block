@@ -312,10 +312,10 @@ func TestSpaceSaverMinKeyCaching(t *testing.T) {
 	t.Run("MinKeyAddingItemsWithSameCount", func(t *testing.T) {
 		ss := NewSpaceSaver(3)
 		ss.Add("a") // minKey is "a"
-		ss.Add("b") // minKey should still be "a" (assuming "a" was added first, with same count)
-		assert.Equal("a", ss.minKey, "minKey should not change when adding another item with count 1 if current min is also 1")
-		ss.Add("c") // minKey should still be "a"
-		assert.Equal("a", ss.minKey, "minKey should remain the same among items with equal lowest count")
+		ss.Add("b") // minKey could be "a" or "b" (non-deterministic when counts are equal)
+		assert.True(ss.minKey == "a" || ss.minKey == "b", "minKey should be one of the items with lowest count, got: %s", ss.minKey)
+		ss.Add("c") // minKey should be one of "a", "b", or "c" (all have count 1)
+		assert.True(ss.minKey == "a" || ss.minKey == "b" || ss.minKey == "c", "minKey should be one of the items with lowest count, got: %s", ss.minKey)
 	})
 
 	t.Run("MinKeyAfterIncrementingMinKeyItem", func(t *testing.T) {
@@ -329,26 +329,25 @@ func TestSpaceSaverMinKeyCaching(t *testing.T) {
 	t.Run("MinKeyAfterReplacement", func(t *testing.T) {
 		ss := NewSpaceSaver(2)
 		ss.Add("a") // a:1, minKey: "a"
-		ss.Add("b") // a:1, b:1, minKey: "a" (or "b", non-deterministic, but one of them)
-		// To make it deterministic for this test, ensure 'a' is the minKey initially
-		if ss.minKey == "b" { // This block only executes if "b" was picked first.
-			ss.recomputeMinLocked() // Force recompute if b was chosen, to ensure a specific minKey
+		ss.Add("b") // a:1, b:1, minKey is non-deterministic (could be "a" or "b")
+
+		// Ensure 'a' is the minKey by incrementing 'b' if it was chosen
+		if ss.minKey == "b" {
+			ss.Add("b") // b:2, minKey should now be "a"
 		}
 		assert.Equal("a", ss.minKey, "Expected minKey to be 'a' before incrementing")
 
 		ss.Add("a") // a:2, b:1, minKey: "b"
 		assert.Equal("b", ss.minKey, "minKey should be 'b' after incrementing 'a'")
 
-		ss.Add("c") // c replaces "b". state: a:2, c:2 (Error:1). New minKey should be 'a' (or 'c')
-		// The exact minKey after replacement can be "a" or "c" if their counts are equal,
-		// but it should definitely not be "b" since "b" was removed.
-		assert.Condition(func() bool { return ss.minKey == "a" || ss.minKey == "c" }, "minKey should be one of the remaining lowest count items after replacement")
+		ss.Add("c") // c replaces "b". state: a:2, c:2 (Error:1). New minKey should be 'a' or 'c'
+		assert.True(ss.minKey == "a" || ss.minKey == "c", "minKey should be one of the remaining lowest count items after replacement, got: %s", ss.minKey)
 	})
 
 	t.Run("MinKeyInvalidationAndRecomputation", func(t *testing.T) {
 		ss := NewSpaceSaver(2)
 		ss.Add("a") // a:1, minKey: "a"
-		ss.Add("b") // a:1, b:1, minKey: "a"
+		ss.Add("b") // a:1, b:1, minKey is non-deterministic
 
 		// Manually invalidate the minKey to simulate a bug or race condition
 		ss.minKey = "nonexistent"
@@ -368,9 +367,9 @@ func TestSpaceSaverMinKeyCaching(t *testing.T) {
 
 		// The new minKey should be the one with the lowest count.
 		if hasA {
-			assert.Equal("a", ss.minKey, "minKey should be 'a' if 'a' remained")
+			assert.Equal("a", ss.minKey, "minKey should be 'a' if 'a' remained (it has count 1)")
 		} else if hasB {
-			assert.Equal("b", ss.minKey, "minKey should be 'b' if 'b' remained")
+			assert.Equal("b", ss.minKey, "minKey should be 'b' if 'b' remained (it has count 1)")
 		} else {
 			assert.Fail("Neither 'a' nor 'b' remained, which is unexpected")
 		}
