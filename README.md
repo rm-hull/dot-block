@@ -126,7 +126,7 @@ PASS
 ok  	github.com/rm-hull/dot-block/internal/forwarder	19.243s
 ```
 
-Benchmark tests will run for main and every PR. The results are collected and visible here: https://www.destructuring-bind.org/dot-block/
+Benchmark tests will run for main and every PR. The results are collected and visible here: https://www.destructuring-bind.org/dot-block/dev/bench/
 
 ## Usage
 
