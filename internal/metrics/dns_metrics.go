@@ -7,6 +7,7 @@ import (
 
 	"github.com/axiomhq/hyperloglog"
 	"github.com/cockroachdb/errors"
+	"github.com/earthboundkid/versioninfo/v2"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 
@@ -33,6 +34,7 @@ func (s *SafeSketch) Estimate() uint64 {
 }
 
 type DnsMetrics struct {
+	Version             prometheus.Gauge
 	RequestLatency      prometheus.Histogram
 	ErrorCounts         *prometheus.CounterVec
 	RequestCounts       *prometheus.CounterVec
@@ -196,6 +198,13 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		Help: "Total number of pooled connections found to be dead during acquisition, broken down by upstream server",
 	}, []string{"ip_addr"})
 
+	dnsInfo := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name:        "dns_info",
+		Help:        "Information about the dot-block application.",
+		ConstLabels: prometheus.Labels{"version": versioninfo.Short()},
+	})
+	dnsInfo.Set(1)
+
 	if err := shouldRegister(
 		requestLatency,
 		errorCounts,
@@ -218,6 +227,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		poolEvictions,
 		upstreamFailures,
 		pooledConnDeaths,
+		dnsInfo,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
 	}
@@ -225,6 +235,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 	cache.OnDrop(func() { droppedCacheUpdates.Inc() })
 
 	return &DnsMetrics{
+		Version:             dnsInfo,
 		RequestLatency:      requestLatency,
 		ErrorCounts:         errorCounts,
 		RequestCounts:       requestCounts,

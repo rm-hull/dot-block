@@ -3,7 +3,13 @@ package metrics
 import (
 	"testing"
 
+	"github.com/earthboundkid/versioninfo/v2"
+	cache "github.com/go-pkgz/expirable-cache/v3"
+	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSpaceSaverStatsCallback(t *testing.T) {
@@ -51,4 +57,44 @@ func TestNewSpaceSaverStatsCallback(t *testing.T) {
 			assert.Equal(tc.expected, results)
 		})
 	}
+}
+
+// mockCache is a no-op implementation of the Cache interface for testing.
+type mockCache struct{}
+
+func (m *mockCache) Stat() cache.Stats { return cache.Stats{} }
+func (m *mockCache) Len() int          { return 0 }
+func (m *mockCache) OnDrop(_ func())   {}
+
+// mockGeoIpLookup is a no-op implementation of geoblock.GeoIpLookup for testing.
+type mockGeoIpLookup struct{}
+
+func (m *mockGeoIpLookup) Reopen() error { return nil }
+func (m *mockGeoIpLookup) GetAll(_ string) (*geoblock.GeoData, error) {
+	return &geoblock.GeoData{}, nil
+}
+func (m *mockGeoIpLookup) IsValid(_ string) bool { return false }
+
+func TestDNSInfoMetric(t *testing.T) {
+	assert := assert.New(t)
+	require := require.New(t)
+
+	dnsMetrics, err := NewDNSMetrics(&mockCache{}, &mockGeoIpLookup{})
+	require.NoError(err)
+
+	// The dns_info metric should always be set to 1 (like go_info)
+	assert.Equal(1.0, testutil.ToFloat64(dnsMetrics.Version))
+
+	// The version label should be populated with the application version
+	var dto dto.Metric
+	require.NoError(dnsMetrics.Version.Write(&dto))
+
+	var versionLabel string
+	for _, label := range dto.Label {
+		if label.GetName() == "version" {
+			versionLabel = label.GetValue()
+		}
+	}
+	assert.NotEmpty(versionLabel, "expected version label to be set on dns_info metric")
+	assert.Equal(versioninfo.Short(), versionLabel)
 }
