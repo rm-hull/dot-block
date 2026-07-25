@@ -2,6 +2,7 @@ package config
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/alecthomas/jsonschema"
 )
@@ -22,15 +23,15 @@ var CommentMap = map[string]string{
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.MetricsAuth":          "Credentials for basic auth on /metrics (format: user:pass).",
 
 	// DNSConfig
-	"github.com/rm-hull/dot-block/internal/config.DNSConfig.Upstreams": "Upstream DNS resolvers to forward queries to.",
-	"github.com/rm-hull/dot-block/internal/config.ECSConfig.Enabled":   "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
-	"github.com/rm-hull/dot-block/internal/config.CacheConfig.MaxSize": "Maximum number of entries in the DNS cache.",
-	"github.com/rm-hull/dot-block/internal/config.CacheConfig.TtlFloor": "Minimum TTL for cached entries.",
+	"github.com/rm-hull/dot-block/internal/config.DNSConfig.Upstreams":      "Upstream DNS resolvers to forward queries to.",
+	"github.com/rm-hull/dot-block/internal/config.ECSConfig.Enabled":        "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+	"github.com/rm-hull/dot-block/internal/config.CacheConfig.MaxSize":      "Maximum number of entries in the DNS cache.",
+	"github.com/rm-hull/dot-block/internal/config.CacheConfig.TtlFloor":     "Minimum TTL for cached entries.",
 	"github.com/rm-hull/dot-block/internal/config.CacheConfig.CronSchedule": "Cron spec for cache reaper.",
-	"github.com/rm-hull/dot-block/internal/config.NoiseFilter.URL":     "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
-	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Read":  "Timeout for reading upstream DNS queries.",
-	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Write": "Timeout for writing upstream DNS queries.",
-	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Dial":  "Timeout for establishing connections to upstream servers.",
+	"github.com/rm-hull/dot-block/internal/config.NoiseFilter.URL":          "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Read":      "Timeout for reading upstream DNS queries.",
+	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Write":     "Timeout for writing upstream DNS queries.",
+	"github.com/rm-hull/dot-block/internal/config.TimeoutsConfig.Dial":      "Timeout for establishing connections to upstream servers.",
 
 	// BlocklistsConfig
 	"github.com/rm-hull/dot-block/internal/config.BlocklistsConfig.URLs":         "URLs of blocklist sources.",
@@ -41,17 +42,24 @@ var CommentMap = map[string]string{
 	"github.com/rm-hull/dot-block/internal/config.IpinfoConfig.CronSchedule": "Cron spec for Ipinfo.io database downloader.",
 }
 
-// reflectorWithComments returns a Reflector configured with the CommentMap and a TypeMapper for LogLevel.
+// reflectorWithComments returns a Reflector configured with the CommentMap and a TypeMapper for LogLevel and time.Duration.
 func reflectorWithComments() jsonschema.Reflector {
 	return jsonschema.Reflector{
-		AllowAdditionalProperties: false,
+		AllowAdditionalProperties: true,
 		DoNotReference:            true,
 		CommentMap:                CommentMap,
 		TypeMapper: func(t reflect.Type) *jsonschema.Type {
 			if t == reflect.TypeOf(LogLevel("")) {
 				return &jsonschema.Type{
-					Type:  "string",
-					Enum:  []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+					Type: "string",
+					Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+				}
+			}
+			if t == reflect.TypeOf(time.Duration(0)) {
+				return &jsonschema.Type{
+					Type:    "string",
+					Format:  "duration",
+					Pattern: "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
 				}
 			}
 			return nil // let reflector decide

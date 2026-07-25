@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": false,
+  "additionalProperties": true,
   "definitions": {
     "BlocklistsConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cron_schedule": {
           "description": "Cron spec for reloading blocklist.",
@@ -17,14 +17,10 @@
           "type": "array"
         }
       },
-      "required": [
-        "urls",
-        "cron_schedule"
-      ],
       "type": "object"
     },
     "CacheConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cron_schedule": {
           "description": "Cron spec for cache reaper.",
@@ -36,21 +32,18 @@
         },
         "ttl_floor": {
           "description": "Minimum TTL for cached entries.",
-          "type": "integer"
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
         }
       },
-      "required": [
-        "max_size",
-        "ttl_floor",
-        "cron_schedule"
-      ],
       "type": "object"
     },
     "Config": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "blocklists": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cron_schedule": {
               "description": "Cron spec for reloading blocklist.",
@@ -64,17 +57,13 @@
               "type": "array"
             }
           },
-          "required": [
-            "urls",
-            "cron_schedule"
-          ],
           "type": "object"
         },
         "dns": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cache": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "cron_schedule": {
                   "description": "Cron spec for cache reaper.",
@@ -86,63 +75,55 @@
                 },
                 "ttl_floor": {
                   "description": "Minimum TTL for cached entries.",
-                  "type": "integer"
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
                 }
               },
-              "required": [
-                "max_size",
-                "ttl_floor",
-                "cron_schedule"
-              ],
               "type": "object"
             },
             "ecs": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "enabled": {
                   "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
                   "type": "boolean"
                 }
               },
-              "required": [
-                "enabled"
-              ],
               "type": "object"
             },
             "noise_filter": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "url": {
                   "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
                   "type": "string"
                 }
               },
-              "required": [
-                "url"
-              ],
               "type": "object"
             },
             "timeouts": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "dial": {
                   "description": "Timeout for establishing connections to upstream servers.",
-                  "type": "integer"
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
                 },
                 "read": {
                   "description": "Timeout for reading upstream DNS queries.",
-                  "type": "integer"
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
                 },
                 "write": {
                   "description": "Timeout for writing upstream DNS queries.",
-                  "type": "integer"
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
                 }
               },
-              "required": [
-                "read",
-                "write",
-                "dial"
-              ],
               "type": "object"
             },
             "upstreams": {
@@ -153,20 +134,13 @@
               "type": "array"
             }
           },
-          "required": [
-            "upstreams",
-            "ecs",
-            "cache",
-            "noise_filter",
-            "timeouts"
-          ],
           "type": "object"
         },
         "geoblock": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "ipinfo": {
-              "additionalProperties": false,
+              "additionalProperties": true,
               "properties": {
                 "cron_schedule": {
                   "description": "Cron spec for Ipinfo.io database downloader.",
@@ -177,20 +151,13 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "enabled",
-                "cron_schedule"
-              ],
               "type": "object"
             }
           },
-          "required": [
-            "ipinfo"
-          ],
           "type": "object"
         },
         "server": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "allowed_hosts": {
               "description": "List of domains used for CertManager allow policy.",
@@ -245,31 +212,16 @@
               "type": "array"
             }
           },
-          "required": [
-            "dev_mode",
-            "log_level",
-            "data_dir",
-            "http_port",
-            "dns_port",
-            "dot_port",
-            "require_proxy_protocol"
-          ],
           "type": "object"
         }
       },
-      "required": [
-        "server",
-        "dns",
-        "blocklists",
-        "geoblock"
-      ],
       "type": "object"
     },
     "DNSConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cache": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cron_schedule": {
               "description": "Cron spec for cache reaper.",
@@ -281,63 +233,55 @@
             },
             "ttl_floor": {
               "description": "Minimum TTL for cached entries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             }
           },
-          "required": [
-            "max_size",
-            "ttl_floor",
-            "cron_schedule"
-          ],
           "type": "object"
         },
         "ecs": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "enabled": {
               "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
               "type": "boolean"
             }
           },
-          "required": [
-            "enabled"
-          ],
           "type": "object"
         },
         "noise_filter": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "url": {
               "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
               "type": "string"
             }
           },
-          "required": [
-            "url"
-          ],
           "type": "object"
         },
         "timeouts": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "dial": {
               "description": "Timeout for establishing connections to upstream servers.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             },
             "read": {
               "description": "Timeout for reading upstream DNS queries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             },
             "write": {
               "description": "Timeout for writing upstream DNS queries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             }
           },
-          "required": [
-            "read",
-            "write",
-            "dial"
-          ],
           "type": "object"
         },
         "upstreams": {
@@ -348,33 +292,23 @@
           "type": "array"
         }
       },
-      "required": [
-        "upstreams",
-        "ecs",
-        "cache",
-        "noise_filter",
-        "timeouts"
-      ],
       "type": "object"
     },
     "ECSConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "enabled": {
           "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
           "type": "boolean"
         }
       },
-      "required": [
-        "enabled"
-      ],
       "type": "object"
     },
     "GeoblockConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "ipinfo": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cron_schedule": {
               "description": "Cron spec for Ipinfo.io database downloader.",
@@ -385,20 +319,13 @@
               "type": "boolean"
             }
           },
-          "required": [
-            "enabled",
-            "cron_schedule"
-          ],
           "type": "object"
         }
       },
-      "required": [
-        "ipinfo"
-      ],
       "type": "object"
     },
     "IpinfoConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cron_schedule": {
           "description": "Cron spec for Ipinfo.io database downloader.",
@@ -409,27 +336,20 @@
           "type": "boolean"
         }
       },
-      "required": [
-        "enabled",
-        "cron_schedule"
-      ],
       "type": "object"
     },
     "NoiseFilter": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "url": {
           "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
           "type": "string"
         }
       },
-      "required": [
-        "url"
-      ],
       "type": "object"
     },
     "ServerConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "allowed_hosts": {
           "description": "List of domains used for CertManager allow policy.",
@@ -484,44 +404,36 @@
           "type": "array"
         }
       },
-      "required": [
-        "dev_mode",
-        "log_level",
-        "data_dir",
-        "http_port",
-        "dns_port",
-        "dot_port",
-        "require_proxy_protocol"
-      ],
       "type": "object"
     },
     "TimeoutsConfig": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "dial": {
           "description": "Timeout for establishing connections to upstream servers.",
-          "type": "integer"
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
         },
         "read": {
           "description": "Timeout for reading upstream DNS queries.",
-          "type": "integer"
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
         },
         "write": {
           "description": "Timeout for writing upstream DNS queries.",
-          "type": "integer"
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
         }
       },
-      "required": [
-        "read",
-        "write",
-        "dial"
-      ],
       "type": "object"
     }
   },
   "properties": {
     "blocklists": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cron_schedule": {
           "description": "Cron spec for reloading blocklist.",
@@ -535,17 +447,13 @@
           "type": "array"
         }
       },
-      "required": [
-        "urls",
-        "cron_schedule"
-      ],
       "type": "object"
     },
     "dns": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "cache": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cron_schedule": {
               "description": "Cron spec for cache reaper.",
@@ -557,63 +465,55 @@
             },
             "ttl_floor": {
               "description": "Minimum TTL for cached entries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             }
           },
-          "required": [
-            "max_size",
-            "ttl_floor",
-            "cron_schedule"
-          ],
           "type": "object"
         },
         "ecs": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "enabled": {
               "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
               "type": "boolean"
             }
           },
-          "required": [
-            "enabled"
-          ],
           "type": "object"
         },
         "noise_filter": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "url": {
               "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
               "type": "string"
             }
           },
-          "required": [
-            "url"
-          ],
           "type": "object"
         },
         "timeouts": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "dial": {
               "description": "Timeout for establishing connections to upstream servers.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             },
             "read": {
               "description": "Timeout for reading upstream DNS queries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             },
             "write": {
               "description": "Timeout for writing upstream DNS queries.",
-              "type": "integer"
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
             }
           },
-          "required": [
-            "read",
-            "write",
-            "dial"
-          ],
           "type": "object"
         },
         "upstreams": {
@@ -624,20 +524,13 @@
           "type": "array"
         }
       },
-      "required": [
-        "upstreams",
-        "ecs",
-        "cache",
-        "noise_filter",
-        "timeouts"
-      ],
       "type": "object"
     },
     "geoblock": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "ipinfo": {
-          "additionalProperties": false,
+          "additionalProperties": true,
           "properties": {
             "cron_schedule": {
               "description": "Cron spec for Ipinfo.io database downloader.",
@@ -648,20 +541,13 @@
               "type": "boolean"
             }
           },
-          "required": [
-            "enabled",
-            "cron_schedule"
-          ],
           "type": "object"
         }
       },
-      "required": [
-        "ipinfo"
-      ],
       "type": "object"
     },
     "server": {
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "allowed_hosts": {
           "description": "List of domains used for CertManager allow policy.",
@@ -716,23 +602,8 @@
           "type": "array"
         }
       },
-      "required": [
-        "dev_mode",
-        "log_level",
-        "data_dir",
-        "http_port",
-        "dns_port",
-        "dot_port",
-        "require_proxy_protocol"
-      ],
       "type": "object"
     }
   },
-  "required": [
-    "server",
-    "dns",
-    "blocklists",
-    "geoblock"
-  ],
   "type": "object"
 }

@@ -7,72 +7,72 @@ import (
 )
 
 type Config struct {
-	Server     ServerConfig     `yaml:"server" json:"server"`
-	DNS        DNSConfig        `yaml:"dns" json:"dns"`
-	Blocklists BlocklistsConfig `yaml:"blocklists" json:"blocklists"`
-	Geoblock   GeoblockConfig   `yaml:"geoblock" json:"geoblock"`
+	Server     *ServerConfig     `yaml:"server,omitempty" json:"server,omitempty"`
+	DNS        *DNSConfig        `yaml:"dns,omitempty" json:"dns,omitempty"`
+	Blocklists *BlocklistsConfig `yaml:"blocklists,omitempty" json:"blocklists,omitempty"`
+	Geoblock   *GeoblockConfig   `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
 }
 
 type LogLevel string
 
 func (LogLevel) JSONSchema() *jsonschema.Type {
 	return &jsonschema.Type{
-		Type:  "string",
-		Enum:  []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+		Type: "string",
+		Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
 	}
 }
 
 type ServerConfig struct {
-	DevMode              bool     `yaml:"dev_mode" json:"dev_mode"`
-	LogLevel             LogLevel `yaml:"log_level" json:"log_level"`
-	DataDir              string   `yaml:"data_dir" json:"data_dir"`
-	HttpPort             int      `yaml:"http_port" json:"http_port"`
-	DnsPort              int      `yaml:"dns_port" json:"dns_port"`
-	DotPort              int      `yaml:"dot_port" json:"dot_port"`
-	RequireProxyProtocol bool     `yaml:"require_proxy_protocol" json:"require_proxy_protocol"`
+	DevMode              bool     `yaml:"dev_mode,omitempty" json:"dev_mode,omitempty"`
+	LogLevel             LogLevel `yaml:"log_level,omitempty" json:"log_level,omitempty"`
+	DataDir              string   `yaml:"data_dir,omitempty" json:"data_dir,omitempty"`
+	HttpPort             int      `yaml:"http_port,omitempty" json:"http_port,omitempty"`
+	DnsPort              int      `yaml:"dns_port,omitempty" json:"dns_port,omitempty"`
+	DotPort              int      `yaml:"dot_port,omitempty" json:"dot_port,omitempty"`
+	RequireProxyProtocol bool     `yaml:"require_proxy_protocol,omitempty" json:"require_proxy_protocol,omitempty"`
 	TrustedProxies       []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
 	AllowedHosts         []string `yaml:"allowed_hosts,omitempty" json:"allowed_hosts,omitempty"`
 	MetricsAuth          string   `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty"`
 }
 
 type DNSConfig struct {
-	Upstreams   []string       `yaml:"upstreams" json:"upstreams"`
-	ECS         ECSConfig      `yaml:"ecs" json:"ecs"`
-	Cache       CacheConfig    `yaml:"cache" json:"cache"`
-	NoiseFilter NoiseFilter    `yaml:"noise_filter" json:"noise_filter"`
-	Timeouts    TimeoutsConfig `yaml:"timeouts" json:"timeouts"`
+	Upstreams   []string        `yaml:"upstreams,omitempty" json:"upstreams,omitempty"`
+	ECS         *ECSConfig      `yaml:"ecs,omitempty" json:"ecs,omitempty"`
+	Cache       *CacheConfig    `yaml:"cache,omitempty" json:"cache,omitempty"`
+	NoiseFilter *NoiseFilter    `yaml:"noise_filter,omitempty" json:"noise_filter,omitempty"`
+	Timeouts    *TimeoutsConfig `yaml:"timeouts,omitempty" json:"timeouts,omitempty"`
 }
 
 type ECSConfig struct {
-	Enabled bool `yaml:"enabled" json:"enabled"`
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
 type CacheConfig struct {
-	MaxSize      int           `yaml:"max_size" json:"max_size"`
-	TtlFloor     time.Duration `yaml:"ttl_floor" json:"ttl_floor"`
-	CronSchedule string        `yaml:"cron_schedule" json:"cron_schedule"`
+	MaxSize      int           `yaml:"max_size,omitempty" json:"max_size,omitempty"`
+	TtlFloor     time.Duration `yaml:"ttl_floor,omitempty" json:"ttl_floor,omitempty"`
+	CronSchedule string        `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
 }
 
 type NoiseFilter struct {
-	URL string `yaml:"url" json:"url"`
+	URL string `yaml:"url,omitempty" json:"url,omitempty"`
 }
 
 type TimeoutsConfig struct {
-	Read  time.Duration `yaml:"read" json:"read"`
-	Write time.Duration `yaml:"write" json:"write"`
-	Dial  time.Duration `yaml:"dial" json:"dial"`
+	Read  time.Duration `yaml:"read,omitempty" json:"read,omitempty"`
+	Write time.Duration `yaml:"write,omitempty" json:"write,omitempty"`
+	Dial  time.Duration `yaml:"dial,omitempty" json:"dial,omitempty"`
 }
 
 type BlocklistsConfig struct {
-	URLs         []string `yaml:"urls" json:"urls"`
-	CronSchedule string   `yaml:"cron_schedule" json:"cron_schedule"`
+	URLs         []string `yaml:"urls,omitempty" json:"urls,omitempty"`
+	CronSchedule string   `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
 }
 
 type GeoblockConfig struct {
-	Ipinfo IpinfoConfig `yaml:"ipinfo" json:"ipinfo"`
+	Ipinfo *IpinfoConfig `yaml:"ipinfo,omitempty" json:"ipinfo,omitempty"`
 }
 
 type IpinfoConfig struct {
-	Enabled      bool   `yaml:"enabled" json:"enabled"`
-	CronSchedule string `yaml:"cron_schedule" json:"cron_schedule"`
+	Enabled      bool   `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
 }

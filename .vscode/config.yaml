@@ -1,0 +1,11 @@
+# dot-block development configuration
+# Minimal config matching original launch.json flags:
+# --dev-mode --http-port=8080 --allowed-hosts=localhost --log-level=debug
+$schema: ../config.schema.json
+
+server:
+  dev_mode: true
+  log_level: DEBUG
+  http_port: 8080
+  allowed_hosts:
+    - localhost

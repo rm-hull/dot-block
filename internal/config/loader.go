@@ -16,7 +16,7 @@ import (
 // DefaultConfig returns a Config with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
-		Server: ServerConfig{
+		Server: &ServerConfig{
 			DevMode:              false,
 			LogLevel:             "INFO",
 			DataDir:              "./data",
@@ -28,31 +28,31 @@ func DefaultConfig() *Config {
 			AllowedHosts:         []string{},
 			MetricsAuth:          "",
 		},
-		DNS: DNSConfig{
+		DNS: &DNSConfig{
 			Upstreams: []string{
 				"8.8.8.8",
 				"8.8.4.4",
 				"1.1.1.1",
 				"1.0.0.1",
 			},
-			ECS: ECSConfig{
+			ECS: &ECSConfig{
 				Enabled: false,
 			},
-			Cache: CacheConfig{
+			Cache: &CacheConfig{
 				MaxSize:      1_000_000,
 				TtlFloor:     3600 * time.Second,
 				CronSchedule: "0 3 * * *",
 			},
-			NoiseFilter: NoiseFilter{
+			NoiseFilter: &NoiseFilter{
 				URL: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv",
 			},
-			Timeouts: TimeoutsConfig{
+			Timeouts: &TimeoutsConfig{
 				Read:  300 * time.Millisecond,
 				Write: 100 * time.Millisecond,
 				Dial:  300 * time.Millisecond,
 			},
 		},
-		Blocklists: BlocklistsConfig{
+		Blocklists: &BlocklistsConfig{
 			URLs: []string{
 				"https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",
 				"https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
@@ -60,8 +60,8 @@ func DefaultConfig() *Config {
 			},
 			CronSchedule: "@every 19h",
 		},
-		Geoblock: GeoblockConfig{
-			Ipinfo: IpinfoConfig{
+		Geoblock: &GeoblockConfig{
+			Ipinfo: &IpinfoConfig{
 				Enabled:      true,
 				CronSchedule: "5 7 4 * *",
 			},
@@ -166,9 +166,15 @@ func ApplyEnvOverrides(cfg *Config) {
 		cfg.Server.MetricsAuth = v
 	}
 	if v := os.Getenv("ENABLE_ECS"); v != "" {
+		if cfg.DNS.ECS == nil {
+			cfg.DNS.ECS = &ECSConfig{}
+		}
 		cfg.DNS.ECS.Enabled = v == "true"
 	}
 	if v := os.Getenv("DISABLE_IPINFO"); v != "" {
+		if cfg.Geoblock.Ipinfo == nil {
+			cfg.Geoblock.Ipinfo = &IpinfoConfig{}
+		}
 		cfg.Geoblock.Ipinfo.Enabled = v != "true"
 	}
 	// Upstreams, blocklists, etc. are handled via flags in main.go
