@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -34,28 +35,25 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	httpPort := getFreePort(t)
 
 	// App configuration for integration test
+	cfg := config.DefaultConfig()
+	cfg.Server.DevMode = true
+	cfg.Server.DnsPort = dnsPort
+	cfg.Server.DotPort = dotPort
+	cfg.Server.HttpPort = httpPort
+	cfg.Server.AllowedHosts = []string{"127.0.0.1"}
+	cfg.Server.DataDir = "../data"
+	cfg.DNS.Upstreams = []string{"8.8.8.8", "1.1.1.1"}
+	cfg.Blocklists.URLs = []string{"file://../data/blocklist.txt"}
+	cfg.DNS.NoiseFilter.URL = "file://../data/noise-filter.csv"
+	cfg.Geoblock.Ipinfo.Enabled = false
+	cfg.DNS.Cache.MaxSize = 1000
+	cfg.Blocklists.CronSchedule = "@every 19h"
+	cfg.DNS.Cache.CronSchedule = "0 3 * * *"
+	cfg.Geoblock.Ipinfo.CronSchedule = "5 7 4 * *"
+
 	app := App{
-		Logger:         slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})),
-		DevMode:        true,
-		DnsPort:        dnsPort,
-		DotPort:        dotPort,
-		HttpPort:       httpPort,
-		Upstreams:      []string{"8.8.8.8", "1.1.1.1"},
-		BlockListURLs:  []string{"file://../data/blocklist.txt"},
-		AllowedHosts:   []string{"127.0.0.1"},
-		NoiseFilterURL: "file://../data/noise-filter.csv",
-		DataDir:        "../data",
-		DisableIpinfo:  true,
-		MaxCacheSize:   1000,
-		CronSchedule: struct {
-			Downloader  string `json:"downloader"`
-			CacheReaper string `json:"cache_reaper"`
-			IPInfo      string `json:"ipinfo"`
-		}{
-			Downloader:  "@every 19h",
-			CacheReaper: "0 3 * * *",
-			IPInfo:      "5 7 4 * *",
-		},
+		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})),
+		Config: cfg,
 	}
 
 	ctx, cancel := context.WithCancel(t.Context())

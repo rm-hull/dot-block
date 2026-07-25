@@ -71,17 +71,17 @@ func main() {
 			// Apply environment variable overrides
 			config.ApplyEnvOverrides(cfg)
 
-			// Map config to App struct
-			mapConfigToApp(cfg, &app)
+			// Attach config to app
+			app.Config = cfg
 
-			logLevelVar.Set(parseLogLevel(app.LogLevel))
+			logLevelVar.Set(parseLogLevel(string(cfg.Server.LogLevel)))
 
-			if app.DevMode {
-				if app.DnsPort == 0 {
-					app.DnsPort = 8053
+			if cfg.Server.DevMode {
+				if cfg.Server.DnsPort == 0 {
+					cfg.Server.DnsPort = 8053
 				}
-				if app.DotPort == 0 {
-					app.DotPort = 8853
+				if cfg.Server.DotPort == 0 {
+					cfg.Server.DotPort = 8853
 				}
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
 			}
@@ -100,37 +100,4 @@ func main() {
 		app.Logger.Error("Failed to execute command", "error", err)
 		os.Exit(1)
 	}
-}
-
-func mapConfigToApp(cfg *config.Config, app *internal.App) {
-	// Server config
-	app.DevMode = cfg.Server.DevMode
-	app.LogLevel = string(cfg.Server.LogLevel)
-	app.DataDir = cfg.Server.DataDir
-	app.HttpPort = cfg.Server.HttpPort
-	app.DnsPort = cfg.Server.DnsPort
-	app.DotPort = cfg.Server.DotPort
-	app.RequireProxyProtocol = cfg.Server.RequireProxyProtocol
-	app.TrustedProxies = cfg.Server.TrustedProxies
-	app.AllowedHosts = cfg.Server.AllowedHosts
-	app.MetricsAuth = cfg.Server.MetricsAuth
-
-	// DNS config
-	app.Upstreams = cfg.DNS.Upstreams
-	app.EnableECS = cfg.DNS.ECS.Enabled
-	app.MaxCacheSize = cfg.DNS.Cache.MaxSize
-	app.CacheTtlFloor = cfg.DNS.Cache.TtlFloor
-	app.CronSchedule.CacheReaper = cfg.DNS.Cache.CronSchedule
-	app.Timeouts.Read = cfg.DNS.Timeouts.Read
-	app.Timeouts.Write = cfg.DNS.Timeouts.Write
-	app.Timeouts.Dial = cfg.DNS.Timeouts.Dial
-	app.NoiseFilterURL = cfg.DNS.NoiseFilter.URL
-
-	// Blocklists config
-	app.BlockListURLs = cfg.Blocklists.URLs
-	app.CronSchedule.Downloader = cfg.Blocklists.CronSchedule
-
-	// Geoblock config
-	app.DisableIpinfo = !cfg.Geoblock.Ipinfo.Enabled
-	app.CronSchedule.IPInfo = cfg.Geoblock.Ipinfo.CronSchedule
 }

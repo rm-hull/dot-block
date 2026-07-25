@@ -276,8 +276,9 @@ server:
   http_port: 80                      # HTTP server port
   dns_port: 0                        # Regular DNS port (0 = disabled)
   dot_port: 853                      # DNS-over-TLS port
-  require_proxy_protocol: false      # Require PROXY protocol header for DoT
-  trusted_proxies: []                # Trusted proxy IP addresses or CIDR ranges
+  proxy_protocol:                    # PROXY protocol configuration
+    enabled: false                   # Require PROXY protocol header for DoT
+    trusted_proxies: []              # Trusted proxy IP addresses or CIDR ranges
   allowed_hosts: []                  # Domains for CertManager allow policy
   metrics_auth: ""                   # Basic auth credentials for /metrics (user:pass)
 
@@ -328,6 +329,7 @@ All configuration values can be overridden via environment variables:
 | `DNS_PORT` | The port to run regular DNS (UDP/TCP) server on. | `0` |
 | `DOT_PORT` | The port to run DNS-over-TLS server on. | `853` |
 | `REQUIRE_PROXY_PROTOCOL` | Set to `true` to require PROXY protocol header. | `false` |
+| `TRUSTED_PROXIES` | Comma-separated list of trusted proxy CIDRs (deprecated, use `proxy_protocol.trusted_proxies` in config). | `""` |
 | `METRICS_AUTH` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 | `ENABLE_ECS` | Set to `true` to enable EDNS0 Client Subnet (ECS) steering. | `false` |
 | `DISABLE_IPINFO` | Set to `true` to disable IPinfo.io geolocation lookups. | `false` |

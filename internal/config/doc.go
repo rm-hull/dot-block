@@ -17,10 +17,12 @@ var CommentMap = map[string]string{
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.HttpPort":             "The port to run HTTP server on.",
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.DnsPort":              "The port to run regular DNS (UDP/TCP) server on.",
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.DotPort":              "The port to run DNS-over-TLS server on.",
-	"github.com/rm-hull/dot-block/internal/config.ServerConfig.RequireProxyProtocol": "Require PROXY protocol header for DoT connections.",
-	"github.com/rm-hull/dot-block/internal/config.ServerConfig.TrustedProxies":       "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.AllowedHosts":         "List of domains used for CertManager allow policy.",
 	"github.com/rm-hull/dot-block/internal/config.ServerConfig.MetricsAuth":          "Credentials for basic auth on /metrics (format: user:pass).",
+
+	// ProxyProtocolConfig
+	"github.com/rm-hull/dot-block/internal/config.ProxyProtocolConfig.Enabled":         "Require PROXY protocol header for DoT connections.",
+	"github.com/rm-hull/dot-block/internal/config.ProxyProtocolConfig.TrustedProxies":  "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
 
 	// DNSConfig
 	"github.com/rm-hull/dot-block/internal/config.DNSConfig.Upstreams":      "Upstream DNS resolvers to forward queries to.",
@@ -52,7 +54,7 @@ func reflectorWithComments() jsonschema.Reflector {
 			if t == reflect.TypeOf(LogLevel("")) {
 				return &jsonschema.Type{
 					Type: "string",
-					Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+					Enum: []any{"DEBUG", "INFO", "WARN", "ERROR"},
 				}
 			}
 			if t == reflect.TypeOf(time.Duration(0)) {

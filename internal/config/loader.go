@@ -17,16 +17,18 @@ import (
 func DefaultConfig() *Config {
 	return &Config{
 		Server: &ServerConfig{
-			DevMode:              false,
-			LogLevel:             "INFO",
-			DataDir:              "./data",
-			HttpPort:             80,
-			DnsPort:              0,
-			DotPort:              853,
-			RequireProxyProtocol: false,
-			TrustedProxies:       []string{},
-			AllowedHosts:         []string{},
-			MetricsAuth:          "",
+			DevMode:  false,
+			LogLevel: "INFO",
+			DataDir:  "./data",
+			HttpPort: 80,
+			DnsPort:  0,
+			DotPort:  853,
+			ProxyProtocol: &ProxyProtocolConfig{
+				Enabled:        false,
+				TrustedProxies: []string{},
+			},
+			AllowedHosts: []string{},
+			MetricsAuth:  "",
 		},
 		DNS: &DNSConfig{
 			Upstreams: []string{
@@ -160,7 +162,10 @@ func ApplyEnvOverrides(cfg *Config) {
 		}
 	}
 	if v := os.Getenv("REQUIRE_PROXY_PROTOCOL"); v != "" {
-		cfg.Server.RequireProxyProtocol = v == "true"
+		if cfg.Server.ProxyProtocol == nil {
+			cfg.Server.ProxyProtocol = &ProxyProtocolConfig{}
+		}
+		cfg.Server.ProxyProtocol.Enabled = v == "true"
 	}
 	if v := os.Getenv("METRICS_AUTH"); v != "" {
 		cfg.Server.MetricsAuth = v

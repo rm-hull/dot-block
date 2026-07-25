@@ -200,16 +200,22 @@
               "description": "Credentials for basic auth on /metrics (format: user:pass).",
               "type": "string"
             },
-            "require_proxy_protocol": {
-              "description": "Require PROXY protocol header for DoT connections.",
-              "type": "boolean"
-            },
-            "trusted_proxies": {
-              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
-              "items": {
-                "type": "string"
+            "proxy_protocol": {
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "description": "Require PROXY protocol header for DoT connections.",
+                  "type": "boolean"
+                },
+                "trusted_proxies": {
+                  "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
               },
-              "type": "array"
+              "type": "object"
             }
           },
           "type": "object"
@@ -348,6 +354,23 @@
       },
       "type": "object"
     },
+    "ProxyProtocolConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "description": "Require PROXY protocol header for DoT connections.",
+          "type": "boolean"
+        },
+        "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "ServerConfig": {
       "additionalProperties": true,
       "properties": {
@@ -392,16 +415,22 @@
           "description": "Credentials for basic auth on /metrics (format: user:pass).",
           "type": "string"
         },
-        "require_proxy_protocol": {
-          "description": "Require PROXY protocol header for DoT connections.",
-          "type": "boolean"
-        },
-        "trusted_proxies": {
-          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
-          "items": {
-            "type": "string"
+        "proxy_protocol": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Require PROXY protocol header for DoT connections.",
+              "type": "boolean"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           },
-          "type": "array"
+          "type": "object"
         }
       },
       "type": "object"
@@ -590,16 +619,22 @@
           "description": "Credentials for basic auth on /metrics (format: user:pass).",
           "type": "string"
         },
-        "require_proxy_protocol": {
-          "description": "Require PROXY protocol header for DoT connections.",
-          "type": "boolean"
-        },
-        "trusted_proxies": {
-          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
-          "items": {
-            "type": "string"
+        "proxy_protocol": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Require PROXY protocol header for DoT connections.",
+              "type": "boolean"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           },
-          "type": "array"
+          "type": "object"
         }
       },
       "type": "object"

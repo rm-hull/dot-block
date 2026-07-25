@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
-	"strings"
 	"time"
 
 	"github.com/Depado/ginprom"
@@ -26,6 +24,7 @@ import (
 	"github.com/pires/go-proxyproto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/forwarder"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
@@ -45,72 +44,9 @@ import (
 )
 
 type App struct {
-	Logger         *slog.Logger `json:"-"`
-	LogLevel       string       `json:"log_level"`
-	DevMode        bool         `json:"dev_mode"`
-	DataDir        string       `json:"data_dir"`
-	HttpPort       int          `json:"http_port"`
-	DnsPort        int          `json:"dns_port"`
-	DotPort        int          `json:"dot_port"`
-	Upstreams      []string     `json:"upstreams"`
-	BlockListURLs  []string     `json:"blocklist_urls"`
-	AllowedHosts   []string     `json:"allowed_hosts"`
-	NoiseFilterURL string       `json:"noise_filter_url"`
-	MetricsAuth    string       `json:"-"`
-	StartTime      time.Time    `json:"-"`
-	MaxCacheSize   int          `json:"max_cache_size"`
-	DisableIpinfo  bool         `json:"disable_ipinfo"`
-	CronSchedule   struct {
-		Downloader  string `json:"downloader"`
-		CacheReaper string `json:"cache_reaper"`
-		IPInfo      string `json:"ipinfo"`
-	} `json:"cron_schedule"`
-	CacheTtlFloor        time.Duration `json:"cache_ttl_floor"`
-	RequireProxyProtocol bool          `json:"require_proxy_protocol"`
-	TrustedProxies       []string      `json:"trusted_proxies,omitempty"`
-	EnableECS            bool          `json:"enable_ecs"`
-	Timeouts             struct {
-		Read  time.Duration `json:"read"`
-		Write time.Duration `json:"write"`
-		Dial  time.Duration `json:"dial"`
-	} `json:"timeouts"`
-}
-
-// LogValue implements slog.LogValuer to ensure nested durations are formatted as strings.
-func (app *App) LogValue() slog.Value {
-	return slog.AnyValue(structToMap(app))
-}
-
-func structToMap(obj any) any {
-	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Pointer {
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return obj
-	}
-	m := make(map[string]any)
-	t := v.Type()
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("json")
-		if tag == "-" {
-			continue
-		}
-		name := field.Name
-		if tag != "" {
-			name = strings.Split(tag, ",")[0]
-		}
-		val := v.Field(i).Interface()
-		// If the field is a struct (and not time.Time), recursively convert it to a map
-		// so that ReplaceAttr can recurse into it.
-		if reflect.TypeOf(val).Kind() == reflect.Struct && reflect.TypeOf(val) != reflect.TypeFor[time.Time]() {
-			m[name] = structToMap(val)
-		} else {
-			m[name] = val
-		}
-	}
-	return m
+	Logger    *slog.Logger
+	Config    *config.Config
+	StartTime time.Time
 }
 
 func (app *App) monitorShutdown(ctx context.Context, name string, shutdownFn func() error) {
@@ -130,7 +66,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		app.Logger.Warn("No .env file found")
 	}
 	godx.Diagnostics(app.Logger)
-	app.Logger.Info("Configuration on startup", "app", app)
+	app.Logger.Info("Configuration on startup", "config", app.Config)
 	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block")
 	if err != nil {
 		app.Logger.Error("failed to initialize tracing", "error", err)
@@ -145,7 +81,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	err = sentry.Init(sentry.ClientOptions{
 		Dsn:         os.Getenv("SENTRY_DSN"),
-		Debug:       app.DevMode,
+		Debug:       app.Config.Server.DevMode,
 		Release:     versioninfo.Revision[:7],
 		Environment: app.environment(),
 	})
@@ -158,7 +94,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	crontab.Start()
 	defer crontab.Stop()
 	var geoIpLookup geoblock.GeoIpLookup
-	if app.DisableIpinfo {
+	if !app.Config.Geoblock.Ipinfo.Enabled {
 		app.Logger.Warn("GeoData lookups via ipinfo.io are disabled")
 	} else {
 		geoIpLookup, err = app.initMaxmind(crontab)
@@ -172,16 +108,16 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 
 	noiseFilter := noisefilter.NewNoiseFilter()
-	if err := noisefilter.Fetch(app.NoiseFilterURL, noiseFilter, app.Logger); err != nil {
-		app.Logger.Error("failed to download noise filter", "url", app.NoiseFilterURL, "error", err)
+	if err := noisefilter.Fetch(app.Config.DNS.NoiseFilter.URL, noiseFilter, app.Logger); err != nil {
+		app.Logger.Error("failed to download noise filter", "url", app.Config.DNS.NoiseFilter.URL, "error", err)
 	}
 
-	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.CronSchedule.Downloader)
-	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.NoiseFilterURL, app.Logger)
-	if _, err = crontab.AddJob(app.CronSchedule.Downloader, noiseFilterUpdater); err != nil {
+	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.Config.Blocklists.CronSchedule)
+	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.Config.DNS.NoiseFilter.URL, app.Logger)
+	if _, err = crontab.AddJob(app.Config.Blocklists.CronSchedule, noiseFilterUpdater); err != nil {
 		return errors.Wrap(err, "failed to create noise filter downloader cron job")
 	}
-	certCacheDir := fmt.Sprintf("%s/certcache", app.DataDir)
+	certCacheDir := fmt.Sprintf("%s/certcache", app.Config.Server.DataDir)
 	if err := os.MkdirAll(certCacheDir, 0700); err != nil {
 		return errors.Wrap(err, "failed to create certcache directory")
 	}
@@ -193,7 +129,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	certmagic.DefaultACME.Email = os.Getenv("ACME_EMAIL")
 	certmagic.Default.Storage = &certmagic.FileStorage{Path: certCacheDir}
 	var magic *certmagic.Config
-	if !app.DevMode {
+	if !app.Config.Server.DevMode {
 		token := os.Getenv("CLOUDFLARE_API_TOKEN")
 		if token == "" {
 			return errors.New("CLOUDFLARE_API_TOKEN environment variable is required for DNS-01 challenge")
@@ -206,22 +142,22 @@ func (app *App) RunServer(ctx context.Context) error {
 			},
 		}
 		magic = certmagic.NewDefault()
-		if err := magic.ManageSync(context.Background(), app.AllowedHosts); err != nil {
+		if err := magic.ManageSync(context.Background(), app.Config.Server.AllowedHosts); err != nil {
 			return errors.Wrap(err, "failed to manage certificates")
 		}
 	}
-	cache := forwarder.NewDNSCache(app.MaxCacheSize, app.Logger)
+	cache := forwarder.NewDNSCache(app.Config.DNS.Cache.MaxSize, app.Logger)
 	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
-	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Timeouts.Read, app.Timeouts.Write, app.Timeouts.Dial, app.Logger, app.Upstreams...)
+	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Config.DNS.Timeouts.Read, app.Config.DNS.Timeouts.Write, app.Config.DNS.Timeouts.Dial, app.Logger, app.Config.DNS.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
 	broadcaster := sse.NewBroadcaster(app.Logger, metrics.DroppedSSEEvents)
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.CacheTtlFloor, app.Logger, app.EnableECS)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.Config.DNS.Cache.TtlFloor, app.Logger, app.Config.DNS.ECS.Enabled)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
@@ -232,15 +168,15 @@ func (app *App) RunServer(ctx context.Context) error {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
 
-	app.Logger.Info("Creating cache reaper cron job", "schedule", app.CronSchedule.CacheReaper)
-	if _, err = crontab.AddJob(app.CronSchedule.CacheReaper, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
+	app.Logger.Info("Creating cache reaper cron job", "schedule", app.Config.DNS.Cache.CronSchedule)
+	if _, err = crontab.AddJob(app.Config.DNS.Cache.CronSchedule, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
-		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.HttpPort)
+		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.Config.Server.HttpPort)
 		srv := &http.Server{
-			Addr:    fmt.Sprintf(":%d", app.HttpPort),
+			Addr:    fmt.Sprintf(":%d", app.Config.Server.HttpPort),
 			Handler: r,
 		}
 		app.monitorShutdown(groupCtx, "HTTP server", func() error {
@@ -254,13 +190,13 @@ func (app *App) RunServer(ctx context.Context) error {
 		return nil
 	})
 	group.Go(func() error {
-		if app.DnsPort == 0 {
+		if app.Config.Server.DnsPort == 0 {
 			app.Logger.Warn("Skipping UDP DNS server: dns-port not specified")
 			return nil
 		}
-		app.Logger.Info("Starting UDP DNS server", "port", app.DnsPort)
+		app.Logger.Info("Starting UDP DNS server", "port", app.Config.Server.DnsPort)
 		srv := &dns.Server{
-			Addr:    fmt.Sprintf(":%d", app.DnsPort),
+			Addr:    fmt.Sprintf(":%d", app.Config.Server.DnsPort),
 			Net:     "udp",
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceUDP)),
 		}
@@ -268,13 +204,13 @@ func (app *App) RunServer(ctx context.Context) error {
 		return srv.ListenAndServe()
 	})
 	group.Go(func() error {
-		if app.DnsPort == 0 {
+		if app.Config.Server.DnsPort == 0 {
 			app.Logger.Warn("Skipping TCP DNS server: dns-port not specified")
 			return nil
 		}
-		app.Logger.Info("Starting TCP DNS server", "port", app.DnsPort)
+		app.Logger.Info("Starting TCP DNS server", "port", app.Config.Server.DnsPort)
 		srv := &dns.Server{
-			Addr:    fmt.Sprintf(":%d", app.DnsPort),
+			Addr:    fmt.Sprintf(":%d", app.Config.Server.DnsPort),
 			Net:     "tcp",
 			Handler: dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceTCP)),
 		}
@@ -282,7 +218,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		return srv.ListenAndServe()
 	})
 	group.Go(func() error {
-		dotPort := fmt.Sprintf(":%d", app.DotPort)
+		dotPort := fmt.Sprintf(":%d", app.Config.Server.DotPort)
 		listener, err := net.Listen("tcp", dotPort)
 		if err != nil {
 			return errors.Wrap(err, "failed to create DoT listener")
@@ -293,10 +229,10 @@ func (app *App) RunServer(ctx context.Context) error {
 				app.Logger.Warn("error closing DoT listener", "error", err)
 			}
 		}()
-		if app.DevMode {
-			app.Logger.Info("Starting DoT server (plain TCP) in DEV mode", "port", app.DotPort)
+		if app.Config.Server.DevMode {
+			app.Logger.Info("Starting DoT server (plain TCP) in DEV mode", "port", app.Config.Server.DotPort)
 		} else {
-			app.Logger.Info("Starting DNS-over-TLS server", "port", app.DotPort)
+			app.Logger.Info("Starting DNS-over-TLS server", "port", app.Config.Server.DotPort)
 			proxyListener, err := app.newProxyListener(listener)
 			if err != nil {
 				return err
@@ -330,10 +266,11 @@ func (app *App) RunServer(ctx context.Context) error {
 
 func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error) {
 	var proxyListener *proxyproto.Listener
-	if len(app.TrustedProxies) > 0 {
+	pp := app.Config.Server.ProxyProtocol
+	if pp != nil && len(pp.TrustedProxies) > 0 {
 		// If trusted proxies are specified, use a whitelist policy
-		app.Logger.Info("Using PROXY protocol with trusted proxy whitelist", "trusted_proxies", app.TrustedProxies)
-		policy, err := proxyproto.PolicyFromRanges(app.TrustedProxies, proxyproto.USE, proxyproto.REJECT)
+		app.Logger.Info("Using PROXY protocol with trusted proxy whitelist", "trusted_proxies", pp.TrustedProxies)
+		policy, err := proxyproto.PolicyFromRanges(pp.TrustedProxies, proxyproto.USE, proxyproto.REJECT)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to create trusted proxy whitelist policy")
 		}
@@ -341,7 +278,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 			Listener:   base,
 			ConnPolicy: policy,
 		}
-	} else if app.RequireProxyProtocol {
+	} else if pp != nil && pp.Enabled {
 		// If no trusted proxies specified but requirement is on, use REQUIRE policy
 		proxyListener = &proxyproto.Listener{
 			Listener: base,
@@ -370,12 +307,12 @@ func (app *App) startHttpServer(
 	versionInfoHandler *handlers.VersionInfoHandler,
 ) (*gin.Engine, error) {
 
-	if !app.DevMode {
+	if !app.Config.Server.DevMode {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
 	blocklistHandler := handlers.NewBlocklistHandler(blocklistUpdater, app.Logger)
-	if app.DevMode {
+	if app.Config.Server.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
 	}
@@ -398,16 +335,16 @@ func (app *App) startHttpServer(
 		return nil, errors.Wrap(err, "failed to initialize healthcheck")
 	}
 
-	basicAuthMiddleware, err := middlewares.RequireBasicAuth(app.MetricsAuth, app.Logger)
+	basicAuthMiddleware, err := middlewares.RequireBasicAuth(app.Config.Server.MetricsAuth, app.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "basic auth middleware failure")
 	}
 	r.GET("/metrics", basicAuthMiddleware, gin.WrapH(promhttp.Handler()))
 
-	if len(app.AllowedHosts) == 0 {
-		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via --allowed-hosts")
+	if len(app.Config.Server.AllowedHosts) == 0 {
+		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via allowed_hosts")
 	}
-	serverName := app.AllowedHosts[0]
+	serverName := app.Config.Server.AllowedHosts[0]
 
 	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
 
@@ -415,7 +352,7 @@ func (app *App) startHttpServer(
 		handlers.NewMobileconfigHandler(serverName),
 		handlers.NewDoHHandler(requestHandler))
 
-	routes.NewAdminGroup(r, "admin."+serverName, app.DevMode,
+	routes.NewAdminGroup(r, "admin."+serverName, app.Config.Server.DevMode,
 		blocklistHandler,
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
@@ -426,7 +363,7 @@ func (app *App) startHttpServer(
 }
 
 func (app *App) environment() string {
-	if app.DevMode {
+	if app.Config.Server.DevMode {
 		return "DEVELOPMENT"
 	}
 	return "PRODUCTION"
@@ -441,7 +378,7 @@ func newStructuredLoggingConfig() *sloggin.Config {
 }
 
 func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
-	geolocationDb := fmt.Sprintf("%s/maxmind/ipinfo_lite.mmdb", app.DataDir)
+	geolocationDb := fmt.Sprintf("%s/maxmind/ipinfo_lite.mmdb", app.Config.Server.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
 		app.Logger.Info("ipinfo.io database not found, downloading...")
 		_, err = geoblock.Fetch(geolocationDb, app.Logger)
@@ -454,8 +391,8 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open ipinfo.io database")
 	}
-	app.Logger.Info("Creating ipinfo.io updater cron job", "schedule", app.CronSchedule.IPInfo)
-	if _, err = crontab.AddJob(app.CronSchedule.IPInfo, geoblock.NewIpinfoUpdaterCronJob(app.Logger, geolocationDb, geoIpLookup)); err != nil {
+	app.Logger.Info("Creating ipinfo.io updater cron job", "schedule", app.Config.Geoblock.Ipinfo.CronSchedule)
+	if _, err = crontab.AddJob(app.Config.Geoblock.Ipinfo.CronSchedule, geoblock.NewIpinfoUpdaterCronJob(app.Logger, geolocationDb, geoIpLookup)); err != nil {
 		return nil, errors.Wrap(err, "failed to create ipinfo.io updater cron job")
 	}
 	return geoIpLookup, nil
@@ -463,14 +400,14 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 
 func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *blocklist.Updater, error) {
 	blockLists := make([]*blocklist.BlockList, 0)
-	for idx, url := range app.BlockListURLs {
+	for idx, url := range app.Config.Blocklists.URLs {
 		blockList := blocklist.NewBlockList(fmt.Sprintf("Blocklist #%d", idx), url, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
 	}
 
-	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.CronSchedule.Downloader)
+	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.Config.Blocklists.CronSchedule)
 	updater := blocklist.NewUpdater(blockLists, 1*time.Minute)
-	if _, err := crontab.AddJob(app.CronSchedule.Downloader, updater); err != nil {
+	if _, err := crontab.AddJob(app.Config.Blocklists.CronSchedule, updater); err != nil {
 		return nil, nil, errors.Wrap(err, "failed to create blocklist downloader cron job")
 	}
 	updater.Run()
