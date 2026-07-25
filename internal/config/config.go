@@ -2,6 +2,8 @@ package config
 
 import (
 	"time"
+
+	"github.com/alecthomas/jsonschema"
 )
 
 type Config struct {
@@ -12,6 +14,13 @@ type Config struct {
 }
 
 type LogLevel string
+
+func (LogLevel) JSONSchema() *jsonschema.Type {
+	return &jsonschema.Type{
+		Type:  "string",
+		Enum:  []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+	}
+}
 
 type ServerConfig struct {
 	DevMode              bool     `yaml:"dev_mode" json:"dev_mode"`

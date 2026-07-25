@@ -1,247 +1,250 @@
 {
-  "required": [
-    "server",
-    "dns",
-    "blocklists",
-    "geoblock"
-  ],
-  "properties": {
-    "server": {
-      "required": [
-        "dev_mode",
-        "log_level",
-        "data_dir",
-        "http_port",
-        "dns_port",
-        "dot_port",
-        "require_proxy_protocol"
-      ],
-      "properties": {
-        "dev_mode": {
-          "type": "boolean"
-        },
-        "log_level": {
-          "enum": [
-            "DEBUG",
-            "INFO",
-            "WARN",
-            "ERROR"
-          ],
-          "type": "string"
-        },
-        "data_dir": {
-          "type": "string"
-        },
-        "http_port": {
-          "type": "integer"
-        },
-        "dns_port": {
-          "type": "integer"
-        },
-        "dot_port": {
-          "type": "integer"
-        },
-        "require_proxy_protocol": {
-          "type": "boolean"
-        },
-        "trusted_proxies": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "allowed_hosts": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "metrics_auth": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "dns": {
-      "required": [
-        "upstreams",
-        "ecs",
-        "cache",
-        "noise_filter",
-        "timeouts"
-      ],
-      "properties": {
-        "upstreams": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "ecs": {
-          "required": [
-            "enabled"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "cache": {
-          "required": [
-            "max_size",
-            "ttl_floor",
-            "cron_schedule"
-          ],
-          "properties": {
-            "max_size": {
-              "type": "integer"
-            },
-            "ttl_floor": {
-              "type": "integer"
-            },
-            "cron_schedule": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "noise_filter": {
-          "required": [
-            "url"
-          ],
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "timeouts": {
-          "required": [
-            "read",
-            "write",
-            "dial"
-          ],
-          "properties": {
-            "read": {
-              "type": "integer"
-            },
-            "write": {
-              "type": "integer"
-            },
-            "dial": {
-              "type": "integer"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "blocklists": {
-      "required": [
-        "urls",
-        "cron_schedule"
-      ],
-      "properties": {
-        "urls": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "cron_schedule": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "geoblock": {
-      "required": [
-        "ipinfo"
-      ],
-      "properties": {
-        "ipinfo": {
-          "required": [
-            "enabled",
-            "cron_schedule"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "cron_schedule": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    }
-  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "type": "object",
   "definitions": {
     "BlocklistsConfig": {
-      "required": [
-        "urls",
-        "cron_schedule"
-      ],
+      "additionalProperties": false,
       "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for reloading blocklist.",
+          "type": "string"
+        },
         "urls": {
+          "description": "URLs of blocklist sources.",
           "items": {
             "type": "string"
           },
           "type": "array"
-        },
-        "cron_schedule": {
-          "type": "string"
         }
       },
-      "additionalProperties": false,
+      "required": [
+        "urls",
+        "cron_schedule"
+      ],
       "type": "object"
     },
     "CacheConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for cache reaper.",
+          "type": "string"
+        },
+        "max_size": {
+          "description": "Maximum number of entries in the DNS cache.",
+          "type": "integer"
+        },
+        "ttl_floor": {
+          "description": "Minimum TTL for cached entries.",
+          "type": "integer"
+        }
+      },
       "required": [
         "max_size",
         "ttl_floor",
         "cron_schedule"
       ],
-      "properties": {
-        "max_size": {
-          "type": "integer"
-        },
-        "ttl_floor": {
-          "type": "integer"
-        },
-        "cron_schedule": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
       "type": "object"
     },
     "Config": {
-      "required": [
-        "server",
-        "dns",
-        "blocklists",
-        "geoblock"
-      ],
+      "additionalProperties": false,
       "properties": {
+        "blocklists": {
+          "additionalProperties": false,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for reloading blocklist.",
+              "type": "string"
+            },
+            "urls": {
+              "description": "URLs of blocklist sources.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "urls",
+            "cron_schedule"
+          ],
+          "type": "object"
+        },
+        "dns": {
+          "additionalProperties": false,
+          "properties": {
+            "cache": {
+              "additionalProperties": false,
+              "properties": {
+                "cron_schedule": {
+                  "description": "Cron spec for cache reaper.",
+                  "type": "string"
+                },
+                "max_size": {
+                  "description": "Maximum number of entries in the DNS cache.",
+                  "type": "integer"
+                },
+                "ttl_floor": {
+                  "description": "Minimum TTL for cached entries.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "max_size",
+                "ttl_floor",
+                "cron_schedule"
+              ],
+              "type": "object"
+            },
+            "ecs": {
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "enabled"
+              ],
+              "type": "object"
+            },
+            "noise_filter": {
+              "additionalProperties": false,
+              "properties": {
+                "url": {
+                  "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "type": "object"
+            },
+            "timeouts": {
+              "additionalProperties": false,
+              "properties": {
+                "dial": {
+                  "description": "Timeout for establishing connections to upstream servers.",
+                  "type": "integer"
+                },
+                "read": {
+                  "description": "Timeout for reading upstream DNS queries.",
+                  "type": "integer"
+                },
+                "write": {
+                  "description": "Timeout for writing upstream DNS queries.",
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "read",
+                "write",
+                "dial"
+              ],
+              "type": "object"
+            },
+            "upstreams": {
+              "description": "Upstream DNS resolvers to forward queries to.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "upstreams",
+            "ecs",
+            "cache",
+            "noise_filter",
+            "timeouts"
+          ],
+          "type": "object"
+        },
+        "geoblock": {
+          "additionalProperties": false,
+          "properties": {
+            "ipinfo": {
+              "additionalProperties": false,
+              "properties": {
+                "cron_schedule": {
+                  "description": "Cron spec for Ipinfo.io database downloader.",
+                  "type": "string"
+                },
+                "enabled": {
+                  "description": "Whether to enable IPinfo.io geolocation lookups.",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "enabled",
+                "cron_schedule"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "ipinfo"
+          ],
+          "type": "object"
+        },
         "server": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_hosts": {
+              "description": "List of domains used for CertManager allow policy.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "data_dir": {
+              "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+              "type": "string"
+            },
+            "dev_mode": {
+              "description": "Run server in dev mode (no TLS, plain TCP).",
+              "type": "boolean"
+            },
+            "dns_port": {
+              "description": "The port to run regular DNS (UDP/TCP) server on.",
+              "type": "integer"
+            },
+            "dot_port": {
+              "description": "The port to run DNS-over-TLS server on.",
+              "type": "integer"
+            },
+            "http_port": {
+              "description": "The port to run HTTP server on.",
+              "type": "integer"
+            },
+            "log_level": {
+              "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
+              "enum": [
+                "DEBUG",
+                "INFO",
+                "WARN",
+                "ERROR"
+              ],
+              "type": "string"
+            },
+            "metrics_auth": {
+              "description": "Credentials for basic auth on /metrics (format: user:pass).",
+              "type": "string"
+            },
+            "require_proxy_protocol": {
+              "description": "Require PROXY protocol header for DoT connections.",
+              "type": "boolean"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
           "required": [
             "dev_mode",
             "log_level",
@@ -251,185 +254,100 @@
             "dot_port",
             "require_proxy_protocol"
           ],
-          "properties": {
-            "dev_mode": {
-              "type": "boolean"
-            },
-            "log_level": {
-              "enum": [
-                "DEBUG",
-                "INFO",
-                "WARN",
-                "ERROR"
-              ],
-              "type": "string"
-            },
-            "data_dir": {
-              "type": "string"
-            },
-            "http_port": {
-              "type": "integer"
-            },
-            "dns_port": {
-              "type": "integer"
-            },
-            "dot_port": {
-              "type": "integer"
-            },
-            "require_proxy_protocol": {
-              "type": "boolean"
-            },
-            "trusted_proxies": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "allowed_hosts": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "metrics_auth": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "dns": {
-          "required": [
-            "upstreams",
-            "ecs",
-            "cache",
-            "noise_filter",
-            "timeouts"
-          ],
-          "properties": {
-            "upstreams": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "ecs": {
-              "required": [
-                "enabled"
-              ],
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                }
-              },
-              "additionalProperties": false,
-              "type": "object"
-            },
-            "cache": {
-              "required": [
-                "max_size",
-                "ttl_floor",
-                "cron_schedule"
-              ],
-              "properties": {
-                "max_size": {
-                  "type": "integer"
-                },
-                "ttl_floor": {
-                  "type": "integer"
-                },
-                "cron_schedule": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "type": "object"
-            },
-            "noise_filter": {
-              "required": [
-                "url"
-              ],
-              "properties": {
-                "url": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "type": "object"
-            },
-            "timeouts": {
-              "required": [
-                "read",
-                "write",
-                "dial"
-              ],
-              "properties": {
-                "read": {
-                  "type": "integer"
-                },
-                "write": {
-                  "type": "integer"
-                },
-                "dial": {
-                  "type": "integer"
-                }
-              },
-              "additionalProperties": false,
-              "type": "object"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "blocklists": {
-          "required": [
-            "urls",
-            "cron_schedule"
-          ],
-          "properties": {
-            "urls": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            "cron_schedule": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "geoblock": {
-          "required": [
-            "ipinfo"
-          ],
-          "properties": {
-            "ipinfo": {
-              "required": [
-                "enabled",
-                "cron_schedule"
-              ],
-              "properties": {
-                "enabled": {
-                  "type": "boolean"
-                },
-                "cron_schedule": {
-                  "type": "string"
-                }
-              },
-              "additionalProperties": false,
-              "type": "object"
-            }
-          },
-          "additionalProperties": false,
           "type": "object"
         }
       },
-      "additionalProperties": false,
+      "required": [
+        "server",
+        "dns",
+        "blocklists",
+        "geoblock"
+      ],
       "type": "object"
     },
     "DNSConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "cache": {
+          "additionalProperties": false,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for cache reaper.",
+              "type": "string"
+            },
+            "max_size": {
+              "description": "Maximum number of entries in the DNS cache.",
+              "type": "integer"
+            },
+            "ttl_floor": {
+              "description": "Minimum TTL for cached entries.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_size",
+            "ttl_floor",
+            "cron_schedule"
+          ],
+          "type": "object"
+        },
+        "ecs": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled"
+          ],
+          "type": "object"
+        },
+        "noise_filter": {
+          "additionalProperties": false,
+          "properties": {
+            "url": {
+              "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "type": "object"
+        },
+        "timeouts": {
+          "additionalProperties": false,
+          "properties": {
+            "dial": {
+              "description": "Timeout for establishing connections to upstream servers.",
+              "type": "integer"
+            },
+            "read": {
+              "description": "Timeout for reading upstream DNS queries.",
+              "type": "integer"
+            },
+            "write": {
+              "description": "Timeout for writing upstream DNS queries.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "read",
+            "write",
+            "dial"
+          ],
+          "type": "object"
+        },
+        "upstreams": {
+          "description": "Upstream DNS resolvers to forward queries to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
       "required": [
         "upstreams",
         "ecs",
@@ -437,147 +355,135 @@
         "noise_filter",
         "timeouts"
       ],
+      "type": "object"
+    },
+    "ECSConfig": {
+      "additionalProperties": false,
       "properties": {
-        "upstreams": {
+        "enabled": {
+          "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled"
+      ],
+      "type": "object"
+    },
+    "GeoblockConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "ipinfo": {
+          "additionalProperties": false,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for Ipinfo.io database downloader.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Whether to enable IPinfo.io geolocation lookups.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "cron_schedule"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "ipinfo"
+      ],
+      "type": "object"
+    },
+    "IpinfoConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for Ipinfo.io database downloader.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Whether to enable IPinfo.io geolocation lookups.",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "enabled",
+        "cron_schedule"
+      ],
+      "type": "object"
+    },
+    "NoiseFilter": {
+      "additionalProperties": false,
+      "properties": {
+        "url": {
+          "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "type": "object"
+    },
+    "ServerConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_hosts": {
+          "description": "List of domains used for CertManager allow policy.",
           "items": {
             "type": "string"
           },
           "type": "array"
         },
-        "ecs": {
-          "required": [
-            "enabled"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
+        "data_dir": {
+          "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+          "type": "string"
         },
-        "cache": {
-          "required": [
-            "max_size",
-            "ttl_floor",
-            "cron_schedule"
-          ],
-          "properties": {
-            "max_size": {
-              "type": "integer"
-            },
-            "ttl_floor": {
-              "type": "integer"
-            },
-            "cron_schedule": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "noise_filter": {
-          "required": [
-            "url"
-          ],
-          "properties": {
-            "url": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        },
-        "timeouts": {
-          "required": [
-            "read",
-            "write",
-            "dial"
-          ],
-          "properties": {
-            "read": {
-              "type": "integer"
-            },
-            "write": {
-              "type": "integer"
-            },
-            "dial": {
-              "type": "integer"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "ECSConfig": {
-      "required": [
-        "enabled"
-      ],
-      "properties": {
-        "enabled": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "GeoblockConfig": {
-      "required": [
-        "ipinfo"
-      ],
-      "properties": {
-        "ipinfo": {
-          "required": [
-            "enabled",
-            "cron_schedule"
-          ],
-          "properties": {
-            "enabled": {
-              "type": "boolean"
-            },
-            "cron_schedule": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false,
-          "type": "object"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "IpinfoConfig": {
-      "required": [
-        "enabled",
-        "cron_schedule"
-      ],
-      "properties": {
-        "enabled": {
+        "dev_mode": {
+          "description": "Run server in dev mode (no TLS, plain TCP).",
           "type": "boolean"
         },
-        "cron_schedule": {
+        "dns_port": {
+          "description": "The port to run regular DNS (UDP/TCP) server on.",
+          "type": "integer"
+        },
+        "dot_port": {
+          "description": "The port to run DNS-over-TLS server on.",
+          "type": "integer"
+        },
+        "http_port": {
+          "description": "The port to run HTTP server on.",
+          "type": "integer"
+        },
+        "log_level": {
+          "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
           "type": "string"
+        },
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
+          "type": "string"
+        },
+        "require_proxy_protocol": {
+          "description": "Require PROXY protocol header for DoT connections.",
+          "type": "boolean"
+        },
+        "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "NoiseFilter": {
-      "required": [
-        "url"
-      ],
-      "properties": {
-        "url": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "ServerConfig": {
       "required": [
         "dev_mode",
         "log_level",
@@ -587,11 +493,205 @@
         "dot_port",
         "require_proxy_protocol"
       ],
+      "type": "object"
+    },
+    "TimeoutsConfig": {
+      "additionalProperties": false,
       "properties": {
+        "dial": {
+          "description": "Timeout for establishing connections to upstream servers.",
+          "type": "integer"
+        },
+        "read": {
+          "description": "Timeout for reading upstream DNS queries.",
+          "type": "integer"
+        },
+        "write": {
+          "description": "Timeout for writing upstream DNS queries.",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "read",
+        "write",
+        "dial"
+      ],
+      "type": "object"
+    }
+  },
+  "properties": {
+    "blocklists": {
+      "additionalProperties": false,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for reloading blocklist.",
+          "type": "string"
+        },
+        "urls": {
+          "description": "URLs of blocklist sources.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "urls",
+        "cron_schedule"
+      ],
+      "type": "object"
+    },
+    "dns": {
+      "additionalProperties": false,
+      "properties": {
+        "cache": {
+          "additionalProperties": false,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for cache reaper.",
+              "type": "string"
+            },
+            "max_size": {
+              "description": "Maximum number of entries in the DNS cache.",
+              "type": "integer"
+            },
+            "ttl_floor": {
+              "description": "Minimum TTL for cached entries.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "max_size",
+            "ttl_floor",
+            "cron_schedule"
+          ],
+          "type": "object"
+        },
+        "ecs": {
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled"
+          ],
+          "type": "object"
+        },
+        "noise_filter": {
+          "additionalProperties": false,
+          "properties": {
+            "url": {
+              "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+              "type": "string"
+            }
+          },
+          "required": [
+            "url"
+          ],
+          "type": "object"
+        },
+        "timeouts": {
+          "additionalProperties": false,
+          "properties": {
+            "dial": {
+              "description": "Timeout for establishing connections to upstream servers.",
+              "type": "integer"
+            },
+            "read": {
+              "description": "Timeout for reading upstream DNS queries.",
+              "type": "integer"
+            },
+            "write": {
+              "description": "Timeout for writing upstream DNS queries.",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "read",
+            "write",
+            "dial"
+          ],
+          "type": "object"
+        },
+        "upstreams": {
+          "description": "Upstream DNS resolvers to forward queries to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "upstreams",
+        "ecs",
+        "cache",
+        "noise_filter",
+        "timeouts"
+      ],
+      "type": "object"
+    },
+    "geoblock": {
+      "additionalProperties": false,
+      "properties": {
+        "ipinfo": {
+          "additionalProperties": false,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for Ipinfo.io database downloader.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Whether to enable IPinfo.io geolocation lookups.",
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "enabled",
+            "cron_schedule"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "ipinfo"
+      ],
+      "type": "object"
+    },
+    "server": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_hosts": {
+          "description": "List of domains used for CertManager allow policy.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "data_dir": {
+          "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+          "type": "string"
+        },
         "dev_mode": {
+          "description": "Run server in dev mode (no TLS, plain TCP).",
           "type": "boolean"
         },
+        "dns_port": {
+          "description": "The port to run regular DNS (UDP/TCP) server on.",
+          "type": "integer"
+        },
+        "dot_port": {
+          "description": "The port to run DNS-over-TLS server on.",
+          "type": "integer"
+        },
+        "http_port": {
+          "description": "The port to run HTTP server on.",
+          "type": "integer"
+        },
         "log_level": {
+          "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
           "enum": [
             "DEBUG",
             "INFO",
@@ -600,59 +700,39 @@
           ],
           "type": "string"
         },
-        "data_dir": {
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
           "type": "string"
         },
-        "http_port": {
-          "type": "integer"
-        },
-        "dns_port": {
-          "type": "integer"
-        },
-        "dot_port": {
-          "type": "integer"
-        },
         "require_proxy_protocol": {
+          "description": "Require PROXY protocol header for DoT connections.",
           "type": "boolean"
         },
         "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
           "items": {
             "type": "string"
           },
           "type": "array"
-        },
-        "allowed_hosts": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "metrics_auth": {
-          "type": "string"
         }
       },
-      "additionalProperties": false,
-      "type": "object"
-    },
-    "TimeoutsConfig": {
       "required": [
-        "read",
-        "write",
-        "dial"
+        "dev_mode",
+        "log_level",
+        "data_dir",
+        "http_port",
+        "dns_port",
+        "dot_port",
+        "require_proxy_protocol"
       ],
-      "properties": {
-        "read": {
-          "type": "integer"
-        },
-        "write": {
-          "type": "integer"
-        },
-        "dial": {
-          "type": "integer"
-        }
-      },
-      "additionalProperties": false,
       "type": "object"
     }
-  }
+  },
+  "required": [
+    "server",
+    "dns",
+    "blocklists",
+    "geoblock"
+  ],
+  "type": "object"
 }

@@ -4,31 +4,24 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 
-	"github.com/alecthomas/jsonschema"
 	"github.com/stretchr/testify/require"
 )
 
-// TestSchemaGeneration generates config.schema.json and verifies it can be compiled.
+// TestSchemaGeneration generates config.schema.json with descriptions and verifies it can be compiled.
 func TestSchemaGeneration(t *testing.T) {
-	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-		TypeMapper: func(t reflect.Type) *jsonschema.Type {
-			if t == reflect.TypeOf(LogLevel("")) {
-				return &jsonschema.Type{
-					Type: "string",
-					Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
-				}
-			}
-			return nil
-		},
-	}
+	reflector := reflectorWithComments()
 	schema := reflector.Reflect(&Config{})
 
 	jsonData, err := json.MarshalIndent(schema, "", "  ")
+	require.NoError(t, err)
+
+	// Add $schema reference for IDE integration
+	var schemaMap map[string]any
+	require.NoError(t, json.Unmarshal(jsonData, &schemaMap))
+	schemaMap["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+	jsonData, err = json.MarshalIndent(schemaMap, "", "  ")
 	require.NoError(t, err)
 
 	repoRoot := findRepoRoot(t)
@@ -40,7 +33,7 @@ func TestSchemaGeneration(t *testing.T) {
 	_ = reflector.Reflect(&Config{})
 }
 
-// TestSchemaMatchesStruct ensures config.schema.json matches the current struct definition.
+// TestSchemaMatchesStruct ensures config.schema.json matches the current struct definition (including comments).
 func TestSchemaMatchesStruct(t *testing.T) {
 	repoRoot := findRepoRoot(t)
 	schemaPath := filepath.Join(repoRoot, "config.schema.json")
@@ -48,28 +41,18 @@ func TestSchemaMatchesStruct(t *testing.T) {
 	existingData, err := os.ReadFile(schemaPath)
 	require.NoError(t, err, "config.schema.json not found; run 'go generate ./internal/config' or TestSchemaGeneration first")
 
-	reflector := jsonschema.Reflector{
-		AllowAdditionalProperties: false,
-		DoNotReference:            true,
-		TypeMapper: func(t reflect.Type) *jsonschema.Type {
-			if t == reflect.TypeOf(LogLevel("")) {
-				return &jsonschema.Type{
-					Type: "string",
-					Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
-				}
-			}
-			return nil
-		},
-	}
+	reflector := reflectorWithComments()
 	schema := reflector.Reflect(&Config{})
 	freshData, err := json.Marshal(schema)
 	require.NoError(t, err)
 
-	var existingMap, freshMap map[string]any
-	require.NoError(t, json.Unmarshal(existingData, &existingMap))
+	// Add $schema to fresh for comparison
+	var freshMap, existingMap map[string]any
 	require.NoError(t, json.Unmarshal(freshData, &freshMap))
+	freshMap["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+	require.NoError(t, json.Unmarshal(existingData, &existingMap))
 
-	require.Equal(t, existingMap, freshMap, "config.schema.json is out of sync with Config struct; run 'go generate ./internal/config'")
+	require.Equal(t, existingMap, freshMap, "config.schema.json is out of sync with Config struct (including comments); run 'go generate ./internal/config'")
 }
 
 func findRepoRoot(t *testing.T) string {
