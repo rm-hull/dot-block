@@ -137,12 +137,6 @@ jobs:
         run: |
           go test -bench=. -benchmem ./internal/forwarder/ | tee output.txt
 
-      - name: Download previous benchmark data
-        uses: actions/cache@v6
-        with:
-          path: ./cache
-          key: ${{ runner.os }}-benchmark
-
       - name: Store benchmark result for charts
         uses: benchmark-action/github-action-benchmark@v1
         with:
@@ -150,8 +144,9 @@ jobs:
           tool: "go"
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           alert-threshold: "150%"
+          comment-always: true
           comment-on-alert: true
           fail-on-alert: false
           summary-always: true
