@@ -2,7 +2,7 @@ window.BENCHMARK_DATA = {
   "lastUpdate": 1784998200650,
   "repoUrl": "https://github.com/rm-hull/dot-block",
   "entries": {
-    "DoT Block Benchmark": [
+    "dot-block benchmark": [
       {
         "commit": {
           "author": {
@@ -618,9 +618,7 @@ window.BENCHMARK_DATA = {
             "extra": "12292 times\n4 procs"
           }
         ]
-      }
-    ],
-    "dot-block benchmark": [
+      },
       {
         "commit": {
           "author": {
