@@ -3,10 +3,12 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/adrg/xdg"
 	"github.com/drone/envsubst/v2"
 	"gopkg.in/yaml.v3"
 )
@@ -105,12 +107,23 @@ func loadFromFile(path string, cfg *Config) error {
 }
 
 func findConfigFile() string {
-	candidates := []string{
-		"config.yaml",
-		"config.yml",
-		"/etc/dot-block/config.yaml",
-		"/etc/dot-block/config.yml",
+	var candidates []string
+
+	// Current directory
+	candidates = append(candidates, "config.yaml", "config.yml")
+
+	// XDG config directories
+	for _, dir := range xdg.ConfigDirs {
+		candidates = append(candidates, filepath.Join(dir, "dot-block", "config.yaml"))
+		candidates = append(candidates, filepath.Join(dir, "dot-block", "config.yml"))
 	}
+
+	// Also check XDG_CONFIG_HOME if set
+	if xdg.ConfigHome != "" {
+		candidates = append(candidates, filepath.Join(xdg.ConfigHome, "dot-block", "config.yaml"))
+		candidates = append(candidates, filepath.Join(xdg.ConfigHome, "dot-block", "config.yml"))
+	}
+
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
 			return c
