@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11.7.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install svu
+        run: |
+          go install github.com/caarlos0/svu@latest
+          echo "$HOME/go/bin" >> $GITHUB_PATH
+
+      - name: Bump version
+        id: bump
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          NEXT_VERSION=$(svu next)
+
+          if [ "$NEXT_VERSION" == "$LATEST_TAG" ]; then
+            echo "No new version to release. Skipping."
+            echo "release_needed=false" >> $GITHUB_OUTPUT
+          else
+            echo "version=$NEXT_VERSION" >> $GITHUB_OUTPUT
+            echo "release_needed=true" >> $GITHUB_OUTPUT
+            git tag $NEXT_VERSION
+            git push origin $NEXT_VERSION
+          fi
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: GoReleaser
+        if: steps.bump.outputs.release_needed == 'true'
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REGISTRY: ghcr.io
+          IMAGE_NAME: ${{ github.repository }}

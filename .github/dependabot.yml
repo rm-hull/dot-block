@@ -12,4 +12,9 @@ updates:
     directory: /
     schedule:
       interval: daily
-      
+  - package-ecosystem: npm
+    directory: /web
+    cooldown:
+      default-days: 3
+    schedule:
+      interval: daily

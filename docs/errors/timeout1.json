@@ -1,0 +1,12 @@
+{
+    "time": "2026-06-06T10:12:31.760937214+01:00",
+    "level": "ERROR",
+    "msg": "DNS error",
+    "client_ip": "172.18.0.33",
+    "request_id": 30463,
+    "source": "UDP",
+    "qtype": "A",
+    "category": "upstream",
+    "error": "all upstream servers failed: upstream 8.8.8.8:53 failed: read tcp 172.18.0.7:53208 -> 8.8.8.8:53: i/o timeout",
+    "stack_trace": "all upstream servers failed: upstream 8.8.8.8:53 failed: read tcp 172.18.0.7:53208 -> 8.8.8.8:53: i/o timeout\n(1) attached stack trace\n  -- stack trace:\n  | github.com/rm-hull/dot-block/internal/forwarder.(*RoundRobinClient).Exchange\n  | \t/app/internal/forwarder/round_robin_client.go:150\n  | [...repeated from below...]\nWraps: (2) all upstream servers failed\nWraps: (3) attached stack trace\n  -- stack trace:\n  | github.com/rm-hull/dot-block/internal/forwarder.(*RoundRobinClient).Exchange\n  | \t/app/internal/forwarder/round_robin_client.go:148\n  | github.com/rm-hull/dot-block/internal/forwarder.(*DNSDispatcher).forwardQuery\n  | \t/app/internal/forwarder/dispatcher.go:317\n  | github.com/rm-hull/dot-block/internal/forwarder.(*DNSDispatcher).resolveUpstream\n  | \t/app/internal/forwarder/dispatcher.go:245\n  | github.com/rm-hull/dot-block/internal.(*App).RunServer.func2.(*DNSDispatcher).HandleDNSRequest.1\n  | \t/app/internal/forwarder/dispatcher.go:138\n  | github.com/miekg/dns.HandlerFunc.ServeDNS\n  | \t/go/pkg/mod/github.com/miekg/dns@v1.1.72/server.go:37\n  | github.com/miekg/dns.(*Server).serveDNS\n  | \t/go/pkg/mod/github.com/miekg/dns@v1.1.72/server.go:683\n  | github.com/miekg/dns.(*Server).serveUDPPacket\n  | \t/go/pkg/mod/github.com/miekg/dns@v1.1.72/server.go:624\n  | runtime.goexit\n  | \t/usr/local/go/src/runtime/asm_amd64.s:1771\nWraps: (4) upstream 8.8.8.8:53 failed\nWraps: (5) read tcp 172.18.0.7:53208 -> 8.8.8.8:53\nWraps: (6) i/o timeout\nError types: (1) *withstack.withStack (2) *errutil.withPrefix (3) *withstack.withStack (4) *errutil.withPrefix (5) *net.OpError (6) *poll.DeadlineExceededError"
+}

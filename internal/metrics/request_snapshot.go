@@ -1,0 +1,186 @@
+package metrics
+
+import (
+	"strings"
+	"time"
+)
+
+type queryCountInfo struct {
+	queryType string
+	blocked   bool
+}
+
+type upstreamTTLInfo struct {
+	queryType string
+	ttl       float64
+}
+
+type RequestSnapshot struct {
+	source         string
+	ipAddr         string
+	startTime      time.Time
+	primaryDomain  string
+	blockedDomains []string
+	domains        []string
+	queryCounts    []queryCountInfo
+	upstreamTTLs   []upstreamTTLInfo
+	errorCategory  string
+	forwarded      bool
+	fromCache      bool
+	requestLatency float64
+	rcode          string
+	queryType      string
+	blockCause     string
+}
+
+func (t *RequestSnapshot) Finished() *RequestSnapshot {
+	t.requestLatency = t.Latency().Seconds()
+	return t
+}
+
+func (t *RequestSnapshot) IPAddr() string {
+	return t.ipAddr
+}
+
+func (t *RequestSnapshot) Source() string {
+	return t.source
+}
+
+func (t *RequestSnapshot) IsBlocked() bool {
+	return len(t.blockedDomains) > 0
+}
+
+func (t *RequestSnapshot) BlockCause() string {
+	return t.blockCause
+}
+
+func (t *RequestSnapshot) Latency() time.Duration {
+	return time.Since(t.startTime)
+}
+
+func NewRequestSnapshot(startTime time.Time, source string, ipAddr string) *RequestSnapshot {
+	return &RequestSnapshot{
+		startTime:    startTime,
+		source:       source,
+		ipAddr:       ipAddr,
+		domains:      []string{},
+		queryCounts:  []queryCountInfo{},
+		upstreamTTLs: []upstreamTTLInfo{},
+	}
+}
+
+func (t *RequestSnapshot) SetPrimaryDomain(domain string) {
+	t.primaryDomain = domain
+}
+
+func (t *RequestSnapshot) PrimaryDomain() string {
+	return t.primaryDomain
+}
+
+func (t *RequestSnapshot) AddBlockedDomain(domain string, cause string) {
+	t.blockedDomains = append(t.blockedDomains, domain)
+	t.blockCause = cause
+}
+
+func (t *RequestSnapshot) AddDomain(domain string) {
+	t.domains = append(t.domains, domain)
+}
+
+func (t *RequestSnapshot) AddQueryCount(queryType string, blocked bool) {
+	t.queryCounts = append(t.queryCounts, queryCountInfo{queryType: queryType, blocked: blocked})
+}
+
+func (t *RequestSnapshot) AddUpstreamTTL(queryType string, ttl float64) {
+	t.upstreamTTLs = append(t.upstreamTTLs, upstreamTTLInfo{queryType: queryType, ttl: ttl})
+}
+
+func (t *RequestSnapshot) SetErrorCategory(category string) {
+	t.errorCategory = category
+}
+
+func (t *RequestSnapshot) Forwarded() {
+	t.forwarded = true
+}
+
+func (t *RequestSnapshot) SetRcode(rcode string) {
+	t.rcode = rcode
+}
+
+func (t *RequestSnapshot) SetFromCache(fromCache bool) {
+	t.fromCache = fromCache
+}
+
+func (t *RequestSnapshot) FromCache() bool {
+	return t.fromCache
+}
+
+func (t *RequestSnapshot) SetQueryType(queryType string) {
+	t.queryType = queryType
+}
+
+func (t *RequestSnapshot) QueryType() string {
+	return t.queryType
+}
+
+func (t *RequestSnapshot) Rcode() string {
+	return t.rcode
+}
+
+func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
+	metrics.RequestLatency.Observe(t.requestLatency)
+	metrics.RequestCounts.WithLabelValues("total", t.source).Inc()
+	if t.forwarded {
+		metrics.RequestCounts.WithLabelValues("forwarded", t.source).Inc()
+	}
+	if t.errorCategory != "" {
+		metrics.RequestCounts.WithLabelValues("errored", t.source).Inc()
+		metrics.ErrorCounts.WithLabelValues(t.errorCategory).Inc()
+	}
+
+	if t.ipAddr != "" && t.ipAddr != "unknown" {
+		provider := "unknown"
+		isoCode := "unknown"
+
+		if metrics.geoIpLookup != nil {
+			if record, err := metrics.geoIpLookup.GetAll(t.ipAddr); err == nil && record != nil {
+				if record.ASN != "" {
+					provider = record.ASN + ":" + record.Provider
+				}
+				if record.ISOCode != "" {
+					isoCode = record.ISOCode
+				}
+			}
+		}
+
+		var sb strings.Builder
+		sb.WriteString(t.ipAddr)
+		sb.WriteByte('|')
+		sb.WriteString(provider)
+		sb.WriteByte('|')
+		sb.WriteString(isoCode)
+
+		metrics.TopClients.Add(sb.String())
+		metrics.UniqueClients.Insert([]byte(t.ipAddr))
+		metrics.ProviderCounts.WithLabelValues(provider, isoCode).Inc()
+	}
+
+	for _, qc := range t.queryCounts {
+		isBlocked := "false"
+		if qc.blocked {
+			isBlocked = "true"
+		}
+		metrics.QueryCounts.WithLabelValues(qc.queryType, isBlocked).Inc()
+	}
+	for _, domain := range t.blockedDomains {
+		metrics.TopBlockedDomains.Add(domain)
+	}
+	for _, domain := range t.domains {
+		metrics.TopDomains.Add(domain)
+	}
+	for _, upstreamTTL := range t.upstreamTTLs {
+		metrics.UpstreamTTLs.WithLabelValues(upstreamTTL.queryType).Observe(upstreamTTL.ttl)
+	}
+	if t.rcode != "" {
+		metrics.ReplyCounts.WithLabelValues(t.rcode).Inc()
+	}
+}

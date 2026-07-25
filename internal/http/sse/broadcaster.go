@@ -1,0 +1,79 @@
+package sse
+
+import (
+	"log/slog"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+)
+
+type Event struct {
+	Timestamp time.Time `json:"ts"`
+	Sequence  uint64    `json:"seq"`
+	QueryType string    `json:"queryType"`
+	Domain    string    `json:"domain"`
+	Result    string    `json:"result"`
+	ClientIP  string    `json:"ip"`
+	Source    string    `json:"src"`
+	Blocked   bool      `json:"blocked"`
+	Cached    bool      `json:"cached"`
+	Cause     string    `json:"cause,omitempty"`
+}
+
+type Broadcaster struct {
+	subscribers   map[chan Event]struct{}
+	nextSequence  atomic.Uint64
+	logger        *slog.Logger
+	droppedEvents prometheus.Counter
+	mu            sync.RWMutex
+}
+
+func NewBroadcaster(logger *slog.Logger, droppedEvents prometheus.Counter) *Broadcaster {
+	return &Broadcaster{
+		subscribers:   make(map[chan Event]struct{}),
+		logger:        logger,
+		droppedEvents: droppedEvents,
+	}
+}
+
+func (b *Broadcaster) Subscribe() chan Event {
+	b.logger.Debug("New subscriber added")
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	ch := make(chan Event, 100)
+	b.subscribers[ch] = struct{}{}
+	return ch
+}
+
+func (b *Broadcaster) Unsubscribe(ch chan Event) {
+	b.logger.Debug("Subscriber removed")
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	if _, ok := b.subscribers[ch]; ok {
+		delete(b.subscribers, ch)
+		close(ch)
+	}
+}
+
+func (b *Broadcaster) Broadcast(event Event) {
+	event.Sequence = b.nextSequence.Add(1)
+
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+
+	for ch := range b.subscribers {
+		select {
+		case ch <- event:
+		default:
+			// Buffer full, drop message for this slow client
+			if b.droppedEvents != nil {
+				b.droppedEvents.Inc()
+			}
+			b.logger.Debug("SSE event dropped for slow subscriber", "subscriber_buffer_size", cap(ch))
+		}
+	}
+}
