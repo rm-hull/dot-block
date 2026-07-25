@@ -413,21 +413,22 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 		return upstreamResp.Rcode, nil, &RcodeError{Rcode: upstreamResp.Rcode, Err: err}
 	}
 
-	// Group answers by question for efficient lookup
-	answerMap := make(map[string][]dns.RR)
-	for _, ans := range upstreamResp.Answer {
-		key := dns.Fqdn(ans.Header().Name) + ":" + dns.TypeToString[ans.Header().Rrtype]
-		answerMap[key] = append(answerMap[key], ans)
-	}
-
 	// Process unanswered questions and cache the results
 	for _, q := range unansweredQuestions {
 		cacheKey := getCacheKey(&q, requestCtx.subnet)
+		qKey := dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
 
-		// Cache the entire answer set for this query
-		if len(upstreamResp.Answer) > 0 {
-			upstreamTTL := upstreamResp.Answer[0].Header().Ttl
-			for _, ans := range upstreamResp.Answer {
+		var qAnswers []dns.RR
+		for _, ans := range upstreamResp.Answer {
+			ansKey := dns.Fqdn(ans.Header().Name) + ":" + dns.TypeToString[ans.Header().Rrtype]
+			if ansKey == qKey {
+				qAnswers = append(qAnswers, ans)
+			}
+		}
+
+		if len(qAnswers) > 0 {
+			upstreamTTL := qAnswers[0].Header().Ttl
+			for _, ans := range qAnswers {
 				if ans.Header().Ttl < upstreamTTL {
 					upstreamTTL = ans.Header().Ttl
 				}
@@ -439,7 +440,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 				effectiveTTL = d.ttlFloor
 			}
 
-			d.cache.Set(cacheKey, upstreamResp.Answer, effectiveTTL)
+			d.cache.Set(cacheKey, qAnswers, effectiveTTL)
 			requestCtx.snapshot.AddUpstreamTTL(getQueryType(&q), float64(upstreamTTL))
 		}
 	}
