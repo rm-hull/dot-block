@@ -18,7 +18,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 - **Lint:** ALWAYS run `golangci-lint-v2 run ./...` and `go vet ./...` as part of build verification to ensure code quality and catch issues early.
 - **Format:** ALWAYS run `go fmt ./...` to ensure consistent code formatting.
 - **Doc-Sync:** Whenever a feature, flag, or default value is changed, update the corresponding documentation (e.g., `README.md`) immediately.
-- **Config Schema:** `config.schema.json` is auto-generated from Go structs via `TestSchemaGeneration` in `internal/config/schema_test.go`. NEVER edit `config.schema.json` directly — modify the Go structs in `internal/config/config.go` and regenerate by running `go test ./internal/config -run TestSchemaGeneration`.
+- **Config Schema:** `config.schema.json` is auto-generated from Go structs via `TestSchemaGeneration` in `internal/config/schema_test.go`. NEVER edit `config.schema.json` directly — modify the Go structs in `internal/config/config.go`, ensure corresponding field descriptions are added or updated in the `CommentMap` within `internal/config/doc.go`, and regenerate by running `go test ./internal/config -run TestSchemaGeneration`.
 
 ## Development Workflow
 ### Run (Dev Mode)

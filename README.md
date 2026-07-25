@@ -263,7 +263,7 @@ DoT Block is configured via a YAML configuration file. The server searches for t
 
 ### Configuration File
 
-A complete example configuration file:
+A complete example configuration file. Environment variables can be substituted using `${VAR}` or `${VAR:-default}` syntax:
 
 ```yaml
 # Optional: enables IDE validation/autocomplete (VS Code, etc.)
