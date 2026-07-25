@@ -107,7 +107,8 @@ jobs:
         uses: golangci/golangci-lint-action@v9
 
   benchmark:
-    name: Benchmark
+    name: benchmark
+    needs: build-go
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -148,7 +149,7 @@ jobs:
           name: DoT Block Benchmark
           tool: "go"
           output-file-path: output.txt
-          external-data-json-path: ./cache/benchmark-data.json
+          # external-data-json-path: ./cache/benchmark-data.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
           auto-push: true
           alert-threshold: "150%"
