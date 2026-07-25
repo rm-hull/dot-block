@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -82,7 +83,7 @@ func Load(configPath string) (*Config, error) {
 		}
 	}
 
-	// Environment variables are applied via Viper or similar in main.go
+	// Environment variables are applied via ApplyEnvOverrides
 	// CLI flags will be applied in main.go after this
 
 	return cfg, nil
@@ -131,13 +132,19 @@ func ApplyEnvOverrides(cfg *Config) {
 		cfg.Server.DataDir = v
 	}
 	if v := os.Getenv("HTTP_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &cfg.Server.HttpPort)
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Server.HttpPort = port
+		}
 	}
 	if v := os.Getenv("DNS_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &cfg.Server.DnsPort)
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Server.DnsPort = port
+		}
 	}
 	if v := os.Getenv("DOT_PORT"); v != "" {
-		fmt.Sscanf(v, "%d", &cfg.Server.DotPort)
+		if port, err := strconv.Atoi(v); err == nil {
+			cfg.Server.DotPort = port
+		}
 	}
 	if v := os.Getenv("REQUIRE_PROXY_PROTOCOL"); v != "" {
 		cfg.Server.RequireProxyProtocol = v == "true"

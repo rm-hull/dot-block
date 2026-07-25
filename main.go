@@ -49,7 +49,6 @@ func main() {
 	logging.BridgeStandardLog(handler)
 
 	var configPath string
-	var dnsPort, dotPort int
 	var showVersion bool
 
 	rootCmd := &cobra.Command{
@@ -73,15 +72,15 @@ func main() {
 			config.ApplyEnvOverrides(cfg)
 
 			// Map config to App struct
-			mapConfigToApp(cfg, &app, cmd)
+			mapConfigToApp(cfg, &app)
 
 			logLevelVar.Set(parseLogLevel(app.LogLevel))
 
 			if app.DevMode {
-				if !cmd.Flags().Changed("dns-port") {
+				if app.DnsPort == 0 {
 					app.DnsPort = 8053
 				}
-				if !cmd.Flags().Changed("dot-port") {
+				if app.DotPort == 0 {
 					app.DotPort = 8853
 				}
 				app.Logger.Warn("Running in DEV MODE: TLS disabled, using non-privileged ports")
@@ -95,28 +94,6 @@ func main() {
 	}
 
 	rootCmd.Flags().StringVar(&configPath, "config", "", "Path to config.yaml file (optional, searches default locations if not provided)")
-	rootCmd.Flags().StringVar(&app.LogLevel, "log-level", "INFO", "Log level (DEBUG, INFO, WARN, ERROR)")
-	rootCmd.Flags().StringSliceVar(&app.BlockListURLs, "blocklist-url", nil, "URL of blocklist, must be wildcard hostname format (can specify multiple)")
-	rootCmd.Flags().StringVar(&app.NoiseFilterURL, "noise-filter-url", "", "URL of noise filter list (CSV format: category,rcode,domain_suffix)")
-	rootCmd.Flags().StringVar(&app.DataDir, "data-dir", "", "Directory for persisting data (e.g. TLS certificate cache)")
-	rootCmd.Flags().BoolVar(&app.DevMode, "dev-mode", false, "Run server in dev mode (no TLS, plain TCP)")
-	rootCmd.Flags().IntVar(&dnsPort, "dns-port", 0, "The port to run regular DNS (UDP/TCP) server on")
-	rootCmd.Flags().IntVar(&dotPort, "dot-port", 0, "The port to run DNS-over-TLS server on")
-	rootCmd.Flags().StringSliceVar(&app.Upstreams, "upstreams", nil, "Upstream DNS resolvers to forward queries to")
-	rootCmd.Flags().IntVar(&app.HttpPort, "http-port", 0, "The port to run HTTP server on")
-	rootCmd.Flags().StringSliceVar(&app.AllowedHosts, "allowed-hosts", nil, "List of domains used for CertManager allow policy")
-	rootCmd.Flags().StringVar(&app.MetricsAuth, "metrics-auth", "", "Credentials for basic auth on /metrics (format: `user:pass`)")
-	rootCmd.Flags().IntVar(&app.MaxCacheSize, "max-cache-size", 0, "Maximum number of entries in the DNS cache")
-	rootCmd.Flags().StringVar(&app.CronSchedule.Downloader, "cron-schedule:downloader", "", "cron spec for reloading blocklist")
-	rootCmd.Flags().StringVar(&app.CronSchedule.CacheReaper, "cron-schedule:cache-reaper", "", "cron spec for cache reaper")
-	rootCmd.Flags().StringVar(&app.CronSchedule.IPInfo, "cron-schedule:ipinfo", "", "cron spec for Ipinfo.io downloader")
-	rootCmd.Flags().DurationVar(&app.CacheTtlFloor, "cache-ttl-floor", 0, "Minimum TTL for cached entries")
-	rootCmd.Flags().DurationVar(&app.Timeouts.Read, "read-timeout", 0, "Timeout for reading upstream DNS queries")
-	rootCmd.Flags().DurationVar(&app.Timeouts.Write, "write-timeout", 0, "Timeout for writing upstream DNS queries")
-	rootCmd.Flags().DurationVar(&app.Timeouts.Dial, "dial-timeout", 0, "Timeout for establishing connections to upstream servers")
-	rootCmd.Flags().BoolVar(&app.RequireProxyProtocol, "require-proxy-protocol", false, "Require PROXY protocol header for DoT connections")
-	rootCmd.Flags().StringSliceVar(&app.TrustedProxies, "trusted-proxies", nil, "Comma-separated list of trusted proxy IP addresses or CIDR ranges")
-	rootCmd.Flags().BoolVar(&app.EnableECS, "enable-ecs", false, "Enable EDNS0 Client Subnet (ECS) steering")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Print version and exit")
 
 	if err := rootCmd.Execute(); err != nil {
@@ -125,7 +102,7 @@ func main() {
 	}
 }
 
-func mapConfigToApp(cfg *config.Config, app *internal.App, cmd *cobra.Command) {
+func mapConfigToApp(cfg *config.Config, app *internal.App) {
 	// Server config
 	app.DevMode = cfg.Server.DevMode
 	app.LogLevel = string(cfg.Server.LogLevel)
@@ -156,10 +133,4 @@ func mapConfigToApp(cfg *config.Config, app *internal.App, cmd *cobra.Command) {
 	// Geoblock config
 	app.DisableIpinfo = !cfg.Geoblock.Ipinfo.Enabled
 	app.CronSchedule.IPInfo = cfg.Geoblock.Ipinfo.CronSchedule
-
-	// CLI flags override (only if explicitly set)
-	// Note: We use cmd.Flags().Changed() to check if flag was explicitly provided
-	// But since we're in RunE after parsing, we can't easily do that here.
-	// The precedence is handled by: defaults < config.yaml < env vars < CLI flags
-	// CLI flags are already bound to app fields, so they'll override if provided.
 }
