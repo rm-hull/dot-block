@@ -1,7 +1,3 @@
-### Index redirects
-GET http://localhost:8080/
-
-
 ### Robots.txt
 GET http://localhost:8080/robots.txt
 
@@ -22,11 +18,13 @@ GET http://localhost:8080/.mobileconfig
 POST http://admin.localhost:8080/api/blocklist/reload
 User-Agent: test-client
 
+
 ### Check blocklist (JSON)
 POST http://admin.localhost:8080/api/blocklist/check
 Content-Type: application/json
 
 ["google.com", "www.ex.co", "ads.net"]
+
 
 ### Check blocklist (Plain text)
 POST http://admin.localhost:8080/api/blocklist/check
@@ -36,15 +34,18 @@ google.com
 www.ex.co
 ads.net
 
+
 ### Disable blocklist
 POST http://admin.localhost:8080/api/blocklist/disable
 Content-Type: application/json
 
 {"name": "Blocklist #0", "duration": "PT5M"}
 
+
 ### Re-enable blocklist
 POST http://admin.localhost:8080/api/blocklist/reenable
 Content-Type: application/json
+
 
 ### Blocklist status
 GET http://admin.localhost:8080/api/blocklist/status
@@ -53,12 +54,14 @@ GET http://admin.localhost:8080/api/blocklist/status
 ### ASN Lookup
 GET http://admin.localhost:8080/api/asn/24.123.12.0
 
+
 ### DoH POST
 POST http://localhost:8080/dns-query
 Content-Type: application/dns-message
 Accept: application/dns-message
 
 < ./docs/query.bin
+
 
 ### DoH GET
 GET http://localhost:8080/dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB
