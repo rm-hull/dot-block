@@ -34,10 +34,10 @@ func (w *benchResponseWriter) RemoteAddr() net.Addr {
 
 func (w *benchResponseWriter) WriteMsg(msg *dns.Msg) error { return nil }
 func (w *benchResponseWriter) Write(b []byte) (int, error) { return len(b), nil }
-func (w *benchResponseWriter) Close() error                 { return nil }
-func (w *benchResponseWriter) TsigStatus() error            { return nil }
-func (w *benchResponseWriter) TsigTimersOnly(b bool)        {}
-func (w *benchResponseWriter) Hijack()                      {}
+func (w *benchResponseWriter) Close() error                { return nil }
+func (w *benchResponseWriter) TsigStatus() error           { return nil }
+func (w *benchResponseWriter) TsigTimersOnly(b bool)       {}
+func (w *benchResponseWriter) Hijack()                     {}
 
 // setupDispatcherBench creates a DNSDispatcher for benchmarking.
 func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDispatcher {
@@ -169,7 +169,7 @@ func BenchmarkDNSDispatcher(b *testing.B) {
 
 func benchmarkCacheHit(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 	prePopulateCache(b, dispatcher, "example.com.", []byte{93, 184, 216, 34})
@@ -186,7 +186,7 @@ func benchmarkCacheHit(b *testing.B) {
 
 func benchmarkCacheMiss(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 
@@ -250,7 +250,7 @@ func benchmarkReservedTLD(b *testing.B) {
 
 func benchmarkMultipleQuestions(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 
@@ -268,7 +268,7 @@ func benchmarkMultipleQuestions(b *testing.B) {
 
 func benchmarkECS(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	dispatcher := setupDispatcherBench(b, upstream, true)
 	req := new(dns.Msg)
@@ -283,7 +283,7 @@ func benchmarkECS(b *testing.B) {
 
 func BenchmarkDNSDispatcherConcurrent(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 	prePopulateCache(b, dispatcher, "example.com.", []byte{93, 184, 216, 34})
@@ -361,7 +361,7 @@ func benchmarkDNSCacheSet(b *testing.B) {
 
 func BenchmarkRoundRobinClient(b *testing.B) {
 	server, upstream := startLocalDNSBench(b, anyRecordHandler())
-	defer server.Shutdown()
+	defer func() { _ = server.Shutdown() }()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	cache := NewDNSCache(100, logger)
