@@ -912,3 +912,91 @@ func (m *mockIPResponseWriter) TsigTimersOnly(b bool) {
 func (m *mockIPResponseWriter) Hijack() {
 
 }
+
+func TestResolveUpstreamCacheKeyCollision(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+
+	// Create a simple UDP server that handles multi-question requests
+	pc, err := net.ListenPacket("udp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := pc.LocalAddr().String()
+
+	go func() {
+		buf := make([]byte, 2048)
+		for {
+			n, raddr, err := pc.ReadFrom(buf)
+			if err != nil {
+				return
+			}
+			var req dns.Msg
+			if err := req.Unpack(buf[:n]); err != nil {
+				continue
+			}
+			m := new(dns.Msg)
+			m.SetReply(&req)
+			m.SetRcode(&req, dns.RcodeSuccess)
+			m.Authoritative = true
+			for _, q := range req.Question {
+				m.Answer = append(m.Answer, &dns.A{
+					Hdr: dns.RR_Header{Name: q.Name, Rrtype: q.Qtype, Class: dns.ClassINET, Ttl: 3600},
+					A:   net.ParseIP("1.2.3.4"),
+				})
+			}
+			respData, err := m.Pack()
+			if err != nil {
+				continue
+			}
+			if _, err := pc.WriteTo(respData, raddr); err != nil {
+				continue
+			}
+		}
+	}()
+	defer func() { _ = pc.Close() }()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, addr, logger, false)
+
+	reqCtx := &RequestContext{
+		ctx:      t.Context(),
+		logger:   logger,
+		snapshot: metrics.NewRequestSnapshot(time.Now(), "test", "127.0.0.1"),
+		ipAddr:   "127.0.0.1",
+	}
+
+	// Simulate a multi-question request with two different domains
+	questions := []dns.Question{
+		{Name: "domainA.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET},
+		{Name: "domainB.com.", Qtype: dns.TypeA, Qclass: dns.ClassINET},
+	}
+	multiReq := new(dns.Msg)
+	multiReq.Id = dns.Id()
+	multiReq.RecursionDesired = true
+	multiReq.Question = questions
+
+	rcode, answers, err := dispatcher.resolveUpstream(reqCtx, questions, multiReq)
+	assert.NoError(t, err)
+	assert.Equal(t, dns.RcodeSuccess, rcode)
+	assert.Len(t, answers, 2)
+
+	// Give the cache update worker time to process the updates
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify domainA.com cache entry only contains the answer for domainA.com
+	keyA := getCacheKey(&questions[0], "")
+	cachedA, okA := dispatcher.cache.Get(keyA)
+	assert.True(t, okA, "domainA.com should be in cache")
+	assert.Len(t, cachedA, 1, "domainA.com cache should only have 1 answer")
+	if len(cachedA) > 0 {
+		assert.Equal(t, "domainA.com.", cachedA[0].Header().Name,
+			"domainA.com cache should only contain domainA.com answer, not domainB.com")
+	}
+
+	// Verify domainB.com cache entry only contains the answer for domainB.com
+	keyB := getCacheKey(&questions[1], "")
+	cachedB, okB := dispatcher.cache.Get(keyB)
+	assert.True(t, okB, "domainB.com should be in cache")
+	assert.Len(t, cachedB, 1, "domainB.com cache should only have 1 answer")
+	if len(cachedB) > 0 {
+		assert.Equal(t, "domainB.com.", cachedB[0].Header().Name,
+			"domainB.com cache should only contain domainB.com answer, not domainA.com")
+	}
+}
