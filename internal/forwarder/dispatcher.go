@@ -445,7 +445,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 		}
 	}
 
-	return upstreamReq.Rcode, upstreamResp.Answer, nil
+	return dns.RcodeSuccess, upstreamResp.Answer, nil
 }
 
 func (d *DNSDispatcher) computeSubnet(ipAddr string) string {
