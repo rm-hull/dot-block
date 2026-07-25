@@ -97,6 +97,37 @@ For local development, you can run the server in "dev mode", which uses plain TC
     ```
     The DNS server (UDP/TCP) will be listening on port `8053`, DoT (plain TCP) on `8853`, and the HTTP server on port `8080`.
 
+### Benchmarking
+
+To run the benchmarks for the DNS dispatcher and related components:
+
+```bash
+go test -bench=. -benchmem ./internal/forwarder/
+```
+
+This will run all benchmarks in the `internal/forwarder` package, including:
+
+- DNSDispatcher cache hit/miss/blocked/etc.
+- Concurrent dispatcher benchmark
+- DNSCache get/set
+- RoundRobinClient
+
+Example output:
+
+```
+goos: darwin
+goarch: arm64
+pkg: github.com/rm-hull/dot-block/internal/forwarder
+cpu: Apple M2 Pro
+BenchmarkDNSDispatcher/CacheHit-10     	  314172	      3820 ns/op	    2350 B/op	      43 allocs/op
+BenchmarkDNSDispatcher/CacheMiss-10    	    3376	    367098 ns/op	    6389 B/op	     108 allocs/op
+...
+PASS
+ok  	github.com/rm-hull/dot-block/internal/forwarder	19.243s
+```
+
+Benchmark tests will run for main and every PR. The results are collected and visible here: https://www.destructuring-bind.org/dot-block/dev/bench/
+
 ## Usage
 
 You can test the server using `dig` or `openssl`.
