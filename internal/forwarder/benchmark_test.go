@@ -177,8 +177,7 @@ func benchmarkCacheHit(b *testing.B) {
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -190,12 +189,13 @@ func benchmarkCacheMiss(b *testing.B) {
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		req := new(dns.Msg)
 		req.SetQuestion(fmt.Sprintf("host%d.example.com.", i), dns.TypeA)
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
+		i++
 	}
 }
 
@@ -204,8 +204,7 @@ func benchmarkBlocked(b *testing.B) {
 	req := new(dns.Msg)
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -217,8 +216,7 @@ func benchmarkBlockedWithEDE(b *testing.B) {
 	req.SetQuestion("ads.0xbt.net.", dns.TypeA)
 	req.SetEdns0(1232, false)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -229,8 +227,7 @@ func benchmarkDNSSD(b *testing.B) {
 	req := new(dns.Msg)
 	req.SetQuestion("db._dns-sd._udp.0.68.168.192.in-addr.arpa.", dns.TypePTR)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -241,8 +238,7 @@ func benchmarkReservedTLD(b *testing.B) {
 	req := new(dns.Msg)
 	req.SetQuestion("example.invalid.", dns.TypeA)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -254,8 +250,8 @@ func benchmarkMultipleQuestions(b *testing.B) {
 
 	dispatcher := setupDispatcherBench(b, upstream, false)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		req := new(dns.Msg)
 		req.Question = []dns.Question{
 			{Name: fmt.Sprintf("host%d.example.com.", i), Qtype: dns.TypeA, Qclass: dns.ClassINET},
@@ -263,6 +259,7 @@ func benchmarkMultipleQuestions(b *testing.B) {
 		}
 		writer := &benchResponseWriter{}
 		dispatcher.HandleDNSRequest("test")(writer, req)
+		i++
 	}
 }
 
@@ -274,8 +271,7 @@ func benchmarkECS(b *testing.B) {
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		writer := &benchResponseWriter{ip: "1.2.3.4", port: 12345}
 		dispatcher.HandleDNSRequest("test")(writer, req)
 	}
@@ -331,8 +327,7 @@ func benchmarkDNSCacheGet(b *testing.B) {
 		time.Sleep(5 * time.Millisecond)
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = cache.Get(cacheKey)
 	}
 }
@@ -352,10 +347,11 @@ func benchmarkDNSCacheSet(b *testing.B) {
 		A: []byte{1, 2, 3, 4},
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	i := 0
+	for b.Loop() {
 		cacheKey := fmt.Sprintf("host%d.com.:A", i)
 		cache.Set(cacheKey, []dns.RR{aRecord}, 3600*time.Second)
+		i++
 	}
 }
 
@@ -378,8 +374,7 @@ func BenchmarkRoundRobinClient(b *testing.B) {
 	msg := new(dns.Msg)
 	msg.SetQuestion("example.com.", dns.TypeA)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _, err := client.Exchange(msg)
 		if err != nil {
 			b.Fatalf("Exchange failed: %v", err)
