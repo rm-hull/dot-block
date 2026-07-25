@@ -75,6 +75,11 @@ GET http://admin.localhost:8080/api/whoami
 Accept: application/json
 
 
+### Version Info
+GET http://admin.localhost:8080/api/version-info
+Accept: application/json
+
+
 ### CORS preflight
 OPTIONS http://admin.localhost:8080/api/whoami
 Origin: http://example.com

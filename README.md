@@ -162,6 +162,7 @@ While the public endpoints are available on the main domain, the management APIs
 - `POST /api/blocklist/reenable`: Re-enables all blocklists.
 - `POST /api/blocklist/check`: Checks whether provided domains are blocked against any of the enabled blocklists. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.
+- `GET /api/version-info`: Returns the application version (`app_version`), Go runtime version (`go_version`), and server uptime in seconds (`uptime`).
 - `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
 
 ### Testing the Event Stream

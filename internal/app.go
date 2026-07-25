@@ -57,6 +57,7 @@ type App struct {
 	AllowedHosts   []string     `json:"allowed_hosts"`
 	NoiseFilterURL string       `json:"noise_filter_url"`
 	MetricsAuth    string       `json:"-"`
+	StartTime      time.Time    `json:"-"`
 	MaxCacheSize   int          `json:"max_cache_size"`
 	DisableIpinfo  bool         `json:"disable_ipinfo"`
 	CronSchedule   struct {
@@ -124,6 +125,7 @@ func (app *App) monitorShutdown(ctx context.Context, name string, shutdownFn fun
 }
 
 func (app *App) RunServer(ctx context.Context) error {
+	app.StartTime = time.Now()
 	if err := godotenv.Load(); err != nil {
 		app.Logger.Warn("No .env file found")
 	}
@@ -225,7 +227,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	defer dispatcher.Close()
 
-	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher, geoIpLookup)
+	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher, geoIpLookup, handlers.NewVersionInfoHandler(app.StartTime))
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -365,6 +367,7 @@ func (app *App) startHttpServer(
 	blocklistUpdater *blocklist.Updater,
 	dispatcher *forwarder.DNSDispatcher,
 	geoIpLookup geoblock.GeoIpLookup,
+	versionInfoHandler *handlers.VersionInfoHandler,
 ) (*gin.Engine, error) {
 
 	if !app.DevMode {
@@ -416,6 +419,7 @@ func (app *App) startHttpServer(
 		blocklistHandler,
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
+		versionInfoHandler,
 	)
 
 	return r, nil

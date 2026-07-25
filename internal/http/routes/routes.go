@@ -35,6 +35,7 @@ func NewAdminGroup(
 	blocklistHandler *handlers.BlocklistHandler,
 	broadcaster *sse.Broadcaster,
 	geoIp geoblock.GeoIpLookup,
+	versionInfoHandler *handlers.VersionInfoHandler,
 ) *gin.RouterGroup {
 
 	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
@@ -61,6 +62,7 @@ func NewAdminGroup(
 			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
 			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
+			api.GET("/version-info", versionInfoHandler.Info)
 		}
 
 		distFS := web.DistFS()
