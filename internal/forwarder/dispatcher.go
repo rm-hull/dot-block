@@ -563,15 +563,15 @@ func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory st
 	}
 
 	if ShouldLog(err) {
-		// Ensure args are in key-value pairs for slog
-		if len(additionalFields)%2 != 0 {
-			panic(fmt.Sprintf("additionalFields must be in key-value pairs: %v", additionalFields))
-		}
-
-		args := append(additionalFields,
+		// Standard fields are appended first so they are always correctly
+		// paired. slog tolerates odd-length args by logging the last
+		// unpaired value under the "!BADKEY" key, so no panic is needed.
+		standardFields := []any{
 			"category", errorCategory,
 			"error", err,
-			"latency", requestCtx.snapshot.Latency().String())
+			"latency", requestCtx.snapshot.Latency().String(),
+		}
+		args := append(standardFields, additionalFields...)
 
 		requestCtx.logger.ErrorContext(requestCtx.ctx, "DNS error", args...)
 	}

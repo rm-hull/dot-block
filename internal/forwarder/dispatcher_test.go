@@ -1000,3 +1000,36 @@ func TestResolveUpstreamCacheKeyCollision(t *testing.T) {
 			"domainB.com cache should only contain domainB.com answer, not domainA.com")
 	}
 }
+
+func TestDNSDispatcher_reportError_OddAdditionalFields(t *testing.T) {
+	var logBuf bytes.Buffer
+	logger := slog.New(slog.NewTextHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, "127.0.0.1:53", logger, false)
+
+	reqCtx := &RequestContext{
+		ctx:      t.Context(),
+		logger:   logger,
+		snapshot: metrics.NewRequestSnapshot(time.Now(), "test", "127.0.0.1"),
+		ipAddr:   "127.0.0.1",
+	}
+
+	// Passing an odd number of additional fields must NOT panic; slog
+	// tolerates this by logging the trailing value under the "!BADKEY" key.
+	err := fmt.Errorf("simulated upstream failure")
+
+	assert.NotPanics(t, func() {
+		dispatcher.reportError(reqCtx, "upstream", err, "example.com.", "qtype", "A", "extra")
+	})
+
+	// The error should still be logged.
+	assert.Contains(t, logBuf.String(), "level=ERROR", "should log error")
+	assert.Contains(t, logBuf.String(), "DNS error", "should log DNS error message")
+	// Standard fields must be correctly paired even with odd-length
+	// additionalFields, since they are appended first.
+	assert.Contains(t, logBuf.String(), "category=upstream", "category should be correctly paired")
+	assert.Contains(t, logBuf.String(), `error="simulated upstream failure"`, "error should be correctly paired")
+	assert.Contains(t, logBuf.String(), "latency=", "latency should be correctly paired")
+	// slog logs the unpaired trailing value under the "!BADKEY" key.
+	assert.Contains(t, logBuf.String(), "!BADKEY", "should log unpaired value under !BADKEY key")
+}
