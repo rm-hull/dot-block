@@ -143,18 +143,24 @@ jobs:
           path: ./cache
           key: ${{ runner.os }}-benchmark
 
-      - name: Store benchmark result
+      - name: Benchmark Summary
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: DoT Block Benchmark
           tool: "go"
           output-file-path: output.txt
-          # external-data-json-path: ./cache/benchmark-data.json
+          external-data-json-path: ./cache/benchmark-data.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
           alert-threshold: "150%"
           comment-on-alert: true
           fail-on-alert: false
           summary-always: true
           alert-comment-cc-users: "@rm-hull"
 
+      - name: Update Benchmark Chart
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: dot-block benchmark
+          tool: "go"
+          output-file-path: output.txt
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
