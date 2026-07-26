@@ -296,17 +296,23 @@ dns:
     cron_schedule: "0 3 * * *"       # Cron spec for cache reaper
   noise_filter:
     url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
+    cron_schedule: "@every 19h"     # Cron spec for noise filter downloader
   timeouts:
     read: 300ms                      # Timeout for reading upstream DNS queries
     write: 100ms                     # Timeout for writing upstream DNS queries
     dial: 300ms                      # Timeout for establishing connections to upstreams
 
-blocklists:
-  urls:                              # URLs of blocklist sources
-    - https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt
-    - https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt
-    - https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt
-  cron_schedule: "@every 19h"        # Cron spec for reloading blocklists
+blocklist:
+  sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule
+    - name: "hagezi-pro"              # Human-readable name for the blocklist
+      url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt"
+      cron_schedule: "@every 19h"     # Cron spec for reloading this specific blocklist
+    - name: "cebeerre-nrd"
+      url: "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt"
+      cron_schedule: "@every 19h"
+    - name: "dot-block"
+      url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"
+      cron_schedule: "@every 19h"
 
 geoblock:
   ipinfo:

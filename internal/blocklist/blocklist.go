@@ -31,12 +31,13 @@ type BlockList struct {
 }
 
 type BlocklistStatus struct {
-	URL               string            `json:"url"`
-	Size              uint              `json:"size"`
-	MetaData          map[string]string `json:"metadata,omitempty"`
-	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
-	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
-	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
+	Name                string            `json:"name"`
+	URL                 string            `json:"url"`
+	Size                uint              `json:"size"`
+	MetaData            map[string]string `json:"metadata,omitempty"`
+	LastUpdated         *time.Time        `json:"last_updated,omitempty"`
+	DisabledUntil       *time.Time        `json:"disabled_until,omitempty"`
+	FalsePositiveRate   float64           `json:"estimated_false_positive_rate"`
 }
 
 func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
@@ -148,12 +149,13 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 		disabledUntil = blocklist.disabledUntil
 	}
 	status := BlocklistStatus{
-		URL:               blocklist.url,
-		Size:              blocklist.size,
-		MetaData:          blocklist.metadata,
-		LastUpdated:       blocklist.lastUpdated,
-		DisabledUntil:     disabledUntil,
-		FalsePositiveRate: blocklist.estimatedFpRate,
+		Name:                blocklist.name,
+		URL:                 blocklist.url,
+		Size:                blocklist.size,
+		MetaData:            blocklist.metadata,
+		LastUpdated:         blocklist.lastUpdated,
+		DisabledUntil:       disabledUntil,
+		FalsePositiveRate:   blocklist.estimatedFpRate,
 	}
 
 	return &status

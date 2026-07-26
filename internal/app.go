@@ -112,9 +112,9 @@ func (app *App) RunServer(ctx context.Context) error {
 		app.Logger.Error("failed to download noise filter", "url", app.Config.DNS.NoiseFilter.URL, "error", err)
 	}
 
-	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.Config.Blocklists.CronSchedule)
+	app.Logger.Info("Creating noise filter downloader cron job", "schedule", app.Config.DNS.NoiseFilter.CronSchedule)
 	noiseFilterUpdater := noisefilter.NewNoiseFilterUpdater(noiseFilter, app.Config.DNS.NoiseFilter.URL, app.Logger)
-	if _, err = crontab.AddJob(app.Config.Blocklists.CronSchedule, noiseFilterUpdater); err != nil {
+	if _, err = crontab.AddJob(app.Config.DNS.NoiseFilter.CronSchedule, noiseFilterUpdater); err != nil {
 		return errors.Wrap(err, "failed to create noise filter downloader cron job")
 	}
 	certCacheDir := fmt.Sprintf("%s/certcache", app.Config.Server.DataDir)
@@ -399,17 +399,35 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 }
 
 func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *blocklist.Updater, error) {
-	blockLists := make([]*blocklist.BlockList, 0)
-	for idx, url := range app.Config.Blocklists.URLs {
-		blockList := blocklist.NewBlockList(fmt.Sprintf("Blocklist #%d", idx), url, 0.0001, app.Logger)
+	blockLists := make([]*blocklist.BlockList, 0, len(app.Config.Blocklist.Sources))
+	for idx, source := range app.Config.Blocklist.Sources {
+		name := source.Name
+		if name == "" {
+			name = fmt.Sprintf("Blocklist #%d", idx)
+		}
+		blockList := blocklist.NewBlockList(name, source.URL, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
 	}
 
-	app.Logger.Info("Creating blocklist downloader cron job", "schedule", app.Config.Blocklists.CronSchedule)
 	updater := blocklist.NewUpdater(blockLists, 1*time.Minute)
-	if _, err := crontab.AddJob(app.Config.Blocklists.CronSchedule, updater); err != nil {
-		return nil, nil, errors.Wrap(err, "failed to create blocklist downloader cron job")
+
+	// Register an independent cron job for each blocklist source that has a cron schedule
+	for idx, source := range app.Config.Blocklist.Sources {
+		if source.CronSchedule == "" {
+			continue
+		}
+		name := source.Name
+		if name == "" {
+			name = fmt.Sprintf("Blocklist #%d", idx)
+		}
+		app.Logger.Info("Creating blocklist downloader cron job", "name", name, "schedule", source.CronSchedule)
+		// Create a per-source updater that only updates this one blocklist
+		singleUpdater := blocklist.NewUpdater([]*blocklist.BlockList{blockLists[idx]}, 1*time.Minute)
+		if _, err := crontab.AddJob(source.CronSchedule, singleUpdater); err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", name)
+		}
 	}
+
 	updater.Run()
 
 	return blockLists, updater, nil

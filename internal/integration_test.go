@@ -43,11 +43,13 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	cfg.Server.AllowedHosts = []string{"127.0.0.1"}
 	cfg.Server.DataDir = "../data"
 	cfg.DNS.Upstreams = []string{"8.8.8.8", "1.1.1.1"}
-	cfg.Blocklists.URLs = []string{"file://../data/blocklist.txt"}
+	cfg.Blocklist.Sources = []config.BlocklistSource{
+		{Name: "dot-block", URL: "file://../data/blocklist.txt", CronSchedule: "@every 19h"},
+	}
 	cfg.DNS.NoiseFilter.URL = "file://../data/noise-filter.csv"
+	cfg.DNS.NoiseFilter.CronSchedule = "@every 19h"
 	cfg.Geoblock.Ipinfo.Enabled = false
 	cfg.DNS.Cache.MaxSize = 1000
-	cfg.Blocklists.CronSchedule = "@every 19h"
 	cfg.DNS.Cache.CronSchedule = "0 3 * * *"
 	cfg.Geoblock.Ipinfo.CronSchedule = "5 7 4 * *"
 
