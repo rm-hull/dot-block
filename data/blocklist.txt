@@ -97,3 +97,4 @@ jp-mobile.events.data.microsoft.com
 pbd.yahoo.com
 recommend.lgtvcommon.com
 turbocookiecompliance.blob.core.windows.net
+www.googleadservices.com
