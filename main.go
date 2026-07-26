@@ -61,17 +61,13 @@ func main() {
 				os.Exit(0)
 			}
 
-			// Load configuration from YAML file with env substitution
 			cfg, err := config.Load(configPath)
 			if err != nil {
 				app.Logger.Error("Failed to load configuration", "error", err)
 				os.Exit(1)
 			}
 
-			// Apply environment variable overrides
 			config.ApplyEnvOverrides(cfg)
-
-			// Attach config to app
 			app.Config = cfg
 
 			logLevelVar.Set(parseLogLevel(string(cfg.Server.LogLevel)))
