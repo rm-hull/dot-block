@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	Server     *ServerConfig     `yaml:"server,omitempty" json:"server,omitempty"`
-	DNS        *DNSConfig        `yaml:"dns,omitempty" json:"dns,omitempty"`
-	Blocklist  *BlocklistConfig `yaml:"blocklist,omitempty" json:"blocklist,omitempty"`
-	Geoblock   *GeoblockConfig   `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
+	Server    *ServerConfig    `yaml:"server,omitempty" json:"server,omitempty"`
+	DNS       *DNSConfig       `yaml:"dns,omitempty" json:"dns,omitempty"`
+	Blocklist *BlocklistConfig `yaml:"blocklist,omitempty" json:"blocklist,omitempty"`
+	Geoblock  *GeoblockConfig  `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
 }
 
 type LogLevel string
@@ -38,8 +38,8 @@ type ServerConfig struct {
 }
 
 type ProxyProtocolConfig struct {
-	Enabled         bool     `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	TrustedProxies  []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
+	Enabled        bool     `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
 }
 
 type DNSConfig struct {
