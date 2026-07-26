@@ -42,6 +42,7 @@ func buildCommentMap() map[string]string {
 	collectDescriptions(reflect.TypeOf(Config{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(ServerConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(ProxyProtocolConfig{}), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeOf(LetsEncryptConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(DNSConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(ECSConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(CacheConfig{}), pkgPath, commentMap)
@@ -51,6 +52,7 @@ func buildCommentMap() map[string]string {
 	collectDescriptions(reflect.TypeOf(BlocklistSource{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(GeoblockConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(IpinfoConfig{}), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeOf(TelemetryConfig{}), pkgPath, commentMap)
 
 	return commentMap
 }

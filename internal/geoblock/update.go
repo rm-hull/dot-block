@@ -16,19 +16,21 @@ import (
 type IpinfoUpdater struct {
 	logger      *slog.Logger
 	fileName    string
+	token       string
 	geoIpLookup GeoIpLookup
 }
 
-func NewIpinfoUpdaterCronJob(logger *slog.Logger, fileName string, geoIpLookup GeoIpLookup) *IpinfoUpdater {
+func NewIpinfoUpdaterCronJob(logger *slog.Logger, fileName string, token string, geoIpLookup GeoIpLookup) *IpinfoUpdater {
 	return &IpinfoUpdater{
 		logger:      logger,
 		fileName:    fileName,
+		token:       token,
 		geoIpLookup: geoIpLookup,
 	}
 }
 
 func (job *IpinfoUpdater) Run() {
-	if _, err := Fetch(job.fileName, job.logger); err != nil {
+	if _, err := Fetch(job.fileName, job.token, job.logger); err != nil {
 		job.logger.Error("failed to download ip2location list for cron reload", "error", err)
 	}
 
@@ -37,11 +39,10 @@ func (job *IpinfoUpdater) Run() {
 	}
 }
 
-func Fetch(fileName string, logger *slog.Logger) ([]string, error) {
+func Fetch(fileName string, token string, logger *slog.Logger) ([]string, error) {
 
-	token := os.Getenv("IPINFO_TOKEN")
 	if token == "" {
-		return nil, errors.New("IPINFO_TOKEN not set in environment")
+		return nil, errors.New("ipinfo token not configured (set geoblock.ipinfo.token in config.yaml)")
 	}
 	url := fmt.Sprintf("https://ipinfo.io/data/ipinfo_lite.mmdb?_src=frontend&token=%s", token)
 

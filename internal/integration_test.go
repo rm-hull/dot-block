@@ -40,7 +40,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	cfg.Server.DnsPort = dnsPort
 	cfg.Server.DotPort = dotPort
 	cfg.Server.HttpPort = httpPort
-	cfg.Server.AllowedHosts = []string{"127.0.0.1"}
+	cfg.Server.LetsEncrypt.AllowedHosts = []string{"127.0.0.1"}
 	cfg.Server.DataDir = "../data"
 	cfg.DNS.Upstreams = []string{"8.8.8.8", "1.1.1.1"}
 	cfg.Blocklist.Sources = []config.BlocklistSource{

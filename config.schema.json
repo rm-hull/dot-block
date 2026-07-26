@@ -193,6 +193,10 @@
                 "enabled": {
                   "description": "Whether to enable IPinfo.io geolocation lookups.",
                   "type": "boolean"
+                },
+                "token": {
+                  "description": "IPInfo.io API token for downloading geoIP locations.",
+                  "type": "string"
                 }
               },
               "type": "object"
@@ -203,13 +207,6 @@
         "server": {
           "additionalProperties": true,
           "properties": {
-            "allowed_hosts": {
-              "description": "List of domains used for CertManager allow policy.",
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
             "data_dir": {
               "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
               "type": "string"
@@ -230,6 +227,31 @@
               "description": "The port to run HTTP server on.",
               "type": "integer"
             },
+            "lets_encrypt": {
+              "additionalProperties": true,
+              "properties": {
+                "allowed_hosts": {
+                  "description": "List of domains used for CertManager allow policy / mobileconfig.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "cloudflare_api_token": {
+                  "description": "Cloudflare API token for DNS-01 challenge.",
+                  "type": "string"
+                },
+                "email": {
+                  "description": "Email address for Let's Encrypt registration.",
+                  "type": "string"
+                },
+                "enabled": {
+                  "description": "Enable automatic TLS certificate management via Let's Encrypt / ACME.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
             "log_level": {
               "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
               "enum": [
@@ -238,10 +260,6 @@
                 "WARN",
                 "ERROR"
               ],
-              "type": "string"
-            },
-            "metrics_auth": {
-              "description": "Credentials for basic auth on /metrics (format: user:pass).",
               "type": "string"
             },
             "proxy_protocol": {
@@ -260,6 +278,28 @@
                 }
               },
               "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "telemetry": {
+          "additionalProperties": true,
+          "properties": {
+            "metrics_auth": {
+              "description": "Credentials for basic auth on /metrics (format: user:pass).",
+              "type": "string"
+            },
+            "otel_endpoint": {
+              "description": "OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317).",
+              "type": "string"
+            },
+            "otel_sampling_ratio": {
+              "description": "Ratio of traces to sample (0.0 to 1.0).",
+              "type": "number"
+            },
+            "sentry_dsn": {
+              "description": "DSN for Sentry error reporting.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -371,6 +411,10 @@
             "enabled": {
               "description": "Whether to enable IPinfo.io geolocation lookups.",
               "type": "boolean"
+            },
+            "token": {
+              "description": "IPInfo.io API token for downloading geoIP locations.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -387,6 +431,35 @@
         },
         "enabled": {
           "description": "Whether to enable IPinfo.io geolocation lookups.",
+          "type": "boolean"
+        },
+        "token": {
+          "description": "IPInfo.io API token for downloading geoIP locations.",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "LetsEncryptConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "allowed_hosts": {
+          "description": "List of domains used for CertManager allow policy / mobileconfig.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "cloudflare_api_token": {
+          "description": "Cloudflare API token for DNS-01 challenge.",
+          "type": "string"
+        },
+        "email": {
+          "description": "Email address for Let's Encrypt registration.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Enable automatic TLS certificate management via Let's Encrypt / ACME.",
           "type": "boolean"
         }
       },
@@ -426,13 +499,6 @@
     "ServerConfig": {
       "additionalProperties": true,
       "properties": {
-        "allowed_hosts": {
-          "description": "List of domains used for CertManager allow policy.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "data_dir": {
           "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
           "type": "string"
@@ -453,6 +519,31 @@
           "description": "The port to run HTTP server on.",
           "type": "integer"
         },
+        "lets_encrypt": {
+          "additionalProperties": true,
+          "properties": {
+            "allowed_hosts": {
+              "description": "List of domains used for CertManager allow policy / mobileconfig.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "cloudflare_api_token": {
+              "description": "Cloudflare API token for DNS-01 challenge.",
+              "type": "string"
+            },
+            "email": {
+              "description": "Email address for Let's Encrypt registration.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Enable automatic TLS certificate management via Let's Encrypt / ACME.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "log_level": {
           "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
           "enum": [
@@ -461,10 +552,6 @@
             "WARN",
             "ERROR"
           ],
-          "type": "string"
-        },
-        "metrics_auth": {
-          "description": "Credentials for basic auth on /metrics (format: user:pass).",
           "type": "string"
         },
         "proxy_protocol": {
@@ -483,6 +570,28 @@
             }
           },
           "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "TelemetryConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
+          "type": "string"
+        },
+        "otel_endpoint": {
+          "description": "OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317).",
+          "type": "string"
+        },
+        "otel_sampling_ratio": {
+          "description": "Ratio of traces to sample (0.0 to 1.0).",
+          "type": "number"
+        },
+        "sentry_dsn": {
+          "description": "DSN for Sentry error reporting.",
+          "type": "string"
         }
       },
       "type": "object"
@@ -635,6 +744,10 @@
             "enabled": {
               "description": "Whether to enable IPinfo.io geolocation lookups.",
               "type": "boolean"
+            },
+            "token": {
+              "description": "IPInfo.io API token for downloading geoIP locations.",
+              "type": "string"
             }
           },
           "type": "object"
@@ -645,13 +758,6 @@
     "server": {
       "additionalProperties": true,
       "properties": {
-        "allowed_hosts": {
-          "description": "List of domains used for CertManager allow policy.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
         "data_dir": {
           "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
           "type": "string"
@@ -672,6 +778,31 @@
           "description": "The port to run HTTP server on.",
           "type": "integer"
         },
+        "lets_encrypt": {
+          "additionalProperties": true,
+          "properties": {
+            "allowed_hosts": {
+              "description": "List of domains used for CertManager allow policy / mobileconfig.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "cloudflare_api_token": {
+              "description": "Cloudflare API token for DNS-01 challenge.",
+              "type": "string"
+            },
+            "email": {
+              "description": "Email address for Let's Encrypt registration.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Enable automatic TLS certificate management via Let's Encrypt / ACME.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
         "log_level": {
           "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
           "enum": [
@@ -680,10 +811,6 @@
             "WARN",
             "ERROR"
           ],
-          "type": "string"
-        },
-        "metrics_auth": {
-          "description": "Credentials for basic auth on /metrics (format: user:pass).",
           "type": "string"
         },
         "proxy_protocol": {
@@ -702,6 +829,28 @@
             }
           },
           "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "telemetry": {
+      "additionalProperties": true,
+      "properties": {
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
+          "type": "string"
+        },
+        "otel_endpoint": {
+          "description": "OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317).",
+          "type": "string"
+        },
+        "otel_sampling_ratio": {
+          "description": "Ratio of traces to sample (0.0 to 1.0).",
+          "type": "number"
+        },
+        "sentry_dsn": {
+          "description": "DSN for Sentry error reporting.",
+          "type": "string"
         }
       },
       "type": "object"

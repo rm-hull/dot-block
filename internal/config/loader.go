@@ -27,8 +27,12 @@ func DefaultConfig() *Config {
 				Enabled:        false,
 				TrustedProxies: []string{},
 			},
-			AllowedHosts: []string{},
-			MetricsAuth:  "",
+			LetsEncrypt: &LetsEncryptConfig{
+				Enabled:            false,
+				Email:              "",
+				CloudflareApiToken: "",
+				AllowedHosts:       []string{},
+			},
 		},
 		DNS: &DNSConfig{
 			Upstreams: []string{
@@ -79,6 +83,12 @@ func DefaultConfig() *Config {
 				Enabled:      true,
 				CronSchedule: "5 7 4 * *",
 			},
+		},
+		Telemetry: &TelemetryConfig{
+			SentryDsn:         "",
+			MetricsAuth:       "",
+			OtelEndpoint:      "",
+			OtelSamplingRatio: 0.01,
 		},
 	}
 }
@@ -180,7 +190,7 @@ func ApplyEnvOverrides(cfg *Config) {
 		cfg.Server.ProxyProtocol.Enabled = v == "true"
 	}
 	if v := os.Getenv("METRICS_AUTH"); v != "" {
-		cfg.Server.MetricsAuth = v
+		cfg.Telemetry.MetricsAuth = v
 	}
 	if v := os.Getenv("ENABLE_ECS"); v != "" {
 		if cfg.DNS.ECS == nil {
@@ -193,6 +203,35 @@ func ApplyEnvOverrides(cfg *Config) {
 			cfg.Geoblock.Ipinfo = &IpinfoConfig{}
 		}
 		cfg.Geoblock.Ipinfo.Enabled = v != "true"
+	}
+	if v := os.Getenv("ACME_EMAIL"); v != "" {
+		if cfg.Server.LetsEncrypt == nil {
+			cfg.Server.LetsEncrypt = &LetsEncryptConfig{}
+		}
+		cfg.Server.LetsEncrypt.Email = v
+	}
+	if v := os.Getenv("CLOUDFLARE_API_TOKEN"); v != "" {
+		if cfg.Server.LetsEncrypt == nil {
+			cfg.Server.LetsEncrypt = &LetsEncryptConfig{}
+		}
+		cfg.Server.LetsEncrypt.CloudflareApiToken = v
+	}
+	if v := os.Getenv("IPINFO_TOKEN"); v != "" {
+		if cfg.Geoblock.Ipinfo == nil {
+			cfg.Geoblock.Ipinfo = &IpinfoConfig{}
+		}
+		cfg.Geoblock.Ipinfo.Token = v
+	}
+	if v := os.Getenv("SENTRY_DSN"); v != "" {
+		cfg.Telemetry.SentryDsn = v
+	}
+	if v := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"); v != "" {
+		cfg.Telemetry.OtelEndpoint = v
+	}
+	if v := os.Getenv("OTEL_SAMPLING_RATIO"); v != "" {
+		if ratio, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.Telemetry.OtelSamplingRatio = ratio
+		}
 	}
 	// Upstreams, blocklists, etc. are handled via flags in main.go
 }

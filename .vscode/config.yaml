@@ -7,5 +7,6 @@ server:
   dev_mode: true
   log_level: DEBUG
   http_port: 8080
-  allowed_hosts:
-    - localhost
+  lets_encrypt:
+    allowed_hosts:
+      - localhost

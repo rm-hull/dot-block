@@ -14,6 +14,7 @@ type Config struct {
 	DNS       *DNSConfig       `yaml:"dns,omitempty" json:"dns,omitempty"`
 	Blocklist *BlocklistConfig `yaml:"blocklist,omitempty" json:"blocklist,omitempty"`
 	Geoblock  *GeoblockConfig  `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
+	Telemetry *TelemetryConfig `yaml:"telemetry,omitempty" json:"telemetry,omitempty"`
 }
 
 type LogLevel string
@@ -33,13 +34,19 @@ type ServerConfig struct {
 	DnsPort       int                  `yaml:"dns_port,omitempty" json:"dns_port,omitempty" descr:"The port to run regular DNS (UDP/TCP) server on."`
 	DotPort       int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty" descr:"The port to run DNS-over-TLS server on."`
 	ProxyProtocol *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
-	AllowedHosts  []string             `yaml:"allowed_hosts,omitempty" json:"allowed_hosts,omitempty" descr:"List of domains used for CertManager allow policy."`
-	MetricsAuth   string               `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty" log:"redacted" descr:"Credentials for basic auth on /metrics (format: user:pass)."`
+	LetsEncrypt   *LetsEncryptConfig   `yaml:"lets_encrypt,omitempty" json:"lets_encrypt,omitempty"`
 }
 
 type ProxyProtocolConfig struct {
 	Enabled        bool     `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Require PROXY protocol header for DoT connections."`
 	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty" descr:"Comma-separated list of trusted proxy IP addresses or CIDR ranges."`
+}
+
+type LetsEncryptConfig struct {
+	Enabled            bool     `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Enable automatic TLS certificate management via Let's Encrypt / ACME."`
+	Email              string   `yaml:"email,omitempty" json:"email,omitempty" descr:"Email address for Let's Encrypt registration."`
+	CloudflareApiToken string   `yaml:"cloudflare_api_token,omitempty" json:"cloudflare_api_token,omitempty" log:"redacted" descr:"Cloudflare API token for DNS-01 challenge."`
+	AllowedHosts       []string `yaml:"allowed_hosts,omitempty" json:"allowed_hosts,omitempty" descr:"List of domains used for CertManager allow policy / mobileconfig."`
 }
 
 type DNSConfig struct {
@@ -88,6 +95,14 @@ type GeoblockConfig struct {
 type IpinfoConfig struct {
 	Enabled      bool   `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Whether to enable IPinfo.io geolocation lookups."`
 	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty" descr:"Cron spec for Ipinfo.io database downloader."`
+	Token        string `yaml:"token,omitempty" json:"token,omitempty" log:"redacted" descr:"IPInfo.io API token for downloading geoIP locations."`
+}
+
+type TelemetryConfig struct {
+	SentryDsn         string  `yaml:"sentry_dsn,omitempty" json:"sentry_dsn,omitempty" descr:"DSN for Sentry error reporting."`
+	MetricsAuth       string  `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty" log:"redacted" descr:"Credentials for basic auth on /metrics (format: user:pass)."`
+	OtelEndpoint      string  `yaml:"otel_endpoint,omitempty" json:"otel_endpoint,omitempty" descr:"OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317)."`
+	OtelSamplingRatio float64 `yaml:"otel_sampling_ratio,omitempty" json:"otel_sampling_ratio,omitempty" descr:"Ratio of traces to sample (0.0 to 1.0)."`
 }
 
 // LogValue implements slog.LogValuer to ensure nested durations are formatted as strings.
@@ -116,7 +131,7 @@ func structToMap(obj any) any {
 		if parts[0] != "" {
 			name = parts[0]
 		}
-		if len(parts) > 1 && parts[1] == "omitempty" && v.Field(i).IsZero() {
+		if len(parts) > 1 && parts[1] == "omitempty" && v.Field(i).IsZero() && v.Field(i).Kind() != reflect.Bool {
 			continue
 		}
 		val := v.Field(i).Interface()

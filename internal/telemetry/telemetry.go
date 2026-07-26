@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
-	"strconv"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -17,13 +15,13 @@ import (
 )
 
 // InitTracer initializes the global TracerProvider and returns a shutdown function.
-func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) error, error) {
+func InitTracer(logger *slog.Logger, serviceName string, otelEndpoint string, otelSamplingRatio float64) (func(context.Context) error, error) {
 	ctx := context.Background()
 
 	// Read OTLP endpoint from environment variable
-	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+	endpoint := otelEndpoint
 	if endpoint == "" {
-		logger.Warn("OTEL_EXPORTER_OTLP_ENDPOINT not defined, skipping tracing initialization")
+		logger.Warn("OTEL endpoint not defined, skipping tracing initialization")
 		return func(ctx context.Context) error { return nil }, nil
 	}
 
@@ -47,11 +45,9 @@ func InitTracer(logger *slog.Logger, serviceName string) (func(context.Context) 
 	}
 
 	// Sampling ratio from environment variable (0.0 to 1.0)
-	samplingRatio := 0.01
-	if val := os.Getenv("OTEL_SAMPLING_RATIO"); val != "" {
-		if parsed, err := strconv.ParseFloat(val, 64); err == nil {
-			samplingRatio = parsed
-		}
+	samplingRatio := otelSamplingRatio
+	if samplingRatio == 0 {
+		samplingRatio = 0.01
 	}
 
 	// Create the TracerProvider

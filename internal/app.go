@@ -67,7 +67,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	godx.Diagnostics(app.Logger)
 	app.Logger.Info("Configuration on startup", "config", app.Config)
-	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block")
+	shutdownTracer, err := telemetry.InitTracer(app.Logger, "dot-block", app.Config.Telemetry.OtelEndpoint, app.Config.Telemetry.OtelSamplingRatio)
 	if err != nil {
 		app.Logger.Error("failed to initialize tracing", "error", err)
 	} else {
@@ -80,7 +80,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		}()
 	}
 	err = sentry.Init(sentry.ClientOptions{
-		Dsn:         os.Getenv("SENTRY_DSN"),
+		Dsn:         app.Config.Telemetry.SentryDsn,
 		Debug:       app.Config.Server.DevMode,
 		Release:     versioninfo.Revision[:7],
 		Environment: app.environment(),
@@ -126,13 +126,13 @@ func (app *App) RunServer(ctx context.Context) error {
 	certmagic.Default.Logger = zapLogger
 	certmagic.DefaultACME.Logger = zapLogger
 	certmagic.DefaultACME.Agreed = true
-	certmagic.DefaultACME.Email = os.Getenv("ACME_EMAIL")
+	certmagic.DefaultACME.Email = app.Config.Server.LetsEncrypt.Email
 	certmagic.Default.Storage = &certmagic.FileStorage{Path: certCacheDir}
 	var magic *certmagic.Config
-	if !app.Config.Server.DevMode {
-		token := os.Getenv("CLOUDFLARE_API_TOKEN")
+	if app.Config.Server.LetsEncrypt.Enabled {
+		token := app.Config.Server.LetsEncrypt.CloudflareApiToken
 		if token == "" {
-			return errors.New("CLOUDFLARE_API_TOKEN environment variable is required for DNS-01 challenge")
+			return errors.New("cloudflare_api_token is required for DNS-01 challenge (configure under server.lets_encrypt)")
 		}
 		certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
 			DNSManager: certmagic.DNSManager{
@@ -142,7 +142,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			},
 		}
 		magic = certmagic.NewDefault()
-		if err := magic.ManageSync(context.Background(), app.Config.Server.AllowedHosts); err != nil {
+		if err := magic.ManageSync(context.Background(), app.Config.Server.LetsEncrypt.AllowedHosts); err != nil {
 			return errors.Wrap(err, "failed to manage certificates")
 		}
 	}
@@ -335,16 +335,16 @@ func (app *App) startHttpServer(
 		return nil, errors.Wrap(err, "failed to initialize healthcheck")
 	}
 
-	basicAuthMiddleware, err := middlewares.RequireBasicAuth(app.Config.Server.MetricsAuth, app.Logger)
+	basicAuthMiddleware, err := middlewares.RequireBasicAuth(app.Config.Telemetry.MetricsAuth, app.Logger)
 	if err != nil {
 		return nil, errors.Wrap(err, "basic auth middleware failure")
 	}
 	r.GET("/metrics", basicAuthMiddleware, gin.WrapH(promhttp.Handler()))
 
-	if len(app.Config.Server.AllowedHosts) == 0 {
-		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via allowed_hosts")
+	if len(app.Config.Server.LetsEncrypt.AllowedHosts) == 0 {
+		return nil, errors.New("cannot create mobileconfig handler: at least one hostname must be configured via server.lets_encrypt.allowed_hosts")
 	}
-	serverName := app.Config.Server.AllowedHosts[0]
+	serverName := app.Config.Server.LetsEncrypt.AllowedHosts[0]
 
 	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
 
@@ -381,7 +381,7 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	geolocationDb := fmt.Sprintf("%s/maxmind/ipinfo_lite.mmdb", app.Config.Server.DataDir)
 	if _, err := os.Stat(geolocationDb); os.IsNotExist(err) {
 		app.Logger.Info("ipinfo.io database not found, downloading...")
-		_, err = geoblock.Fetch(geolocationDb, app.Logger)
+		_, err = geoblock.Fetch(geolocationDb, app.Config.Geoblock.Ipinfo.Token, app.Logger)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to download ipinfo.io database")
 		}
@@ -392,7 +392,7 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 		return nil, errors.Wrap(err, "failed to open ipinfo.io database")
 	}
 	app.Logger.Info("Creating ipinfo.io updater cron job", "schedule", app.Config.Geoblock.Ipinfo.CronSchedule)
-	if _, err = crontab.AddJob(app.Config.Geoblock.Ipinfo.CronSchedule, geoblock.NewIpinfoUpdaterCronJob(app.Logger, geolocationDb, geoIpLookup)); err != nil {
+	if _, err = crontab.AddJob(app.Config.Geoblock.Ipinfo.CronSchedule, geoblock.NewIpinfoUpdaterCronJob(app.Logger, geolocationDb, app.Config.Geoblock.Ipinfo.Token, geoIpLookup)); err != nil {
 		return nil, errors.Wrap(err, "failed to create ipinfo.io updater cron job")
 	}
 	return geoIpLookup, nil

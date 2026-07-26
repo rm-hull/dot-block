@@ -279,8 +279,11 @@ server:
   proxy_protocol:                    # PROXY protocol configuration
     enabled: false                   # Require PROXY protocol header for DoT
     trusted_proxies: []              # Trusted proxy IP addresses or CIDR ranges
-  allowed_hosts: []                  # Domains for CertManager allow policy
-  metrics_auth: ""                   # Basic auth credentials for /metrics (user:pass)
+  lets_encrypt:                      # Let's Encrypt / ACME certificate management
+    enabled: false                   # Enable automatic TLS certificate management
+    email: ""                        # Email address for Let's Encrypt registration
+    cloudflare_api_token: ""         # Cloudflare API token for DNS-01 challenge
+    allowed_hosts: []                # Domains for CertManager allow policy / mobileconfig
 
 dns:
   upstreams:                         # Upstream DNS resolvers
@@ -296,7 +299,7 @@ dns:
     cron_schedule: "0 3 * * *"       # Cron spec for cache reaper
   noise_filter:
     url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
-    cron_schedule: "@every 19h"     # Cron spec for noise filter downloader
+    cron_schedule: "@every 19h"      # Cron spec for noise filter downloader
   timeouts:
     read: 300ms                      # Timeout for reading upstream DNS queries
     write: 100ms                     # Timeout for writing upstream DNS queries
@@ -304,9 +307,9 @@ dns:
 
 blocklist:
   sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule
-    - name: "hagezi-pro"              # Human-readable name for the blocklist
+    - name: "hagezi-pro"             # Human-readable name for the blocklist
       url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt"
-      cron_schedule: "@every 19h"     # Cron spec for reloading this specific blocklist
+      cron_schedule: "@every 19h"    # Cron spec for reloading this specific blocklist
     - name: "cebeerre-nrd"
       url: "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt"
       cron_schedule: "@every 19h"
@@ -318,6 +321,13 @@ geoblock:
   ipinfo:
     enabled: true                    # Enable IPinfo.io geolocation lookups
     cron_schedule: "5 7 4 * *"       # Cron spec for Ipinfo.io database downloader
+    token: ""                        # IPInfo.io API token for downloading geoIP database
+
+telemetry:                           # Observability settings
+  sentry_dsn: ""                     # DSN for Sentry error reporting
+  metrics_auth: ""                   # Basic auth credentials for /metrics (user:pass)
+  otel_endpoint: ""                  # OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317)
+  otel_sampling_ratio: 0.01          # Ratio of traces to sample (0.0 to 1.0)
 ```
 
 All fields are optional — any omitted values fall back to defaults. The `$schema` directive enables IDE validation and autocomplete in editors like VS Code (with the YAML extension).
@@ -339,17 +349,12 @@ All configuration values can be overridden via environment variables:
 | `METRICS_AUTH` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
 | `ENABLE_ECS` | Set to `true` to enable EDNS0 Client Subnet (ECS) steering. | `false` |
 | `DISABLE_IPINFO` | Set to `true` to disable IPinfo.io geolocation lookups. | `false` |
-
-### Environment Variables (Other)
-
-| Variable | Description | Required |
-| :--- | :--- | :--- |
-| `ACME_EMAIL` | Email address used for Let's Encrypt registration. | Yes (in production) |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (CertManager). | Yes (in production) |
-| `IPINFO_TOKEN` | IPInfo.io token for downloading geoIP locations. | Yes (if geoblocking enabled) |
-| `SENTRY_DSN` | DSN for Sentry error reporting. | No |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (e.g. `localhost:4317`). | No |
-| `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0). Defaults to `0.01` (1%). | No |
+| `ACME_EMAIL` | Email address for Let's Encrypt registration (see `server.lets_encrypt.email`). | `""` |
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (see `server.lets_encrypt.cloudflare_api_token`). | `""` |
+| `IPINFO_TOKEN` | IPInfo.io token for downloading geoIP locations (see `geoblock.ipinfo.token`). | `""` |
+| `SENTRY_DSN` | DSN for Sentry error reporting (see `telemetry.sentry_dsn`). | `""` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (see `telemetry.otel_endpoint`). | `""` |
+| `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0) (see `telemetry.otel_sampling_ratio`). | `0.01` |
 
 ### Configuration Precedence
 
