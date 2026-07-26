@@ -836,11 +836,6 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_CNAME(t *testing.T) {
 		_ = w.WriteMsg(m)
 	})
 
-	defer func() {
-		err := server.Shutdown()
-		assert.NoError(t, err)
-	}()
-
 	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
 
 	req := new(dns.Msg)
@@ -854,21 +849,129 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_CNAME(t *testing.T) {
 	assert.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 
-	// Verify we got both records back
+	// Verify we got both records back from the upstream
 	assert.Len(t, writer.WrittenMsg.Answer, 2)
 
-	// Second request: should be a cache hit
+	// Give the cache worker time to process the set
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify the cache entry exists and contains BOTH the CNAME and the A record
+	// This is the core of the bug: the filtering logic only matches exact name+type,
+	// so CNAME chains result in no cache entry being created.
+	cacheKey := getCacheKey(&req.Question[0], "")
+	cached, ok := dispatcher.cache.Get(cacheKey)
+	require.True(t, ok, "cache entry should exist for CNAME query")
+	require.Len(t, cached, 2, "cache entry should contain both CNAME and A record")
+
+	// Verify the cached records are correct
+	foundCNAME := false
+	foundA := false
+	for _, rr := range cached {
+		switch rec := rr.(type) {
+		case *dns.CNAME:
+			assert.Equal(t, "www.netflix.com.", rec.Hdr.Name)
+			assert.Equal(t, "prod.ftl.netflix.com.", rec.Target)
+			foundCNAME = true
+		case *dns.A:
+			assert.Equal(t, "prod.ftl.netflix.com.", rec.Hdr.Name)
+			assert.True(t, rec.A.Equal(net.ParseIP("1.2.3.4")), "A record IP mismatch")
+			foundA = true
+		}
+	}
+	assert.True(t, foundCNAME, "cached CNAME record not found")
+	assert.True(t, foundA, "cached A record not found")
+
+	// Shut down the upstream server to prove the second request is served from cache
+	err := server.Shutdown()
+	assert.NoError(t, err)
+
+	// Second request: should be a cache hit (upstream is now shut down)
 	writer2 := new(MockResponseWriter)
 	writer2.On("WriteMsg", mock.Anything).Return(nil)
-
-	// Wait briefly for the cache worker to process the set
-	time.Sleep(100 * time.Millisecond)
 
 	dispatcher.HandleDNSRequest("test")(writer2, req)
 
 	assert.NotNil(t, writer2.WrittenMsg)
 	assert.Equal(t, dns.RcodeSuccess, writer2.WrittenMsg.Rcode)
-	assert.Len(t, writer2.WrittenMsg.Answer, 2, "Should have retrieved the cached CNAME chain")
+	assert.Len(t, writer2.WrittenMsg.Answer, 2, "Should have retrieved the cached CNAME chain from cache")
+}
+
+func TestDNSDispatcher_HandleDNSRequest_CacheHit_MultiLevelCNAME(t *testing.T) {
+	// A server that returns a multi-level CNAME chain: A -> B -> C -> IP
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeSuccess)
+		m.Authoritative = true
+
+		cname1 := &dns.CNAME{
+			Hdr: dns.RR_Header{
+				Name:   dns.Fqdn("www.example.com."),
+				Rrtype: dns.TypeCNAME,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			Target: dns.Fqdn("edge.example.net."),
+		}
+		cname2 := &dns.CNAME{
+			Hdr: dns.RR_Header{
+				Name:   dns.Fqdn("edge.example.net."),
+				Rrtype: dns.TypeCNAME,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			Target: dns.Fqdn("cdn.provider.com."),
+		}
+		aRecord := &dns.A{
+			Hdr: dns.RR_Header{
+				Name:   dns.Fqdn("cdn.provider.com."),
+				Rrtype: dns.TypeA,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			A: net.ParseIP("5.6.7.8"),
+		}
+
+		m.Answer = []dns.RR{cname1, cname2, aRecord}
+		_ = w.WriteMsg(m)
+	})
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	req := new(dns.Msg)
+	req.SetQuestion("www.example.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// First request: should be a cache miss and populate the cache
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	assert.Len(t, writer.WrittenMsg.Answer, 3)
+
+	// Give the cache worker time to process the set
+	time.Sleep(100 * time.Millisecond)
+
+	// Verify the cache entry exists and contains all three records
+	cacheKey := getCacheKey(&req.Question[0], "")
+	cached, ok := dispatcher.cache.Get(cacheKey)
+	require.True(t, ok, "cache entry should exist for multi-level CNAME query")
+	require.Len(t, cached, 3, "cache entry should contain both CNAMEs and the A record")
+
+	// Shut down the upstream server to prove the second request is served from cache
+	err := server.Shutdown()
+	assert.NoError(t, err)
+
+	// Second request: should be a cache hit (upstream is now shut down)
+	writer2 := new(MockResponseWriter)
+	writer2.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer2, req)
+
+	assert.NotNil(t, writer2.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer2.WrittenMsg.Rcode)
+	assert.Len(t, writer2.WrittenMsg.Answer, 3, "Should have retrieved the cached multi-level CNAME chain from cache")
 }
 
 type mockIPResponseWriter struct {
