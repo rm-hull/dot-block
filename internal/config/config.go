@@ -34,7 +34,7 @@ type ServerConfig struct {
 	DotPort       int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty"`
 	ProxyProtocol *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
 	AllowedHosts  []string             `yaml:"allowed_hosts,omitempty" json:"allowed_hosts,omitempty"`
-	MetricsAuth   string               `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty"`
+	MetricsAuth   string               `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty" log:"redacted"`
 }
 
 type ProxyProtocolConfig struct {
@@ -111,9 +111,13 @@ func structToMap(obj any) any {
 		if tag == "-" {
 			continue
 		}
+		parts := strings.Split(tag, ",")
 		name := field.Name
-		if tag != "" {
-			name = strings.Split(tag, ",")[0]
+		if parts[0] != "" {
+			name = parts[0]
+		}
+		if len(parts) > 1 && parts[1] == "omitempty" && v.Field(i).IsZero() {
+			continue
 		}
 		val := v.Field(i).Interface()
 		// If the field is a pointer to a struct (and not time.Time), dereference and recurse
@@ -132,6 +136,8 @@ func structToMap(obj any) any {
 		} else if reflect.TypeOf(val).Kind() == reflect.Struct && reflect.TypeOf(val) != reflect.TypeFor[time.Time]() {
 			// Direct struct field (not a pointer)
 			m[name] = structToMap(val)
+		} else if field.Tag.Get("log") == "redacted" && !v.Field(i).IsZero() {
+			m[name] = "********"
 		} else if field.Type == reflect.TypeFor[time.Duration]() {
 			// Convert time.Duration to string (e.g., "1h30m") for readable logging
 			m[name] = val.(time.Duration).String()
