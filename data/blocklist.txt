@@ -98,3 +98,7 @@ pbd.yahoo.com
 recommend.lgtvcommon.com
 turbocookiecompliance.blob.core.windows.net
 www.googleadservices.com
+
+# PostHog analytics
+eu.i.posthog.com
+eu-assets.i.posthog.com
