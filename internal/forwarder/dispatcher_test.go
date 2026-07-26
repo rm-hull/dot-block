@@ -95,7 +95,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
-	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
+	metrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 	require.NoError(t, err)
 
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
@@ -429,7 +429,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
-	metrics, err := metrics.NewDNSMetrics(cache, mockGeo)
+	metrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 	assert.NoError(t, err)
 
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
@@ -760,7 +760,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			cache := NewDNSCache(100, logger)
 			mockGeo := new(MockGeoIpLookup)
 			mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
-			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo)
+			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 
 			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, tt.enableECS)

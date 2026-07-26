@@ -147,7 +147,11 @@ func (app *App) RunServer(ctx context.Context) error {
 		}
 	}
 	cache := forwarder.NewDNSCache(app.Config.DNS.Cache.MaxSize, app.Logger)
-	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup)
+	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup, metrics.TopKConfig{
+		NumDomains: app.Config.Telemetry.TopK.NumDomains,
+		NumBlocked: app.Config.Telemetry.TopK.NumBlocked,
+		NumClients: app.Config.Telemetry.TopK.NumClients,
+	})
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}

@@ -194,7 +194,7 @@ func TestDNSCheck_WithRoundRobinClient(t *testing.T) {
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
-	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo)
+	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 	if err != nil {
 		t.Fatalf("failed to create DNS metrics: %v", err)
 	}

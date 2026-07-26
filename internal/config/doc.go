@@ -53,6 +53,7 @@ func buildCommentMap() map[string]string {
 	collectDescriptions(reflect.TypeOf(GeoblockConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(IpinfoConfig{}), pkgPath, commentMap)
 	collectDescriptions(reflect.TypeOf(TelemetryConfig{}), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeOf(TopKConfig{}), pkgPath, commentMap)
 
 	return commentMap
 }

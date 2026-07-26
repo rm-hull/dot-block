@@ -79,7 +79,7 @@ func TestDNSInfoMetric(t *testing.T) {
 	assert := assert.New(t)
 	require := require.New(t)
 
-	dnsMetrics, err := NewDNSMetrics(&mockCache{}, &mockGeoIpLookup{})
+	dnsMetrics, err := NewDNSMetrics(&mockCache{}, &mockGeoIpLookup{}, DefaultTopKConfig())
 	require.NoError(err)
 
 	// The dns_info metric should always be set to 1 (like go_info)

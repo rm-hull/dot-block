@@ -89,6 +89,11 @@ func DefaultConfig() *Config {
 			MetricsAuth:       "",
 			OtelEndpoint:      "",
 			OtelSamplingRatio: 0.01,
+			TopK: &TopKConfig{
+				NumDomains: 100,
+				NumBlocked: 100,
+				NumClients: 100,
+			},
 		},
 	}
 }

@@ -16,6 +16,19 @@ import (
 
 const TOP_K = 50
 
+// TopKConfig configures how many top entries to track for the various
+// Prometheus top-K metrics (domains, blocked domains, clients).
+type TopKConfig struct {
+	NumDomains int
+	NumBlocked int
+	NumClients int
+}
+
+// DefaultTopKConfig returns a TopKConfig with sensible defaults (100 for each).
+func DefaultTopKConfig() TopKConfig {
+	return TopKConfig{NumDomains: 100, NumBlocked: 100, NumClients: 100}
+}
+
 type SafeSketch struct {
 	mu     sync.Mutex
 	sketch *hyperloglog.Sketch
@@ -69,11 +82,21 @@ type Cache interface {
 	OnDrop(func())
 }
 
-func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, error) {
+func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup, topK TopKConfig) (*DnsMetrics, error) {
+	if topK.NumDomains <= 0 {
+		topK.NumDomains = TOP_K
+	}
+	if topK.NumBlocked <= 0 {
+		topK.NumBlocked = TOP_K
+	}
+	if topK.NumClients <= 0 {
+		topK.NumClients = TOP_K
+	}
+
 	uniqueClients := &SafeSketch{sketch: hyperloglog.New14()}
-	topClients := NewSpaceSaver(TOP_K)
-	topDomains := NewSpaceSaver(TOP_K)
-	topBlockedDomains := NewSpaceSaver(TOP_K)
+	topClients := NewSpaceSaver(topK.NumClients)
+	topDomains := NewSpaceSaver(topK.NumDomains)
+	topBlockedDomains := NewSpaceSaver(topK.NumBlocked)
 
 	cacheStats := NewStatsCollector("dns_cache_stats", []string{"type"},
 		"Statistics about the cache internals (cache effectiveness: hits & misses, sizing: added & evicted)",
@@ -89,18 +112,18 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup) (*DnsMetrics, 
 		})
 
 	topDomainsStats := NewStatsCollector("dns_top_domains", []string{"hostname"},
-		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains (estimate based on count - error)", TOP_K),
-		newSpaceSaverStatsCallback(topDomains, TOP_K),
+		fmt.Sprintf("Shows the top %d most requested (non-blocked) domains (estimate based on count - error)", topK.NumDomains),
+		newSpaceSaverStatsCallback(topDomains, topK.NumDomains),
 	)
 
 	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", []string{"hostname"},
-		fmt.Sprintf("Shows the top %d blocked domains (estimate based on count - error)", TOP_K),
-		newSpaceSaverStatsCallback(topBlockedDomains, TOP_K),
+		fmt.Sprintf("Shows the top %d blocked domains (estimate based on count - error)", topK.NumBlocked),
+		newSpaceSaverStatsCallback(topBlockedDomains, topK.NumBlocked),
 	)
 
 	topClientsStats := NewStatsCollector("dns_top_clients", []string{"ip_addr", "asn", "iso_code"},
-		fmt.Sprintf("Shows the top %d most active clients (estimate based on count - error)", TOP_K),
-		newSpaceSaverStatsCallback(topClients, TOP_K),
+		fmt.Sprintf("Shows the top %d most active clients (estimate based on count - error)", topK.NumClients),
+		newSpaceSaverStatsCallback(topClients, topK.NumClients),
 	)
 
 	requestLatency := prometheus.NewHistogram(

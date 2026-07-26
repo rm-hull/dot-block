@@ -328,6 +328,10 @@ telemetry:                           # Observability settings
   metrics_auth: ""                   # Basic auth credentials for /metrics (user:pass)
   otel_endpoint: ""                  # OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317)
   otel_sampling_ratio: 0.01          # Ratio of traces to sample (0.0 to 1.0)
+  top_k:                             # Top-K metric configuration
+    num_domains: 100                 # Number of top (non-blocked) domains to track
+    num_blocked: 100                 # Number of top blocked domains to track
+    num_clients: 100                 # Number of top clients to track
 ```
 
 All fields are optional — any omitted values fall back to defaults. The `$schema` directive enables IDE validation and autocomplete in editors like VS Code (with the YAML extension).

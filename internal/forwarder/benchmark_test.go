@@ -51,7 +51,7 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
 
-	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo)
+	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 	require.NoError(b, err)
 
 	dnsClient, err := NewRoundRobinClient(dnsMetrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
@@ -416,7 +416,7 @@ func BenchmarkRoundRobinClient(b *testing.B) {
 
 	mockGeo := new(MockGeoIpLookup)
 	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
-	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo)
+	dnsMetrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 	require.NoError(b, err)
 
 	client, err := NewRoundRobinClient(dnsMetrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)

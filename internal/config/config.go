@@ -99,10 +99,22 @@ type IpinfoConfig struct {
 }
 
 type TelemetryConfig struct {
-	SentryDsn         string  `yaml:"sentry_dsn,omitempty" json:"sentry_dsn,omitempty" descr:"DSN for Sentry error reporting."`
-	MetricsAuth       string  `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty" log:"redacted" descr:"Credentials for basic auth on /metrics (format: user:pass)."`
-	OtelEndpoint      string  `yaml:"otel_endpoint,omitempty" json:"otel_endpoint,omitempty" descr:"OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317)."`
-	OtelSamplingRatio float64 `yaml:"otel_sampling_ratio,omitempty" json:"otel_sampling_ratio,omitempty" descr:"Ratio of traces to sample (0.0 to 1.0)."`
+	SentryDsn         string      `yaml:"sentry_dsn,omitempty" json:"sentry_dsn,omitempty" descr:"DSN for Sentry error reporting."`
+	MetricsAuth       string      `yaml:"metrics_auth,omitempty" json:"metrics_auth,omitempty" log:"redacted" descr:"Credentials for basic auth on /metrics (format: user:pass)."`
+	OtelEndpoint      string      `yaml:"otel_endpoint,omitempty" json:"otel_endpoint,omitempty" descr:"OpenTelemetry OTLP gRPC endpoint (e.g. localhost:4317)."`
+	OtelSamplingRatio float64     `yaml:"otel_sampling_ratio,omitempty" json:"otel_sampling_ratio,omitempty" descr:"Ratio of traces to sample (0.0 to 1.0)."`
+	TopK              *TopKConfig `yaml:"top_k,omitempty" json:"top_k,omitempty" descr:"Configuration for the number of top entries to track in Prometheus metrics."`
+}
+
+// TopKConfig configures how many top entries to track for various Prometheus metrics.
+// These control the size of the space-saving (Misra-Gries) sketches used for
+// estimating the most frequently occurring domains and clients.
+// Larger values increase memory usage but provide more complete rankings.
+// Defaults to 100 for each.
+type TopKConfig struct {
+	NumDomains int `yaml:"num_domains,omitempty" json:"num_domains,omitempty" descr:"Number of top (non-blocked) domains to track in the dns_top_domains Prometheus metric."`
+	NumBlocked int `yaml:"num_blocked,omitempty" json:"num_blocked,omitempty" descr:"Number of top blocked domains to track in the dns_top_blocked_domains Prometheus metric."`
+	NumClients int `yaml:"num_clients,omitempty" json:"num_clients,omitempty" descr:"Number of top clients to track in the dns_top_clients Prometheus metric."`
 }
 
 // LogValue implements slog.LogValuer to ensure nested durations are formatted as strings.

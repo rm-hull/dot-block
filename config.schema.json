@@ -300,6 +300,25 @@
             "sentry_dsn": {
               "description": "DSN for Sentry error reporting.",
               "type": "string"
+            },
+            "top_k": {
+              "additionalProperties": true,
+              "description": "Configuration for the number of top entries to track in Prometheus metrics.",
+              "properties": {
+                "num_blocked": {
+                  "description": "Number of top blocked domains to track in the dns_top_blocked_domains Prometheus metric.",
+                  "type": "integer"
+                },
+                "num_clients": {
+                  "description": "Number of top clients to track in the dns_top_clients Prometheus metric.",
+                  "type": "integer"
+                },
+                "num_domains": {
+                  "description": "Number of top (non-blocked) domains to track in the dns_top_domains Prometheus metric.",
+                  "type": "integer"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -592,6 +611,25 @@
         "sentry_dsn": {
           "description": "DSN for Sentry error reporting.",
           "type": "string"
+        },
+        "top_k": {
+          "additionalProperties": true,
+          "description": "Configuration for the number of top entries to track in Prometheus metrics.",
+          "properties": {
+            "num_blocked": {
+              "description": "Number of top blocked domains to track in the dns_top_blocked_domains Prometheus metric.",
+              "type": "integer"
+            },
+            "num_clients": {
+              "description": "Number of top clients to track in the dns_top_clients Prometheus metric.",
+              "type": "integer"
+            },
+            "num_domains": {
+              "description": "Number of top (non-blocked) domains to track in the dns_top_domains Prometheus metric.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
@@ -616,6 +654,25 @@
           "format": "duration",
           "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
           "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "TopKConfig": {
+      "additionalProperties": true,
+      "description": "Configuration for the number of top entries to track in Prometheus metrics.",
+      "properties": {
+        "num_blocked": {
+          "description": "Number of top blocked domains to track in the dns_top_blocked_domains Prometheus metric.",
+          "type": "integer"
+        },
+        "num_clients": {
+          "description": "Number of top clients to track in the dns_top_clients Prometheus metric.",
+          "type": "integer"
+        },
+        "num_domains": {
+          "description": "Number of top (non-blocked) domains to track in the dns_top_domains Prometheus metric.",
+          "type": "integer"
         }
       },
       "type": "object"
@@ -851,6 +908,25 @@
         "sentry_dsn": {
           "description": "DSN for Sentry error reporting.",
           "type": "string"
+        },
+        "top_k": {
+          "additionalProperties": true,
+          "description": "Configuration for the number of top entries to track in Prometheus metrics.",
+          "properties": {
+            "num_blocked": {
+              "description": "Number of top blocked domains to track in the dns_top_blocked_domains Prometheus metric.",
+              "type": "integer"
+            },
+            "num_clients": {
+              "description": "Number of top clients to track in the dns_top_clients Prometheus metric.",
+              "type": "integer"
+            },
+            "num_domains": {
+              "description": "Number of top (non-blocked) domains to track in the dns_top_domains Prometheus metric.",
+              "type": "integer"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
