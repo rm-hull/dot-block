@@ -1,0 +1,644 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "definitions": {
+    "BlocklistsConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for reloading blocklist.",
+          "type": "string"
+        },
+        "urls": {
+          "description": "URLs of blocklist sources.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "CacheConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for cache reaper.",
+          "type": "string"
+        },
+        "max_size": {
+          "description": "Maximum number of entries in the DNS cache.",
+          "type": "integer"
+        },
+        "ttl_floor": {
+          "description": "Minimum TTL for cached entries.",
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "Config": {
+      "additionalProperties": true,
+      "properties": {
+        "blocklists": {
+          "additionalProperties": true,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for reloading blocklist.",
+              "type": "string"
+            },
+            "urls": {
+              "description": "URLs of blocklist sources.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "dns": {
+          "additionalProperties": true,
+          "properties": {
+            "cache": {
+              "additionalProperties": true,
+              "properties": {
+                "cron_schedule": {
+                  "description": "Cron spec for cache reaper.",
+                  "type": "string"
+                },
+                "max_size": {
+                  "description": "Maximum number of entries in the DNS cache.",
+                  "type": "integer"
+                },
+                "ttl_floor": {
+                  "description": "Minimum TTL for cached entries.",
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "ecs": {
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "noise_filter": {
+              "additionalProperties": true,
+              "properties": {
+                "url": {
+                  "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "timeouts": {
+              "additionalProperties": true,
+              "properties": {
+                "dial": {
+                  "description": "Timeout for establishing connections to upstream servers.",
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "read": {
+                  "description": "Timeout for reading upstream DNS queries.",
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "write": {
+                  "description": "Timeout for writing upstream DNS queries.",
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "upstreams": {
+              "description": "Upstream DNS resolvers to forward queries to.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "geoblock": {
+          "additionalProperties": true,
+          "properties": {
+            "ipinfo": {
+              "additionalProperties": true,
+              "properties": {
+                "cron_schedule": {
+                  "description": "Cron spec for Ipinfo.io database downloader.",
+                  "type": "string"
+                },
+                "enabled": {
+                  "description": "Whether to enable IPinfo.io geolocation lookups.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        },
+        "server": {
+          "additionalProperties": true,
+          "properties": {
+            "allowed_hosts": {
+              "description": "List of domains used for CertManager allow policy.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "data_dir": {
+              "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+              "type": "string"
+            },
+            "dev_mode": {
+              "description": "Run server in dev mode (no TLS, plain TCP).",
+              "type": "boolean"
+            },
+            "dns_port": {
+              "description": "The port to run regular DNS (UDP/TCP) server on.",
+              "type": "integer"
+            },
+            "dot_port": {
+              "description": "The port to run DNS-over-TLS server on.",
+              "type": "integer"
+            },
+            "http_port": {
+              "description": "The port to run HTTP server on.",
+              "type": "integer"
+            },
+            "log_level": {
+              "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
+              "enum": [
+                "DEBUG",
+                "INFO",
+                "WARN",
+                "ERROR"
+              ],
+              "type": "string"
+            },
+            "metrics_auth": {
+              "description": "Credentials for basic auth on /metrics (format: user:pass).",
+              "type": "string"
+            },
+            "proxy_protocol": {
+              "additionalProperties": true,
+              "properties": {
+                "enabled": {
+                  "description": "Require PROXY protocol header for DoT connections.",
+                  "type": "boolean"
+                },
+                "trusted_proxies": {
+                  "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "DNSConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "cache": {
+          "additionalProperties": true,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for cache reaper.",
+              "type": "string"
+            },
+            "max_size": {
+              "description": "Maximum number of entries in the DNS cache.",
+              "type": "integer"
+            },
+            "ttl_floor": {
+              "description": "Minimum TTL for cached entries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "ecs": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "noise_filter": {
+          "additionalProperties": true,
+          "properties": {
+            "url": {
+              "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "timeouts": {
+          "additionalProperties": true,
+          "properties": {
+            "dial": {
+              "description": "Timeout for establishing connections to upstream servers.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "read": {
+              "description": "Timeout for reading upstream DNS queries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "write": {
+              "description": "Timeout for writing upstream DNS queries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "upstreams": {
+          "description": "Upstream DNS resolvers to forward queries to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ECSConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "GeoblockConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "ipinfo": {
+          "additionalProperties": true,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for Ipinfo.io database downloader.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Whether to enable IPinfo.io geolocation lookups.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "IpinfoConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for Ipinfo.io database downloader.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Whether to enable IPinfo.io geolocation lookups.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "NoiseFilter": {
+      "additionalProperties": true,
+      "properties": {
+        "url": {
+          "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "ProxyProtocolConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "enabled": {
+          "description": "Require PROXY protocol header for DoT connections.",
+          "type": "boolean"
+        },
+        "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "ServerConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "allowed_hosts": {
+          "description": "List of domains used for CertManager allow policy.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "data_dir": {
+          "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+          "type": "string"
+        },
+        "dev_mode": {
+          "description": "Run server in dev mode (no TLS, plain TCP).",
+          "type": "boolean"
+        },
+        "dns_port": {
+          "description": "The port to run regular DNS (UDP/TCP) server on.",
+          "type": "integer"
+        },
+        "dot_port": {
+          "description": "The port to run DNS-over-TLS server on.",
+          "type": "integer"
+        },
+        "http_port": {
+          "description": "The port to run HTTP server on.",
+          "type": "integer"
+        },
+        "log_level": {
+          "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
+          "type": "string"
+        },
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
+          "type": "string"
+        },
+        "proxy_protocol": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Require PROXY protocol header for DoT connections.",
+              "type": "boolean"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "TimeoutsConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "dial": {
+          "description": "Timeout for establishing connections to upstream servers.",
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "read": {
+          "description": "Timeout for reading upstream DNS queries.",
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "write": {
+          "description": "Timeout for writing upstream DNS queries.",
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "properties": {
+    "blocklists": {
+      "additionalProperties": true,
+      "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for reloading blocklist.",
+          "type": "string"
+        },
+        "urls": {
+          "description": "URLs of blocklist sources.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "dns": {
+      "additionalProperties": true,
+      "properties": {
+        "cache": {
+          "additionalProperties": true,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for cache reaper.",
+              "type": "string"
+            },
+            "max_size": {
+              "description": "Maximum number of entries in the DNS cache.",
+              "type": "integer"
+            },
+            "ttl_floor": {
+              "description": "Minimum TTL for cached entries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "ecs": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable EDNS0 Client Subnet (ECS) forwarding.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "noise_filter": {
+          "additionalProperties": true,
+          "properties": {
+            "url": {
+              "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "timeouts": {
+          "additionalProperties": true,
+          "properties": {
+            "dial": {
+              "description": "Timeout for establishing connections to upstream servers.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "read": {
+              "description": "Timeout for reading upstream DNS queries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "write": {
+              "description": "Timeout for writing upstream DNS queries.",
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "upstreams": {
+          "description": "Upstream DNS resolvers to forward queries to.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "geoblock": {
+      "additionalProperties": true,
+      "properties": {
+        "ipinfo": {
+          "additionalProperties": true,
+          "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for Ipinfo.io database downloader.",
+              "type": "string"
+            },
+            "enabled": {
+              "description": "Whether to enable IPinfo.io geolocation lookups.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    },
+    "server": {
+      "additionalProperties": true,
+      "properties": {
+        "allowed_hosts": {
+          "description": "List of domains used for CertManager allow policy.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "data_dir": {
+          "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
+          "type": "string"
+        },
+        "dev_mode": {
+          "description": "Run server in dev mode (no TLS, plain TCP).",
+          "type": "boolean"
+        },
+        "dns_port": {
+          "description": "The port to run regular DNS (UDP/TCP) server on.",
+          "type": "integer"
+        },
+        "dot_port": {
+          "description": "The port to run DNS-over-TLS server on.",
+          "type": "integer"
+        },
+        "http_port": {
+          "description": "The port to run HTTP server on.",
+          "type": "integer"
+        },
+        "log_level": {
+          "description": "The logging level (DEBUG, INFO, WARN, ERROR).",
+          "enum": [
+            "DEBUG",
+            "INFO",
+            "WARN",
+            "ERROR"
+          ],
+          "type": "string"
+        },
+        "metrics_auth": {
+          "description": "Credentials for basic auth on /metrics (format: user:pass).",
+          "type": "string"
+        },
+        "proxy_protocol": {
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "description": "Require PROXY protocol header for DoT connections.",
+              "type": "boolean"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "type": "object"
+}

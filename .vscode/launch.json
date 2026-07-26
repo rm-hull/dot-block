@@ -11,10 +11,7 @@
             "mode": "auto",
             "program": "main.go",
             "args": [
-                "--dev-mode",
-                "--http-port=8080",
-                "--allowed-hosts=localhost",
-                "--log-level=debug"
+                "--config=.vscode/config.yaml"
             ]
         }
     ]

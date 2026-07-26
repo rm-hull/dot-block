@@ -93,7 +93,7 @@ For local development, you can run the server in "dev mode", which uses plain TC
     ```
 2.  Run the server:
     ```bash
-    go run main.go --dev-mode --http-port=8080
+    go run main.go --config=.vscode/config.yaml
     ```
     The DNS server (UDP/TCP) will be listening on port `8053`, DoT (plain TCP) on `8853`, and the HTTP server on port `8080`.
 
@@ -173,7 +173,7 @@ openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your
 
 ### Management API
 
-The server provides several HTTP endpoints for monitoring and management on the configured `--http-port` (default 80).
+The server provides several HTTP endpoints for monitoring and management on the configured HTTP port (default 80).
 
 #### Public endpoints
 
@@ -181,7 +181,7 @@ The server provides several HTTP endpoints for monitoring and management on the 
 - `GET /healthz`: Simple heathcheck.
 - `GET /dns-query` and `POST /dns-query`: DNS-over-HTTPS (DoH) endpoint. `GET /dns-query` expects a `dns` query parameter containing the base64url-encoded DNS wire message. `POST /dns-query` expects the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
 
-If `--metrics-auth` is configured, the `/metrics` endpoint is protected by basic authentication.
+If `metrics_auth` is configured, the `/metrics` endpoint is protected by basic authentication.
 
 #### Admin endpoints
 
@@ -254,44 +254,115 @@ go test ./...
 
 ## Configuration
 
-DoT Block can be configured using the following command-line flags:
+DoT Block is configured via a YAML configuration file. The server searches for the config file in the following order:
 
-| Flag | Description | Default |
+1.  The path specified by the `--config` flag
+2.  `config.yaml` or `config.yml` in the current directory
+3.  `$XDG_CONFIG_DIRS/dot-block/config.yaml` (e.g., `/etc/xdg/dot-block/config.yaml`)
+4.  `$XDG_CONFIG_HOME/dot-block/config.yaml` (e.g., `~/.config/dot-block/config.yaml`)
+
+### Configuration File
+
+A complete example configuration file. Environment variables can be substituted using `${VAR}` or `${VAR:-default}` syntax:
+
+```yaml
+# Optional: enables IDE validation/autocomplete (VS Code, etc.)
+$schema: https://raw.githubusercontent.com/rm-hull/dot-block/main/config.schema.json
+
+server:
+  dev_mode: false                    # Run in dev mode (no TLS, plain TCP)
+  log_level: INFO                    # Log level: DEBUG, INFO, WARN, ERROR
+  data_dir: ./data                   # Directory for persistent data
+  http_port: 80                      # HTTP server port
+  dns_port: 0                        # Regular DNS port (0 = disabled)
+  dot_port: 853                      # DNS-over-TLS port
+  proxy_protocol:                    # PROXY protocol configuration
+    enabled: false                   # Require PROXY protocol header for DoT
+    trusted_proxies: []              # Trusted proxy IP addresses or CIDR ranges
+  allowed_hosts: []                  # Domains for CertManager allow policy
+  metrics_auth: ""                   # Basic auth credentials for /metrics (user:pass)
+
+dns:
+  upstreams:                         # Upstream DNS resolvers
+    - 8.8.8.8
+    - 8.8.4.4
+    - 1.1.1.1
+    - 1.0.0.1
+  ecs:
+    enabled: false                   # Enable EDNS0 Client Subnet (ECS) steering
+  cache:
+    max_size: 1000000                # Maximum number of cached entries
+    ttl_floor: 1h                    # Minimum TTL for cached entries (Go duration format)
+    cron_schedule: "0 3 * * *"       # Cron spec for cache reaper
+  noise_filter:
+    url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
+  timeouts:
+    read: 300ms                      # Timeout for reading upstream DNS queries
+    write: 100ms                     # Timeout for writing upstream DNS queries
+    dial: 300ms                      # Timeout for establishing connections to upstreams
+
+blocklists:
+  urls:                              # URLs of blocklist sources
+    - https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt
+    - https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt
+    - https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt
+  cron_schedule: "@every 19h"        # Cron spec for reloading blocklists
+
+geoblock:
+  ipinfo:
+    enabled: true                    # Enable IPinfo.io geolocation lookups
+    cron_schedule: "5 7 4 * *"       # Cron spec for Ipinfo.io database downloader
+```
+
+All fields are optional — any omitted values fall back to defaults. The `$schema` directive enables IDE validation and autocomplete in editors like VS Code (with the YAML extension).
+
+### Environment Variable Overrides
+
+All configuration values can be overridden via environment variables:
+
+| Variable | Description | Default |
 | :--- | :--- | :--- |
-| `--allowed-hosts` | List of domains used for the CertManager allow policy. | `nil` |
-| `--blocklist-url` | List of URLs to fetch blocklists from (comma-separated). Each list is managed independently for granular control. | `https://codeberg.org/hagezi/mirror2/raw/branch/main/dns-blocklists/hosts/pro.txt` |
-| `--noise-filter-url` | URL of noise filter (CSV format: category,rcode,domain_suffix). | `https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.txt` |
-| `--cache-ttl-floor` | Minimum TTL for cached entries (in seconds). If a response is not "freshness sensitive" (e.g. contains `ocsp`, `crl`, `pki` or is `SOA`/`TXT`), the cache TTL will be at least this value. | `3600s` |
-| `--dial-timeout` | Timeout for establishing TCP connections to upstream servers | `300ms` |
-| `--read-timeout` | Timeout for waiting for responses from upstream DNS servers | `300ms` |
-| `--write-timeout` | Timeout for writing upstream DNS queries | `100ms` |
-| `--cron-schedule:cache-reaper` | Cron spec for cache reaper. | `0 3 * * *` (3:00am every day) |
-| `--cron-schedule:downloader` | Cron spec for reloading blocklist. | `@every 19h` |
-| `--cron-schedule:ipinfo` | Cron spec for fetching ipinfo.io geoIP database. | `5 7 4 * *` (7:05am on the 4th of every month) |
-| `--data-dir` | Directory for persisting data (e.g. TLS certificate cache). | `./data` |
-| `--dev-mode` | Run the server in dev mode (no TLS, plain TCP). | `false` |
-| `--dns-port` | The port to run regular DNS (UDP/TCP) server on. If omitted, the regular DNS server will not start. | `0` |
-| `--dot-port` | The port to run DNS-over-TLS server on. | `853` |
-| `--http-port` | The port to run the HTTP server on. | `80` |
-| `--log-level` | The log level (DEBUG, INFO, WARN, ERROR). | `INFO` |
-| `--metrics-auth` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
-| `--require-proxy-protocol` | Require PROXY protocol header for DoT connections. | `false` |
-| `--trusted-proxies` | Comma-separated list of trusted proxy IP addresses or CIDR ranges. | `nil` |
-| `--enable-ecs` | Enable EDNS0 Client Subnet (ECS) steering. This allows the server to send the client's network prefix to upstream resolvers for location-aware responses. | `false` |
-| `-v, --version` | Print the version of the server and exit. | `nil` |
-| `--upstreams` | Upstream DNS resolvers to forward queries to. (Port 53 is assumed if omitted) | `8.8.8.8`, `8.8.4.4`, `1.1.1.1`, `1.0.0.1`, `9.9.9.9`, `149.112.112.112` |
+| `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | `false` |
+| `LOG_LEVEL` | The log level (DEBUG, INFO, WARN, ERROR). | `INFO` |
+| `DATA_DIR` | Directory for storing persistent data. | `./data` |
+| `HTTP_PORT` | The port to run HTTP server on. | `80` |
+| `DNS_PORT` | The port to run regular DNS (UDP/TCP) server on. | `0` |
+| `DOT_PORT` | The port to run DNS-over-TLS server on. | `853` |
+| `REQUIRE_PROXY_PROTOCOL` | Set to `true` to require PROXY protocol header. | `false` |
+| `TRUSTED_PROXIES` | Comma-separated list of trusted proxy CIDRs (deprecated, use `proxy_protocol.trusted_proxies` in config). | `""` |
+| `METRICS_AUTH` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
+| `ENABLE_ECS` | Set to `true` to enable EDNS0 Client Subnet (ECS) steering. | `false` |
+| `DISABLE_IPINFO` | Set to `true` to disable IPinfo.io geolocation lookups. | `false` |
 
-### Environment Variables
+### Environment Variables (Other)
 
 | Variable | Description | Required |
 | :--- | :--- | :--- |
 | `ACME_EMAIL` | Email address used for Let's Encrypt registration. | Yes (in production) |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (CertManager). | Yes (in production) |
-| `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | No |
 | `IPINFO_TOKEN` | IPInfo.io token for downloading geoIP locations. | Yes (if geoblocking enabled) |
 | `SENTRY_DSN` | DSN for Sentry error reporting. | No |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (e.g. `localhost:4317`). | No |
 | `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0). Defaults to `0.01` (1%). | No |
+
+### Configuration Precedence
+
+Configuration values are applied in the following order (later overrides earlier):
+
+1.  **Defaults** — Built-in default values
+2.  **Config file** (`config.yaml`) — With environment variable substitution (`${VAR:-default}` syntax)
+3.  **Environment variables** — Override config file values
+4.  **CLI flags** — Only `--config` and `--version` are available
+
+### Regenerating the JSON Schema
+
+The `config.schema.json` file is auto-generated from the Go structs in `internal/config/config.go`. To regenerate it after modifying the config structs:
+
+```bash
+go test ./internal/config -run TestSchemaGeneration
+```
+
+Never edit `config.schema.json` directly — the Go code is the source of truth.
 
 ## Grafana Dashboard
 
