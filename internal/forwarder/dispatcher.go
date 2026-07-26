@@ -567,7 +567,7 @@ func extractAnswersForQuestion(q dns.Question, answers []dns.RR) []dns.RR {
 	relevantNames[currentName] = true
 
 	// Follow CNAME chain up to max depth 8 (RFC 1034 recommends a limit)
-	for i := 0; i < 8; i++ {
+	for range 8 {
 		target, exists := cnameMap[currentName]
 		if !exists {
 			break
