@@ -416,15 +416,7 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 	// Process unanswered questions and cache the results
 	for _, q := range unansweredQuestions {
 		cacheKey := getCacheKey(&q, requestCtx.subnet)
-		qKey := dns.Fqdn(q.Name) + ":" + dns.TypeToString[q.Qtype]
-
-		var qAnswers []dns.RR
-		for _, ans := range upstreamResp.Answer {
-			ansKey := dns.Fqdn(ans.Header().Name) + ":" + dns.TypeToString[ans.Header().Rrtype]
-			if ansKey == qKey {
-				qAnswers = append(qAnswers, ans)
-			}
-		}
+		qAnswers := extractAnswersForQuestion(q, upstreamResp.Answer)
 
 		if len(qAnswers) > 0 {
 			upstreamTTL := qAnswers[0].Header().Ttl
@@ -546,6 +538,63 @@ func (d *DNSDispatcher) isFreshnessSensitive(q *dns.Question) bool {
 		}
 	}
 	return false
+}
+
+// extractAnswersForQuestion filters upstream answers to only include those
+// relevant to a specific question, following CNAME chains so that alias
+// responses are cached atomically.
+//
+// For each question, the following records are included:
+//   - Exact matches (same name and type as the question)
+//   - CNAME records whose owner name matches the question name or any CNAME
+//     target in the chain
+//   - A/AAAA records whose owner name matches a CNAME target in the chain
+//
+// This preserves multi-question isolation (issue #225) while ensuring CNAME
+// chains are cached correctly (issue #250).
+func extractAnswersForQuestion(q dns.Question, answers []dns.RR) []dns.RR {
+	// Build a map of CNAME owner -> target to follow chains
+	cnameMap := make(map[string]string)
+	for _, ans := range answers {
+		if cname, ok := ans.(*dns.CNAME); ok {
+			cnameMap[dns.Fqdn(cname.Hdr.Name)] = dns.Fqdn(cname.Target)
+		}
+	}
+
+	// Collect all names relevant to this question by following the CNAME chain
+	relevantNames := make(map[string]bool)
+	currentName := dns.Fqdn(q.Name)
+	relevantNames[currentName] = true
+
+	// Follow CNAME chain up to max depth 8 (RFC 1034 recommends a limit)
+	for i := 0; i < 8; i++ {
+		target, exists := cnameMap[currentName]
+		if !exists {
+			break
+		}
+		currentName = target
+		relevantNames[currentName] = true
+	}
+
+	// Collect all answers whose name is in the relevant names set
+	var qAnswers []dns.RR
+	for _, ans := range answers {
+		ansName := dns.Fqdn(ans.Header().Name)
+		if !relevantNames[ansName] {
+			continue
+		}
+
+		// Include CNAME records, exact type matches, and A/AAAA records
+		// for CNAME targets (i.e., names other than the original question name)
+		if ans.Header().Rrtype == dns.TypeCNAME ||
+			ans.Header().Rrtype == q.Qtype ||
+			(ansName != dns.Fqdn(q.Name) &&
+				(ans.Header().Rrtype == dns.TypeA || ans.Header().Rrtype == dns.TypeAAAA)) {
+			qAnswers = append(qAnswers, ans)
+		}
+	}
+
+	return qAnswers
 }
 
 func (d *DNSDispatcher) reportError(requestCtx *RequestContext, errorCategory string, err error, domain string, additionalFields ...any) {

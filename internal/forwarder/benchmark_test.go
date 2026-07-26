@@ -158,6 +158,7 @@ func prePopulateCache(b *testing.B, dispatcher *DNSDispatcher, domain string, ip
 
 func BenchmarkDNSDispatcher(b *testing.B) {
 	b.Run("CacheHit", benchmarkCacheHit)
+	b.Run("CacheHitCNAME", benchmarkCacheHitCNAME)
 	b.Run("CacheMiss", benchmarkCacheMiss)
 	b.Run("Blocked", benchmarkBlocked)
 	b.Run("BlockedWithEDE", benchmarkBlockedWithEDE)
@@ -176,6 +177,56 @@ func benchmarkCacheHit(b *testing.B) {
 
 	req := new(dns.Msg)
 	req.SetQuestion("example.com.", dns.TypeA)
+
+	for b.Loop() {
+		writer := &benchResponseWriter{}
+		dispatcher.HandleDNSRequest("test")(writer, req)
+	}
+}
+
+func benchmarkCacheHitCNAME(b *testing.B) {
+	server, upstream := startLocalDNSBench(b, anyRecordHandler())
+	defer func() { _ = server.Shutdown() }()
+
+	dispatcher := setupDispatcherBench(b, upstream, false)
+
+	// Pre-populate cache with a CNAME chain: www.example.com -> cdn.example.net -> 1.2.3.4
+	cname := &dns.CNAME{
+		Hdr: dns.RR_Header{
+			Name:   dns.Fqdn("www.example.com."),
+			Rrtype: dns.TypeCNAME,
+			Class:  dns.ClassINET,
+			Ttl:    3600,
+		},
+		Target: dns.Fqdn("cdn.example.net."),
+	}
+	aRecord := &dns.A{
+		Hdr: dns.RR_Header{
+			Name:   dns.Fqdn("cdn.example.net."),
+			Rrtype: dns.TypeA,
+			Class:  dns.ClassINET,
+			Ttl:    3600,
+		},
+		A: []byte{1, 2, 3, 4},
+	}
+
+	cacheKey := getCacheKey(&dns.Question{
+		Name:   dns.Fqdn("www.example.com."),
+		Qtype:  dns.TypeA,
+		Qclass: dns.ClassINET,
+	}, "")
+	dispatcher.cache.Set(cacheKey, []dns.RR{cname, aRecord}, 3600*time.Second)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, ok := dispatcher.cache.Get(cacheKey); ok {
+			break
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	req := new(dns.Msg)
+	req.SetQuestion("www.example.com.", dns.TypeA)
 
 	for b.Loop() {
 		writer := &benchResponseWriter{}

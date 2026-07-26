@@ -1,0 +1,65 @@
+# Proposed config.yaml for dot-block
+# New fields marked with # NEW are env vars previously read directly via os.Getenv()
+
+# Optional: enables IDE validation/autocomplete (VS Code, etc.)
+$schema: https://raw.githubusercontent.com/rm-hull/dot-block/main/config.schema.json
+
+server:
+  dev_mode: false                    # Run in dev mode (no TLS, plain TCP)
+  log_level: INFO                    # Log level: DEBUG, INFO, WARN, ERROR
+  data_dir: ./data                   # Directory for storing persistent data
+  http_port: 80                      # HTTP server port
+  dns_port: 0                        # Regular DNS port (0 = disabled)
+  dot_port: 853                      # DNS-over-TLS port
+  proxy_protocol:                    # PROXY protocol configuration
+    enabled: false                   # Require PROXY protocol header for DoT
+    trusted_proxies: []              # Trusted proxy IP addresses or CIDR ranges
+  lets_encrypt:                      # NEW: Let's Encrypt / ACME certificate management
+    enabled: false                   # NEW: Enable automatic TLS certificate management via Let's Encrypt / ACME
+    email: ""                        # NEW: Email address for Let's Encrypt registration (was ACME_EMAIL env var)
+    cloudflare_api_token: ""         # NEW: Cloudflare API token for DNS-01 challenge (was CLOUDFLARE_API_TOKEN env var) [secret]
+    allowed_hosts: []                # NEW: Domains for CertManager allow policy / mobileconfig (was server.allowed_hosts)
+
+dns:
+  upstreams:                         # Upstream DNS resolvers
+    - 8.8.8.8
+    - 8.8.4.4
+    - 1.1.1.1
+    - 1.0.0.1
+  ecs:
+    enabled: false                   # Enable EDNS0 Client Subnet (ECS) steering
+  cache:
+    max_size: 1000000                # Maximum number of cached entries
+    ttl_floor: 1h                    # Minimum TTL for cached entries (Go duration format)
+    cron_schedule: "0 3 * * *"       # Cron spec for cache reaper
+  noise_filter:
+    url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv"
+    cron_schedule: "@every 19h"     # Cron spec for noise filter downloader
+  timeouts:
+    read: 300ms                      # Timeout for reading upstream DNS queries
+    write: 100ms                     # Timeout for writing upstream DNS queries
+    dial: 300ms                      # Timeout for establishing connections to upstreams
+
+blocklist:
+  sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule
+    - name: "hagezi-pro"              # Human-readable name for the blocklist
+      url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt"
+      cron_schedule: "@every 19h"     # Cron spec for reloading this specific blocklist
+    - name: "cebeerre-nrd"
+      url: "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt"
+      cron_schedule: "@every 19h"
+    - name: "dot-block"
+      url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"
+      cron_schedule: "@every 19h"
+
+geoblock:
+  ipinfo:
+    enabled: true                    # Enable IPinfo.io geolocation lookups
+    cron_schedule: "5 7 4 * *"       # Cron spec for Ipinfo.io database downloader
+    token: ""                        # NEW: IPInfo.io API token for downloading geoIP database (was IPINFO_TOKEN env var) [secret]
+
+telemetry:                          # NEW SECTION: Observability settings
+  sentry_dsn: ""                    # NEW: DSN for Sentry error reporting (was SENTRY_DSN env var)
+  metrics_auth: ""                  # Basic auth credentials for /metrics (user:pass) [moved from server]
+  otel_endpoint: ""                 # NEW: OpenTelemetry OTLP gRPC endpoint, e.g. localhost:4317 (was OTEL_EXPORTER_OTLP_ENDPOINT env var)
+  otel_sampling_ratio: 0.01         # NEW: Ratio of traces to sample (0.0 to 1.0). Defaults to 0.01 (1%) (was OTEL_SAMPLING_RATIO env var)
