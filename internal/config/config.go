@@ -10,10 +10,10 @@ import (
 )
 
 type Config struct {
-	Server     *ServerConfig     `yaml:"server,omitempty" json:"server,omitempty"`
-	DNS        *DNSConfig        `yaml:"dns,omitempty" json:"dns,omitempty"`
-	Blocklists *BlocklistsConfig `yaml:"blocklists,omitempty" json:"blocklists,omitempty"`
-	Geoblock   *GeoblockConfig   `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
+	Server    *ServerConfig    `yaml:"server,omitempty" json:"server,omitempty"`
+	DNS       *DNSConfig       `yaml:"dns,omitempty" json:"dns,omitempty"`
+	Blocklist *BlocklistConfig `yaml:"blocklist,omitempty" json:"blocklist,omitempty"`
+	Geoblock  *GeoblockConfig  `yaml:"geoblock,omitempty" json:"geoblock,omitempty"`
 }
 
 type LogLevel string
@@ -38,8 +38,8 @@ type ServerConfig struct {
 }
 
 type ProxyProtocolConfig struct {
-	Enabled         bool     `yaml:"enabled,omitempty" json:"enabled,omitempty"`
-	TrustedProxies  []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
+	Enabled        bool     `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty"`
 }
 
 type DNSConfig struct {
@@ -61,7 +61,8 @@ type CacheConfig struct {
 }
 
 type NoiseFilter struct {
-	URL string `yaml:"url,omitempty" json:"url,omitempty"`
+	URL          string `yaml:"url,omitempty" json:"url,omitempty"`
+	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
 }
 
 type TimeoutsConfig struct {
@@ -70,9 +71,14 @@ type TimeoutsConfig struct {
 	Dial  time.Duration `yaml:"dial,omitempty" json:"dial,omitempty"`
 }
 
-type BlocklistsConfig struct {
-	URLs         []string `yaml:"urls,omitempty" json:"urls,omitempty"`
-	CronSchedule string   `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
+type BlocklistConfig struct {
+	Sources []BlocklistSource `yaml:"sources,omitempty" json:"sources,omitempty"`
+}
+
+type BlocklistSource struct {
+	Name         string `yaml:"name,omitempty" json:"name,omitempty"`
+	URL          string `yaml:"url,omitempty" json:"url,omitempty"`
+	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty"`
 }
 
 type GeoblockConfig struct {

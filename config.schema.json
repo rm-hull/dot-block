@@ -2,19 +2,48 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
   "definitions": {
-    "BlocklistsConfig": {
+    "BlocklistConfig": {
+      "additionalProperties": true,
+      "properties": {
+        "sources": {
+          "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
+          "items": {
+            "additionalProperties": true,
+            "properties": {
+              "cron_schedule": {
+                "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
+                "type": "string"
+              },
+              "name": {
+                "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                "type": "string"
+              },
+              "url": {
+                "description": "URL of the blocklist source.",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "BlocklistSource": {
       "additionalProperties": true,
       "properties": {
         "cron_schedule": {
-          "description": "Cron spec for reloading blocklist.",
+          "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
           "type": "string"
         },
-        "urls": {
-          "description": "URLs of blocklist sources.",
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+        "name": {
+          "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+          "type": "string"
+        },
+        "url": {
+          "description": "URL of the blocklist source.",
+          "type": "string"
         }
       },
       "type": "object"
@@ -42,17 +71,28 @@
     "Config": {
       "additionalProperties": true,
       "properties": {
-        "blocklists": {
+        "blocklist": {
           "additionalProperties": true,
           "properties": {
-            "cron_schedule": {
-              "description": "Cron spec for reloading blocklist.",
-              "type": "string"
-            },
-            "urls": {
-              "description": "URLs of blocklist sources.",
+            "sources": {
+              "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
               "items": {
-                "type": "string"
+                "additionalProperties": true,
+                "properties": {
+                  "cron_schedule": {
+                    "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "URL of the blocklist source.",
+                    "type": "string"
+                  }
+                },
+                "type": "object"
               },
               "type": "array"
             }
@@ -95,6 +135,10 @@
             "noise_filter": {
               "additionalProperties": true,
               "properties": {
+                "cron_schedule": {
+                  "description": "Cron spec for noise filter downloader.",
+                  "type": "string"
+                },
                 "url": {
                   "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
                   "type": "string"
@@ -259,6 +303,10 @@
         "noise_filter": {
           "additionalProperties": true,
           "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for noise filter downloader.",
+              "type": "string"
+            },
             "url": {
               "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
               "type": "string"
@@ -347,6 +395,10 @@
     "NoiseFilter": {
       "additionalProperties": true,
       "properties": {
+        "cron_schedule": {
+          "description": "Cron spec for noise filter downloader.",
+          "type": "string"
+        },
         "url": {
           "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
           "type": "string"
@@ -461,17 +513,28 @@
     }
   },
   "properties": {
-    "blocklists": {
+    "blocklist": {
       "additionalProperties": true,
       "properties": {
-        "cron_schedule": {
-          "description": "Cron spec for reloading blocklist.",
-          "type": "string"
-        },
-        "urls": {
-          "description": "URLs of blocklist sources.",
+        "sources": {
+          "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
           "items": {
-            "type": "string"
+            "additionalProperties": true,
+            "properties": {
+              "cron_schedule": {
+                "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
+                "type": "string"
+              },
+              "name": {
+                "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                "type": "string"
+              },
+              "url": {
+                "description": "URL of the blocklist source.",
+                "type": "string"
+              }
+            },
+            "type": "object"
           },
           "type": "array"
         }
@@ -514,6 +577,10 @@
         "noise_filter": {
           "additionalProperties": true,
           "properties": {
+            "cron_schedule": {
+              "description": "Cron spec for noise filter downloader.",
+              "type": "string"
+            },
             "url": {
               "description": "URL of noise filter list (CSV format: category,rcode,domain_suffix).",
               "type": "string"

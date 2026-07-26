@@ -46,7 +46,8 @@ func DefaultConfig() *Config {
 				CronSchedule: "0 3 * * *",
 			},
 			NoiseFilter: &NoiseFilter{
-				URL: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv",
+				URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/noise-filter.csv",
+				CronSchedule: "@every 19h",
 			},
 			Timeouts: &TimeoutsConfig{
 				Read:  300 * time.Millisecond,
@@ -54,13 +55,24 @@ func DefaultConfig() *Config {
 				Dial:  300 * time.Millisecond,
 			},
 		},
-		Blocklists: &BlocklistsConfig{
-			URLs: []string{
-				"https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",
-				"https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
-				"https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
+		Blocklist: &BlocklistConfig{
+			Sources: []BlocklistSource{
+				{
+					Name:         "hagezi-pro",
+					URL:          "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",
+					CronSchedule: "@every 19h",
+				},
+				{
+					Name:         "cebeerre-nrd",
+					URL:          "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
+					CronSchedule: "@every 19h",
+				},
+				{
+					Name:         "dot-block",
+					URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
+					CronSchedule: "@every 19h",
+				},
 			},
-			CronSchedule: "@every 19h",
 		},
 		Geoblock: &GeoblockConfig{
 			Ipinfo: &IpinfoConfig{

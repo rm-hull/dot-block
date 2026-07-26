@@ -31,6 +31,7 @@ type BlockList struct {
 }
 
 type BlocklistStatus struct {
+	Name              string            `json:"name"`
 	URL               string            `json:"url"`
 	Size              uint              `json:"size"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
@@ -148,6 +149,7 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 		disabledUntil = blocklist.disabledUntil
 	}
 	status := BlocklistStatus{
+		Name:              blocklist.name,
 		URL:               blocklist.url,
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,
