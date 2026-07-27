@@ -196,6 +196,11 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 		}
 	}()
 
+	return blockList.processFile(path)
+}
+
+func (blockList *BlockList) processFile(path string) error {
+
 	file, err := os.Open(path)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.url)

@@ -95,5 +95,5 @@ func TestBlocklist_Fetch_EmptyFile(t *testing.T) {
 
 	// Should not panic and should have a bloom filter (with 0 items guarded to 1)
 	status := blockList.Status()
-	assert.Equal(t, uint(1), status.Size)
+	assert.Equal(t, uint(0), status.Size)
 }

@@ -59,9 +59,11 @@ www.tracking.com
 
 	assert.Equal(t, PrefixWildcard, file.Entries[0].Prefix.Type)
 	assert.Equal(t, "*.", file.Entries[0].Prefix.Raw)
+	assert.Equal(t, "malware.net", file.Entries[0].Hostnames[0])
 
 	assert.Equal(t, PrefixWww, file.Entries[1].Prefix.Type)
 	assert.Equal(t, "www.", file.Entries[1].Prefix.Raw)
+	assert.Equal(t, "tracking.com", file.Entries[1].Hostnames[0])
 }
 
 func TestParseFile_DomainOnly(t *testing.T) {
