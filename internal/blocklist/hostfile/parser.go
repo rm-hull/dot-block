@@ -2,7 +2,6 @@ package hostfile
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"net/netip"
 	"strings"
@@ -308,8 +307,6 @@ func ParseFile(input string) (File, error) {
 
 // Stream parses a hosts-file from an io.Reader and streams entries
 // through the provided callback function.
-// Stream parses a hosts-file from an io.Reader and streams entries
-// through the provided callback function.
 func Stream(r io.Reader, callback func(Entry) error) (map[string]string, error) {
 	scanner := bufio.NewScanner(r)
 	metadata := make(map[string]string)
@@ -319,9 +316,7 @@ func Stream(r io.Reader, callback func(Entry) error) (map[string]string, error) 
 		line := scanner.Text()
 		if firstLine {
 			// Remove BOM if present
-			if len(line) >= 3 && line[0] == 0xEF && line[1] == 0xBB && line[2] == 0xBF {
-				line = line[3:]
-			}
+			line = strings.TrimPrefix(line, "\ufeff")
 			firstLine = false
 		}
 
@@ -332,38 +327,23 @@ func Stream(r io.Reader, callback func(Entry) error) (map[string]string, error) 
 
 		// Check for comment line (must start with '#' without leading whitespace)
 		if strings.HasPrefix(line, "#") {
-			// Try to parse as a comment (metadata or regular)
 			comment, _, err := parser.Run(commentParser, line)
-			if err == nil {
-				if comment.Type == CommentMetadata {
-					metadata[comment.Key] = comment.Value
-				}
-				// Ignore regular comments
-				continue
+			if err == nil && comment.Type == CommentMetadata {
+				metadata[comment.Key] = comment.Value
 			}
-			// If comment parsing fails, still treat as a comment line and skip
+			// Regular comments and unparseable comment lines are skipped
 			continue
 		}
 
 		// Try to parse as an entry
-		// Trim leading/trailing whitespace because entryLineParser allowed whitespace around the entry
-		trimmed := strings.Trim(line, " \t")
-		if trimmed == "" {
-			continue
-		}
-
-		result, consumed, err := parser.Run(entryParser, trimmed)
+		trimmed := strings.TrimSpace(line)
+		result, _, err := parser.Run(entryParser, trimmed)
 		if err != nil {
 			return metadata, err
 		}
-		if !consumed {
-			return metadata, fmt.Errorf("did not consume entire input")
-		}
-		entry := result
-		if err := callback(entry); err != nil {
+		if err := callback(result); err != nil {
 			return metadata, err
 		}
-
 	}
 
 	return metadata, scanner.Err()
