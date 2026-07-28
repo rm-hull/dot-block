@@ -102,3 +102,5 @@ www.googleadservices.com
 # PostHog analytics
 eu.i.posthog.com
 eu-assets.i.posthog.com
+
+events.api.bosecm.com
