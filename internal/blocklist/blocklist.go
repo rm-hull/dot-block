@@ -201,7 +201,7 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 // filter, and applies it. It is the core processing logic shared by Fetch
 // (which first downloads the file) and is also used directly by benchmarks.
 func (blockList *BlockList) processFile(path string) error {
-	count, err := countFromFile(path)
+	count, err := countLines(path)
 	if err != nil {
 		return errors.Wrapf(err, "failed to count hosts in file %s", path)
 	}
@@ -217,13 +217,9 @@ func (blockList *BlockList) processFile(path string) error {
 		return false
 	}
 
-	if err := streamFromFile(path, blockList.logger, scannerFunc); err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
-	}
-
-	metadata, err := extractMetadata(path)
+	metadata, err := stream(path, scannerFunc)
 	if err != nil {
-		return errors.Wrapf(err, "failed to extract metadata from file %s", path)
+		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
 	}
 
 	blockList.applyBloomFilter(bloomFilter, count, metadata)

@@ -3,7 +3,6 @@ package blocklist
 import (
 	"bufio"
 	"bytes"
-	"log/slog"
 	"os"
 	"regexp"
 	"strings"
@@ -14,55 +13,32 @@ var prefixes = [][]byte{[]byte("0.0.0.0 "), []byte("*."), []byte("www.")}
 
 type ScannerFunc func([]byte) bool
 
-func scanBlocklist(file *os.File, logger *slog.Logger, handler ScannerFunc) error {
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
-		if bytes.HasPrefix(line, []byte("# ")) {
-			if logger != nil {
-				logger.Info("Blocklist", "comment", string(line))
-			}
-			continue
-		} else if len(bytes.Trim(line, "# ")) == 0 || bytes.HasPrefix(line, []byte("## ")) {
-			continue // ignore double-octothorpe and empty comments
-		} else {
-			for _, prefix := range prefixes {
-				if after, ok := bytes.CutPrefix(line, prefix); ok {
-					line = after
-				}
-			}
-			if handler(line) { // finish early?
-				break
-			}
-		}
-	}
-	return scanner.Err()
-}
-
-func countFromFile(path string) (uint, error) {
-	var count uint
+func countLines(path string) (uint, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return 0, err
 	}
 	defer func() { _ = file.Close() }()
-	err = scanBlocklist(file, nil, func(_ []byte) bool {
+
+	var count uint
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		// Skip comments and metadata
+		if bytes.HasPrefix(line, []byte("#")) {
+			continue
+		}
 		count++
-		return false
-	})
-	return count, err
-}
-
-func streamFromFile(path string, logger *slog.Logger, handler ScannerFunc) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
 	}
-	defer func() { _ = file.Close() }()
-	return scanBlocklist(file, logger, handler)
+	return count, scanner.Err()
 }
 
-func extractMetadata(path string) (map[string]string, error) {
+// stream processes a blocklist file, parsing metadata headers first, then
+// scanning the rest of the file for hostnames.
+func stream(path string, handler ScannerFunc) (map[string]string, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -71,22 +47,46 @@ func extractMetadata(path string) (map[string]string, error) {
 
 	metadata := make(map[string]string)
 	scanner := bufio.NewScanner(file)
+
+	// 1. Parse Metadata
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "#" {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+		if bytes.Equal(line, []byte("#")) {
 			break // end of metadata header
 		}
-		if line != "" && !strings.HasPrefix(line, "#") {
+		if !bytes.HasPrefix(line, []byte("#")) {
+			// Hit actual data, stop metadata parsing
 			break
 		}
-		after, ok := strings.CutPrefix(line, "# ")
+		after, ok := bytes.CutPrefix(line, []byte("# "))
 		if !ok {
 			continue
 		}
-		if key, value, found := strings.Cut(after, ": "); found {
-			metadata[snakeCase(key)] = value
+		if key, value, found := bytes.Cut(after, []byte(": ")); found {
+			metadata[snakeCase(string(key))] = string(value)
 		}
 	}
+
+	// 2. Parse Hostnames
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 || bytes.HasPrefix(line, []byte("#")) {
+			continue
+		}
+
+		for _, prefix := range prefixes {
+			if after, ok := bytes.CutPrefix(line, prefix); ok {
+				line = after
+			}
+		}
+		if handler(line) {
+			break
+		}
+	}
+
 	return metadata, scanner.Err()
 }
 

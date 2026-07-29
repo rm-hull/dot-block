@@ -27,7 +27,7 @@ func setupTempFile(t *testing.T, content string) string {
 func TestLoader_Metadata(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
 
-	metadata, err := extractMetadata(tmpFile)
+	metadata, err := stream(tmpFile, func(_ []byte) bool { return false })
 	assert.NoError(t, err)
 	assert.Equal(t, "Test Blocklist", metadata["title"])
 	assert.Equal(t, "Tester", metadata["author"])
@@ -36,7 +36,7 @@ func TestLoader_Metadata(t *testing.T) {
 func TestLoader_Count(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test\nexample.com\n# Comment\nmalicious.net\n")
 
-	count, err := countFromFile(tmpFile)
+	count, err := countLines(tmpFile)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, int(count))
 }
@@ -50,7 +50,7 @@ func TestLoader_Stream(t *testing.T) {
 		return false
 	}
 
-	err := streamFromFile(tmpFile, nil, scannerFunc)
+	_, err := stream(tmpFile, scannerFunc)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(hosts))
 	assert.Contains(t, hosts, "example.com")
