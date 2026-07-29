@@ -317,6 +317,10 @@ blocklist:
       url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"
       cron_schedule: "@every 19h"
 
+# Blocklists are fetched asynchronously on startup, so the DNS server begins
+# listening immediately. Domains are not blocked until the initial fetch
+# completes. Subsequent reloads are also asynchronous (see /api/blocklist/reload).
+
 geoblock:
   ipinfo:
     enabled: true                    # Enable IPinfo.io geolocation lookups

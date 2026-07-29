@@ -15,6 +15,15 @@ func NewUpdater(blocklists []*BlockList, timeout time.Duration) *Updater {
 	return &Updater{Blocklists: blocklists, Timeout: timeout}
 }
 
+func (job *Updater) AllLoaded() bool {
+	for _, bl := range job.Blocklists {
+		if !bl.IsLoaded() {
+			return false
+		}
+	}
+	return true
+}
+
 func (job *Updater) Run() {
 	var wg sync.WaitGroup
 

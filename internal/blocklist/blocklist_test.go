@@ -37,3 +37,18 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, isBlocked, "example.com should be blocked again after disable period expires")
 }
+
+func TestBlocklist_IsLoaded(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+
+	t.Run("not loaded initially", func(t *testing.T) {
+		blockList := NewBlockList("test", "http://dummy_url", 0.0001, logger)
+		assert.False(t, blockList.IsLoaded())
+	})
+
+	t.Run("loaded after Load", func(t *testing.T) {
+		blockList := NewBlockList("test", "http://dummy_url", 0.0001, logger)
+		blockList.Load([]string{"example.com"})
+		assert.True(t, blockList.IsLoaded())
+	})
+}

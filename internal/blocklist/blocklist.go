@@ -72,6 +72,12 @@ func (BlockList *BlockList) Metadata(attr, defaultValue string) string {
 
 // Returns whether the URL (or part of the URL) is on a block list.
 // If true, might be a false positive, but if false (i.e. allowed) is definitely not blocked
+func (blockList *BlockList) IsLoaded() bool {
+	blockList.mutex.RLock()
+	defer blockList.mutex.RUnlock()
+	return blockList.bloomFilter != nil
+}
+
 func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 	domain, _ := strings.CutSuffix(fqdn, ".")
 
@@ -194,9 +200,16 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 		}
 	}()
 
+	return blockList.processFile(path)
+}
+
+// processFile reads a blocklist file from disk, counts entries, builds a bloom
+// filter, and applies it. It is the core processing logic shared by Fetch
+// (which first downloads the file) and is also used directly by benchmarks.
+func (blockList *BlockList) processFile(path string) error {
 	count, err := countFromFile(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to count hosts in file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to count hosts in file %s", path)
 	}
 
 	// Avoid creating a bloom filter with 0 items, which will panic
@@ -211,12 +224,12 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 	}
 
 	if err := streamFromFile(path, blockList.logger, scannerFunc); err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
 	}
 
 	metadata, err := extractMetadata(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to extract metadata from file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to extract metadata from file %s", path)
 	}
 
 	blockList.applyBloomFilter(bloomFilter, count, metadata)
