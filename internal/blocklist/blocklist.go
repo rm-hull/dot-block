@@ -218,8 +218,8 @@ func (blockList *BlockList) processFile(path string) error {
 	}
 
 	bloomFilter := bloom.NewWithEstimates(count, blockList.minFpRate)
-	scannerFunc := func(host string) bool {
-		bloomFilter.AddString(host)
+	scannerFunc := func(host []byte) bool {
+		bloomFilter.Add(host)
 		return false
 	}
 

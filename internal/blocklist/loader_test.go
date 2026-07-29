@@ -45,8 +45,8 @@ func TestLoader_Stream(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
 
 	var hosts []string
-	scannerFunc := func(host string) bool {
-		hosts = append(hosts, host)
+	scannerFunc := func(host []byte) bool {
+		hosts = append(hosts, string(host))
 		return false
 	}
 

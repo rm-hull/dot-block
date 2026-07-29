@@ -2,6 +2,7 @@ package blocklist
 
 import (
 	"bufio"
+	"bytes"
 	"log/slog"
 	"os"
 	"regexp"
@@ -9,24 +10,24 @@ import (
 )
 
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
-var prefixes = []string{"0.0.0.0 ", "*.", "www."}
+var prefixes = [][]byte{[]byte("0.0.0.0 "), []byte("*."), []byte("www.")}
 
-type ScannerFunc func(string) bool
+type ScannerFunc func([]byte) bool
 
 func scanBlocklist(file *os.File, logger *slog.Logger, handler ScannerFunc) error {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if bytes.HasPrefix(line, []byte("# ")) {
 			if logger != nil {
-				logger.Info("Blocklist", "comment", line)
+				logger.Info("Blocklist", "comment", string(line))
 			}
 			continue
-		} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
+		} else if len(bytes.Trim(line, "# ")) == 0 || bytes.HasPrefix(line, []byte("## ")) {
 			continue // ignore double-octothorpe and empty comments
 		} else {
 			for _, prefix := range prefixes {
-				if after, ok := strings.CutPrefix(line, prefix); ok {
+				if after, ok := bytes.CutPrefix(line, prefix); ok {
 					line = after
 				}
 			}
@@ -45,7 +46,7 @@ func countFromFile(path string) (uint, error) {
 		return 0, err
 	}
 	defer func() { _ = file.Close() }()
-	err = scanBlocklist(file, nil, func(_ string) bool {
+	err = scanBlocklist(file, nil, func(_ []byte) bool {
 		count++
 		return false
 	})
