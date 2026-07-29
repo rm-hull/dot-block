@@ -2,6 +2,7 @@ package blocklist
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
 	"strings"
@@ -201,27 +202,42 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 // filter, and applies it. It is the core processing logic shared by Fetch
 // (which first downloads the file) and is also used directly by benchmarks.
 func (blockList *BlockList) processFile(path string) error {
-	count, err := countLines(path)
+	file, err := os.Open(path)
+	// count, err := countLines(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to count hosts in file %s", path)
+		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.url)
+	}
+	defer func() { _ = file.Close() }()
+
+	estimate, err := countNewlines(file)
+	if err != nil {
+		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.url)
 	}
 
-	// Avoid creating a bloom filter with 0 items, which will panic
-	if count == 0 {
-		count = 1
+	// Seek back to the beginning for streaming
+	if _, err := file.Seek(0, io.SeekStart); err != nil {
+		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.url)
 	}
 
-	bloomFilter := bloom.NewWithEstimates(count, blockList.minFpRate)
-	scannerFunc := func(host []byte) bool {
+	bloomFilter := bloom.NewWithEstimates(estimate+1, blockList.minFpRate)
+
+	// Stream the file in a single pass: add hostnames directly to the bloom
+	// filter and extract metadata comments into a map. Rather than logging
+	// metadata as it is encountered, we dump it in a single log message afterwards.
+	var hostCount uint
+	metadata, err := stream(file, func(host []byte) bool {
 		bloomFilter.Add(host)
+		hostCount++
 		return false
-	}
-
-	metadata, err := stream(path, scannerFunc)
+	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
 	}
 
-	blockList.applyBloomFilter(bloomFilter, count, metadata)
+	if len(metadata) > 0 {
+		blockList.logger.Info("Loaded hosts into blocklist", "metadata", metadata)
+	}
+
+	blockList.applyBloomFilter(bloomFilter, hostCount, metadata)
 	return nil
 }

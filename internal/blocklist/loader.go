@@ -3,7 +3,7 @@ package blocklist
 import (
 	"bufio"
 	"bytes"
-	"os"
+	"io"
 	"regexp"
 	"strings"
 )
@@ -13,66 +13,45 @@ var prefixes = [][]byte{[]byte("0.0.0.0 "), []byte("*."), []byte("www.")}
 
 type ScannerFunc func([]byte) bool
 
-func countLines(path string) (uint, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = file.Close() }()
-
+// countNewlines reads through an io.Reader and counts newline characters,
+// providing a fast, low-memory estimate of the number of lines (and thus
+// approximate number of hosts) in a blocklist file.
+func countNewlines(r io.Reader) (uint, error) {
 	var count uint
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
-		if len(line) == 0 {
-			continue
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := r.Read(buf)
+		for i := range n {
+			if buf[i] == '\n' {
+				count++
+			}
 		}
-		// Skip comments and metadata
-		if bytes.HasPrefix(line, []byte("#")) {
-			continue
+		if err == io.EOF {
+			return count, nil
 		}
-		count++
+		if err != nil {
+			return 0, err
+		}
 	}
-	return count, scanner.Err()
 }
 
-// stream processes a blocklist file, parsing metadata headers first, then
-// scanning the rest of the file for hostnames.
-func stream(path string, handler ScannerFunc) (map[string]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
-
+func stream(r io.Reader, handler ScannerFunc) (map[string]string, error) {
 	metadata := make(map[string]string)
-	scanner := bufio.NewScanner(file)
+	scanner := bufio.NewScanner(r)
 
-	// 1. Parse Metadata
 	for scanner.Scan() {
 		line := bytes.TrimSpace(scanner.Bytes())
 		if len(line) == 0 {
 			continue
 		}
-		if bytes.Equal(line, []byte("#")) {
-			break // end of metadata header
-		}
-		if !bytes.HasPrefix(line, []byte("#")) {
-			// Hit actual data, stop metadata parsing
-			break
-		}
-		after, ok := bytes.CutPrefix(line, []byte("# "))
-		if !ok {
-			continue
-		}
-		if key, value, found := bytes.Cut(after, []byte(": ")); found {
-			metadata[snakeCase(string(key))] = string(value)
-		}
-	}
 
-	// 2. Parse Hostnames
-	for scanner.Scan() {
-		line := bytes.TrimSpace(scanner.Bytes())
+		if after, ok := bytes.CutPrefix(line, []byte("# ")); ok {
+			if key, value, found := bytes.Cut(after, []byte(": ")); found {
+				metadata[snakeCase(string(key))] = string(value)
+				continue
+			}
+		}
+
 		if len(line) == 0 || bytes.HasPrefix(line, []byte("#")) {
 			continue
 		}
