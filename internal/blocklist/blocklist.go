@@ -72,12 +72,6 @@ func (BlockList *BlockList) Metadata(attr, defaultValue string) string {
 
 // Returns whether the URL (or part of the URL) is on a block list.
 // If true, might be a false positive, but if false (i.e. allowed) is definitely not blocked
-func (blockList *BlockList) IsLoaded() bool {
-	blockList.mutex.RLock()
-	defer blockList.mutex.RUnlock()
-	return blockList.bloomFilter != nil
-}
-
 func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 	domain, _ := strings.CutSuffix(fqdn, ".")
 
