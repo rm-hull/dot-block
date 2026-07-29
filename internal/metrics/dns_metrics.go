@@ -116,7 +116,7 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup, topK TopKConfi
 		newSpaceSaverStatsCallback(topDomains, topK.NumDomains),
 	)
 
-	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", []string{"hostname"},
+	topBlockedDomainsStats := NewStatsCollector("dns_top_blocked_domains", []string{"hostname", "blocklist"},
 		fmt.Sprintf("Shows the top %d blocked domains (estimate based on count - error)", topK.NumBlocked),
 		newSpaceSaverStatsCallback(topBlockedDomains, topK.NumBlocked),
 	)
