@@ -1,6 +1,7 @@
 package blocklist
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -13,7 +14,7 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func setupTempFile(t *testing.T, content string) string {
+func setupTempFile(t *testing.T, content string) io.Reader {
 	tmpDir, err := os.MkdirTemp("", "blocklist-test")
 	assert.NoError(t, err)
 	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
@@ -21,13 +22,17 @@ func setupTempFile(t *testing.T, content string) string {
 	tmpFile := filepath.Join(tmpDir, "list.txt")
 	err = os.WriteFile(tmpFile, []byte(content), 0644)
 	assert.NoError(t, err)
-	return tmpFile
+
+	reader, err := os.Open(tmpFile)
+	assert.NoError(t, err)
+	t.Cleanup(func() { _ = reader.Close() })
+
+	return reader
 }
 
 func TestLoader_Metadata(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
-
-	metadata, err := extractMetadata(tmpFile)
+	metadata, err := stream(tmpFile, func(_ []byte) bool { return false })
 	assert.NoError(t, err)
 	assert.Equal(t, "Test Blocklist", metadata["title"])
 	assert.Equal(t, "Tester", metadata["author"])
@@ -35,22 +40,21 @@ func TestLoader_Metadata(t *testing.T) {
 
 func TestLoader_Count(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test\nexample.com\n# Comment\nmalicious.net\n")
-
-	count, err := countFromFile(tmpFile)
+	count, err := countNewlines(tmpFile)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, int(count))
+	assert.Equal(t, 4, int(count))
 }
 
 func TestLoader_Stream(t *testing.T) {
 	tmpFile := setupTempFile(t, "# Title: Test Blocklist\n# Author: Tester\n#\nexample.com\nmalicious.net\n")
 
 	var hosts []string
-	scannerFunc := func(host string) bool {
-		hosts = append(hosts, host)
+	scannerFunc := func(host []byte) bool {
+		hosts = append(hosts, string(host))
 		return false
 	}
 
-	err := streamFromFile(tmpFile, nil, scannerFunc)
+	_, err := stream(tmpFile, scannerFunc)
 	assert.NoError(t, err)
 	assert.Equal(t, 2, len(hosts))
 	assert.Contains(t, hosts, "example.com")

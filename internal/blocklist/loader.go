@@ -2,90 +2,70 @@ package blocklist
 
 import (
 	"bufio"
-	"log/slog"
-	"os"
+	"bytes"
+	"io"
 	"regexp"
 	"strings"
 )
 
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
-var prefixes = []string{"0.0.0.0 ", "*.", "www."}
+var prefixes = [][]byte{[]byte("0.0.0.0 "), []byte("*."), []byte("www.")}
 
-type ScannerFunc func(string) bool
+type ScannerFunc func([]byte) bool
 
-func scanBlocklist(file *os.File, logger *slog.Logger, handler ScannerFunc) error {
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if strings.HasPrefix(line, "# ") {
-			if logger != nil {
-				logger.Info("Blocklist", "comment", line)
-			}
-			continue
-		} else if len(strings.Trim(line, "# ")) == 0 || strings.HasPrefix(line, "## ") {
-			continue // ignore double-octothorpe and empty comments
-		} else {
-			for _, prefix := range prefixes {
-				if after, ok := strings.CutPrefix(line, prefix); ok {
-					line = after
-				}
-			}
-			if handler(line) { // finish early?
-				break
-			}
-		}
-	}
-	return scanner.Err()
-}
-
-func countFromFile(path string) (uint, error) {
+// countNewlines reads through an io.Reader and counts newline characters,
+// providing a fast, low-memory estimate of the number of lines (and thus
+// approximate number of hosts) in a blocklist file.
+func countNewlines(r io.Reader) (uint, error) {
 	var count uint
-	file, err := os.Open(path)
-	if err != nil {
-		return 0, err
-	}
-	defer func() { _ = file.Close() }()
-	err = scanBlocklist(file, nil, func(_ string) bool {
-		count++
-		return false
-	})
-	return count, err
-}
-
-func streamFromFile(path string, logger *slog.Logger, handler ScannerFunc) error {
-	file, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = file.Close() }()
-	return scanBlocklist(file, logger, handler)
-}
-
-func extractMetadata(path string) (map[string]string, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
-
-	metadata := make(map[string]string)
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "#" {
-			break // end of metadata header
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := r.Read(buf)
+		for i := range n {
+			if buf[i] == '\n' {
+				count++
+			}
 		}
-		if line != "" && !strings.HasPrefix(line, "#") {
+		if err == io.EOF {
+			return count, nil
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+}
+
+func stream(r io.Reader, handler ScannerFunc) (map[string]string, error) {
+	metadata := make(map[string]string)
+	scanner := bufio.NewScanner(r)
+
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
+		}
+
+		if after, ok := bytes.CutPrefix(line, []byte("# ")); ok {
+			if key, value, found := bytes.Cut(after, []byte(": ")); found {
+				metadata[snakeCase(string(key))] = string(value)
+				continue
+			}
+		}
+
+		if len(line) == 0 || bytes.HasPrefix(line, []byte("#")) {
+			continue
+		}
+
+		for _, prefix := range prefixes {
+			if after, ok := bytes.CutPrefix(line, prefix); ok {
+				line = after
+			}
+		}
+		if handler(line) {
 			break
 		}
-		after, ok := strings.CutPrefix(line, "# ")
-		if !ok {
-			continue
-		}
-		if key, value, found := strings.Cut(after, ": "); found {
-			metadata[snakeCase(key)] = value
-		}
 	}
+
 	return metadata, scanner.Err()
 }
 

@@ -432,7 +432,8 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 		}
 	}
 
-	updater.Run()
+	app.Logger.Info("Starting initial blocklist fetch in background", "count", len(blockLists))
+	go updater.Run()
 
 	return blockLists, updater, nil
 }
