@@ -116,6 +116,9 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 		c.SSEvent("hello", gin.H{"status": "connected"})
 		c.Writer.Flush()
 
+		ticker := time.NewTicker(15 * time.Second)
+		defer ticker.Stop()
+
 		for {
 			select {
 			case event, ok := <-subscriber:
@@ -123,6 +126,9 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 					return
 				}
 				c.SSEvent("message", event)
+				c.Writer.Flush()
+			case <-ticker.C:
+				_, _ = c.Writer.WriteString(": ping\n\n")
 				c.Writer.Flush()
 			case <-c.Request.Context().Done():
 				return
