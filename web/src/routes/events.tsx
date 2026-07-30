@@ -205,7 +205,9 @@ function EventPage() {
 
                 rows.push(
                   <Table.Row key={`${event.seq}-${index}`}>
-                    <Table.Cell>{event.seq}</Table.Cell>
+                    <Table.Cell fontFamily="mono" letterSpacing={-1.2}>
+                      {event.seq}
+                    </Table.Cell>
                     <Table.Cell>
                       <Timestamp value={event.ts} />
                     </Table.Cell>
