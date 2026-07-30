@@ -4,13 +4,13 @@ import { Tooltip } from "./ui/tooltip";
 
 export type Status = "paused" | "active";
 
-interface EventToolbarProps {
+interface EventStreamControlsProps {
   connected?: boolean;
   status: Status;
   onStatusChange(status: Status): void;
 }
 
-export function EventToolbar({ connected, status, onStatusChange }: EventToolbarProps) {
+export function EventStreamControls({ connected, status, onStatusChange }: EventStreamControlsProps) {
   const active = status === "active";
   const handleClick = (nextStatus: Status) => () => {
     onStatusChange(nextStatus);
