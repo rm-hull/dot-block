@@ -130,7 +130,7 @@ func TestBlocklistHandler_CheckTooManyDomains(t *testing.T) {
 	// Create a JSON array with 101 items (limit is 100)
 	var sb strings.Builder
 	sb.WriteString("[")
-	for i := 0; i < 101; i++ {
+	for i := range 101 {
 		if i > 0 {
 			sb.WriteString(",")
 		}
