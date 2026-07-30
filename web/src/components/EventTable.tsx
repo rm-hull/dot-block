@@ -59,6 +59,9 @@ function EventRow({ event, index, filterText }: EventRowProps) {
           {event.domain}
         </Highlight>
       </Table.Cell>
+      <Table.Cell textAlign="right">
+        {event.answers}
+      </Table.Cell>
       <Table.Cell>
         <Result rcode={event.result} />
       </Table.Cell>
@@ -111,6 +114,7 @@ export function EventTable({ events, filterText }: EventTableProps) {
             <Table.ColumnHeader width={100}>Timestamp</Table.ColumnHeader>
             <Table.ColumnHeader width={50}>Query</Table.ColumnHeader>
             <Table.ColumnHeader maxWidth={200}>Domain</Table.ColumnHeader>
+            <Table.ColumnHeader width={50}>Answers</Table.ColumnHeader>
             <Table.ColumnHeader width={100}>Result</Table.ColumnHeader>
             <Table.ColumnHeader width={75}>Client IP</Table.ColumnHeader>
             <Table.ColumnHeader maxWidth={200}>ASN</Table.ColumnHeader>
