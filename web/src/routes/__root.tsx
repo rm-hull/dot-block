@@ -1,7 +1,7 @@
 import { Provider } from "@/components/ui/provider"
-import { Navbar } from "@/components/Navbar"
+import { Navbar, NavbarToolbarContext } from "@/components/Navbar"
 import { CatchBoundary, Outlet, createRootRoute } from "@tanstack/react-router"
-import React from "react"
+import React, { useRef } from "react"
 import { ErrorFallback } from "@rm-hull/chakra-error-fallback";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -16,16 +16,22 @@ const TanStackRouterDevtools =
     )
 
 export const Route = createRootRoute({
-  component: () => (
-    <Provider>
-      <CatchBoundary getResetKey={() => "reset"} errorComponent={ErrorFallback}>
-        <Toaster />
-        <Navbar />
-        <Outlet />
-      </CatchBoundary>
-      <React.Suspense>
-        <TanStackRouterDevtools />
-      </React.Suspense>
-    </Provider>
-  ),
+  component: () => {
+    const toolbarHostRef = useRef<HTMLDivElement | null>(null)
+
+    return (
+      <Provider>
+        <NavbarToolbarContext.Provider value={toolbarHostRef}>
+          <CatchBoundary getResetKey={() => "reset"} errorComponent={ErrorFallback}>
+            <Toaster />
+            <Navbar />
+            <Outlet />
+          </CatchBoundary>
+          <React.Suspense>
+            <TanStackRouterDevtools />
+          </React.Suspense>
+        </NavbarToolbarContext.Provider>
+      </Provider>
+    )
+  },
 })

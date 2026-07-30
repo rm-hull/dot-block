@@ -7,8 +7,12 @@ import { Timestamp } from '@/components/Timestamp';
 import { useEvents } from '@/hooks/useEvents';
 import { Badge, Card, Collapsible, Container, HStack, Table, VStack } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
+import { useContext, useLayoutEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LuChevronRight } from 'react-icons/lu';
+import { NavbarToolbarContext } from '@/components/Navbar';
 import { PercentageStat } from '@/components/PercentageStat';
+import { EventToolbar } from '@/components/EventToolbar';
 
 const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
 
@@ -27,6 +31,12 @@ function toData(data?: Record<string, number>): DataPoint[] {
 function EventPage() {
 
   const { data, isLoading, error } = useEvents("/api/events");
+  const toolbarHostRef = useContext(NavbarToolbarContext);
+  const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+
+  useLayoutEffect(() => {
+    setToolbarHost(toolbarHostRef?.current ?? null);
+  }, [toolbarHostRef]);
 
   if (isLoading) {
     return <div>Loading...</div>
@@ -38,6 +48,7 @@ function EventPage() {
 
   return (
     <Container>
+      {toolbarHost ? createPortal(<EventToolbar connected={data?.connected} />, toolbarHost) : null}
       <Collapsible.Root defaultOpen>
         <Collapsible.Trigger
           paddingY="3"

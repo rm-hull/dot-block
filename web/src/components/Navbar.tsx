@@ -1,8 +1,12 @@
 import { Box, Flex, HStack, Span } from '@chakra-ui/react'
+import { createContext, useContext } from 'react'
 import { RouterLink } from '@/components/ui/router-link'
 import { UserAvatar } from './UserAvatar'
 
+export const NavbarToolbarContext = createContext<React.RefObject<HTMLDivElement | null> | null>(null)
+
 export function Navbar() {
+  const toolbarHostRef = useContext(NavbarToolbarContext)
   return (
     <Box
       as="nav"
@@ -35,7 +39,10 @@ export function Navbar() {
           </HStack>
         </HStack>
 
-        <UserAvatar />
+        <HStack gap={3} alignItems="center">
+          <Box ref={toolbarHostRef} id="navbar-toolbar" display="flex" alignItems="center" />
+          <UserAvatar />
+        </HStack>
       </Flex>
     </Box>
   )
