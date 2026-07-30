@@ -14,6 +14,7 @@ import { NavbarToolbarContext } from '@/components/Navbar';
 import { PercentageStat } from '@/components/PercentageStat';
 import { EventToolbar, type Status } from '@/components/EventToolbar';
 import { TiWarning } from "react-icons/ti";
+import { ConnectionIcon } from '@/components/ConnectionIcon';
 
 
 const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
@@ -51,7 +52,13 @@ function EventPage() {
 
   return (
     <Container>
-      {toolbarHost ? createPortal(<EventToolbar connected={data?.connected} status={status} onStatusChange={setStatus} />, toolbarHost) : null}
+      {toolbarHost ? createPortal(
+        <HStack gap={4}>
+          <EventToolbar connected={data?.connected} status={status} onStatusChange={setStatus} />
+          <ConnectionIcon connected={data?.connected} active={status === "active"} />
+        </HStack>,
+        toolbarHost) : null}
+
       <Collapsible.Root defaultOpen>
         <Collapsible.Trigger
           paddingY="3"
