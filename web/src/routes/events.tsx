@@ -5,7 +5,7 @@ import { Result } from '@/components/Result';
 import TimeSeriesChart from '@/components/TimeSeriesChart';
 import { Timestamp } from '@/components/Timestamp';
 import { useEvents } from '@/hooks/useEvents';
-import { Badge, Card, Collapsible, Container, HStack, Table, Text, VStack } from '@chakra-ui/react'
+import { Badge, Card, Collapsible, Container, Highlight, HStack, Table, Text, VStack } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useContext, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -15,6 +15,7 @@ import { PercentageStat } from '@/components/PercentageStat';
 import { EventToolbar, type Status } from '@/components/EventToolbar';
 import { TiWarning } from "react-icons/ti";
 import { ConnectionIcon } from '@/components/ConnectionIcon';
+import { FilterTextField } from '@/components/FilterTextField';
 
 
 const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
@@ -33,10 +34,11 @@ function toData(data?: Record<string, number>): DataPoint[] {
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
 
-  const [status, setStatus] = useState<Status>("active");
-  const { data, isLoading, error } = useEvents("/api/events", status === "paused");
   const toolbarHostRef = useContext(NavbarToolbarContext);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
+  const [status, setStatus] = useState<Status>("active");
+  const [filterText, setFilterText] = useState<string>("");
+  const { data, isLoading, error } = useEvents("/api/events", status === "paused");
 
   useLayoutEffect(() => {
     setToolbarHost(toolbarHostRef?.current ?? null);
@@ -50,10 +52,20 @@ function EventPage() {
     return <div>Error: {error.message}</div>
   }
 
+  const trimmedFilterText = filterText.trim().toLowerCase();
+  const filteredEvents = (data?.events ?? []).filter((event) => {
+    if (!trimmedFilterText) return true;
+    return (
+      event.domain.toLowerCase().includes(trimmedFilterText) ||
+      event.ip.toLowerCase().includes(trimmedFilterText)
+    );
+  });
+
   return (
     <Container>
       {toolbarHost ? createPortal(
         <HStack gap={4}>
+          <FilterTextField value={filterText} onValueChange={setFilterText} />
           <EventToolbar connected={data?.connected} status={status} onStatusChange={setStatus} />
           <ConnectionIcon connected={data?.connected} active={status === "active"} />
         </HStack>,
@@ -131,12 +143,12 @@ function EventPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {(data?.events ?? []).flatMap((event, index, events) => {
+            {filteredEvents.flatMap((event, index, events) => {
               const previous = events[index - 1];
-              const gapSize = previous ? previous.seq - event.seq - 1 : 0;
+              const gapSize = (!trimmedFilterText && previous) ? previous.seq - event.seq - 1 : 0;
               const rows: React.ReactElement[] = [];
 
-              if (previous && gapSize > 0) {
+              if (!trimmedFilterText && previous && gapSize > 0) {
                 rows.push(
                   <Table.Row key={`gap-${previous.seq}-${event.seq}`}>
                     <Table.Cell colSpan={9} >
@@ -154,9 +166,17 @@ function EventPage() {
                   <Table.Cell>{event.seq}</Table.Cell>
                   <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
                   <Table.Cell><QueryType rrtype={event.queryType} /></Table.Cell>
-                  <Table.Cell truncate maxWidth={200}>{event.domain}</Table.Cell>
+                  <Table.Cell truncate maxWidth={200}>
+                    <Highlight query={filterText} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
+                      {event.domain}
+                    </Highlight>
+                  </Table.Cell>
                   <Table.Cell><Result rcode={event.result} /></Table.Cell>
-                  <Table.Cell>{event.ip}</Table.Cell>
+                  <Table.Cell>
+                    <Highlight query={filterText} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
+                      {event.ip}
+                    </Highlight>
+                  </Table.Cell>
                   <Table.Cell truncate maxWidth={200}><ASN ipAddr={event.ip} /></Table.Cell>
                   <Table.Cell>{event.src}</Table.Cell>
                   <Table.Cell>{event.blocked && <Badge colorPalette="red">Blocked</Badge>} {event.cached && <Badge colorPalette="purple">Cached</Badge>}</Table.Cell>
