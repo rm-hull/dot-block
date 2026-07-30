@@ -12,7 +12,7 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import { LuChevronRight, LuSearch } from "react-icons/lu";
+import { LuChevronRight } from "react-icons/lu";
 import { TbTimelineEventText } from "react-icons/tb";
 import { TiWarning } from "react-icons/ti";
 import { ASN } from "@/components/ASN";

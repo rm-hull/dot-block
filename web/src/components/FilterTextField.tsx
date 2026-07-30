@@ -1,4 +1,3 @@
-import type { ChangeEvent } from "react";
 import { useRef } from "react";
 import { CloseButton, Input, InputGroup } from "@chakra-ui/react";
 import { LuSearch } from "react-icons/lu";
@@ -28,11 +27,24 @@ export function FilterTextField({ value, onValueChange }: FilterTextFieldProps) 
     []
   );
 
-  const handleOnChange = (ev: ChangeEvent<HTMLInputElement>) => {
-    onValueChange(ev.target.value);
-  };
+  useKey(
+    "Escape",
+    (e: KeyboardEvent) => {
+      if (document.activeElement === inputRef.current) {
+        e.preventDefault();
+        onValueChange("");
+        inputRef.current?.blur();
+      }
+    },
+    { event: "keydown" },
+    [onValueChange]
+  );
 
   const handleClear = () => onValueChange("");
+
+  const handleOnChange = (ev: React.ChangeEvent<HTMLInputElement>) => {
+    onValueChange(ev.target.value);
+  };
 
   return (
     <InputGroup
@@ -55,6 +67,7 @@ export function FilterTextField({ value, onValueChange }: FilterTextFieldProps) 
         value={value}
         onChange={handleOnChange}
         height="var(--chakra-sizes-6)"
+        focusRing="none"
       />
     </InputGroup>
   );
