@@ -1136,3 +1136,126 @@ func TestDNSDispatcher_reportError_OddAdditionalFields(t *testing.T) {
 	// slog logs the unpaired trailing value under the "!BADKEY" key.
 	assert.Contains(t, logBuf.String(), "!BADKEY", "should log unpaired value under !BADKEY key")
 }
+
+func TestDNSDispatcher_HandleDNSRequest_CacheHit_NODATA(t *testing.T) {
+	// This test verifies that NOERROR responses with 0 answers (NODATA) are cached.
+	// This is particularly important for HTTPS/SVCB queries where a domain may not have
+	// an HTTPS record, and the NODATA response should be cached to avoid repeated
+	// upstream queries.
+	upstreamCallCount := 0
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		upstreamCallCount++
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.Rcode = dns.RcodeSuccess // NOERROR
+		m.Authoritative = true
+		m.Answer = nil // No answers = NODATA
+		_ = w.WriteMsg(m)
+	})
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	req := new(dns.Msg)
+	req.SetQuestion("example.com.", dns.TypeHTTPS)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// First request - should be a cache miss and hit upstream
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	require.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	assert.Len(t, writer.WrittenMsg.Answer, 0, "Should have 0 answers (NODATA)")
+
+	firstCallCount := upstreamCallCount
+
+	// Wait for the cache to be populated (cache updates are async)
+	cacheKey := getCacheKey(&req.Question[0], "")
+	assert.Eventually(t, func() bool {
+		cached, ok := dispatcher.cache.Get(cacheKey)
+		return ok && len(cached) == 0
+	}, 500*time.Millisecond, 10*time.Millisecond, "NODATA should be cached")
+
+	// Second request - should be served from cache (not hitting upstream)
+	writer2 := new(MockResponseWriter)
+	writer2.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer2, req)
+	require.NotNil(t, writer2.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer2.WrittenMsg.Rcode)
+	assert.Len(t, writer2.WrittenMsg.Answer, 0, "Should have 0 answers from cache (NODATA)")
+
+	secondCallCount := upstreamCallCount
+	assert.Equal(t, firstCallCount, secondCallCount,
+		"NODATA response should have been cached - upstream should not be called again")
+}
+
+func TestDNSDispatcher_HandleDNSRequest_CacheHit_NXDOMAIN(t *testing.T) {
+	upstreamCallCount := 0
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
+		upstreamCallCount++
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.SetRcode(r, dns.RcodeNameError) // NXDOMAIN
+		m.Authoritative = true
+
+		// Add SOA in authority section (standard for NXDOMAIN)
+		soa := &dns.SOA{
+			Hdr: dns.RR_Header{
+				Name:   "example.com.",
+				Rrtype: dns.TypeSOA,
+				Class:  dns.ClassINET,
+				Ttl:    3600,
+			},
+			Ns:      "ns1.example.com.",
+			Mbox:    "hostmaster.example.com.",
+			Serial:  2024073001,
+			Refresh: 10000,
+			Retry:   2400,
+			Expire:  604800,
+			Minttl:  3600,
+		}
+		m.Ns = append(m.Ns, soa)
+		_ = w.WriteMsg(m)
+	})
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	req := new(dns.Msg)
+	req.SetQuestion("nonexistent.example.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	// First request - should hit upstream and get NXDOMAIN
+	dispatcher.HandleDNSRequest("test")(writer, req)
+	require.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode)
+	firstCallCount := upstreamCallCount
+
+	// Wait for cache to be populated
+	cacheKey := getCacheKey(&req.Question[0], "")
+	assert.Eventually(t, func() bool {
+		cached, ok := dispatcher.cache.Get(cacheKey)
+		return ok && len(cached) > 0 // Cached NXDOMAIN has SOA record
+	}, 500*time.Millisecond, 10*time.Millisecond, "NXDOMAIN should be cached")
+
+	// Second request - should be served from cache
+	writer2 := new(MockResponseWriter)
+	writer2.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer2, req)
+	require.NotNil(t, writer2.WrittenMsg)
+	assert.Equal(t, dns.RcodeNameError, writer2.WrittenMsg.Rcode, "Should return NXDOMAIN from cache")
+	secondCallCount := upstreamCallCount
+	assert.Equal(t, firstCallCount, secondCallCount,
+		"NXDOMAIN response should have been cached - upstream should not be called again")
+}

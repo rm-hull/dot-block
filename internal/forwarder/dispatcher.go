@@ -176,12 +176,8 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				return
 			}
 
-			if res.rcode != dns.RcodeSuccess {
-				resp.Rcode = res.rcode
-				d.sendResponse(requestCtx, writer, resp)
-				return
-			}
-
+			// Add authority and extra records before checking rcode,
+			// so cached NXDOMAIN responses can include the SOA in authority
 			if len(res.authority) > 0 {
 				resp.Ns = append(resp.Ns, res.authority...)
 			}
@@ -200,9 +196,15 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				}
 			}
 
+			if res.rcode != dns.RcodeSuccess {
+				resp.Rcode = res.rcode
+				d.sendResponse(requestCtx, writer, resp)
+				return
+			}
+
 			if len(res.answer) > 0 {
 				resp.Answer = append(resp.Answer, res.answer...)
-			} else if len(res.authority) == 0 && len(res.extra) == 0 && !isDNSSDQuery(q.Name) {
+			} else if !res.fromCache && len(res.authority) == 0 && len(res.extra) == 0 && !isDNSSDQuery(q.Name) {
 				unansweredQuestions = append(unansweredQuestions, q)
 			}
 		}
@@ -265,6 +267,7 @@ type QuestionResolution struct {
 	authority []dns.RR
 	extra     []dns.RR
 	rcode     int
+	fromCache bool
 }
 
 func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Question) (QuestionResolution, error) {
@@ -325,7 +328,16 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	if cachedRRs, ok := d.cache.Get(getCacheKey(q, requestCtx.subnet)); ok {
 		span.SetAttributes(attribute.Bool("dns.cache_hit", true))
 		requestCtx.snapshot.SetFromCache(true)
-		return QuestionResolution{answer: cachedRRs, rcode: dns.RcodeSuccess}, nil
+
+		// Check if this is a cached NXDOMAIN response
+		// (SOA record stored as a marker for NXDOMAIN)
+		for _, rr := range cachedRRs {
+			if soa, isSOA := rr.(*dns.SOA); isSOA {
+				return QuestionResolution{authority: []dns.RR{soa}, rcode: dns.RcodeNameError, fromCache: true}, nil
+			}
+		}
+
+		return QuestionResolution{answer: cachedRRs, rcode: dns.RcodeSuccess, fromCache: true}, nil
 	}
 
 	return QuestionResolution{rcode: dns.RcodeSuccess}, nil
@@ -404,6 +416,35 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 	}
 
 	if upstreamResp.Rcode != dns.RcodeSuccess {
+		// Cache negative responses (NXDOMAIN) before returning early
+		if upstreamResp.Rcode == dns.RcodeNameError {
+			for _, q := range unansweredQuestions {
+				cacheKey := getCacheKey(&q, requestCtx.subnet)
+				// Use SOA from authority section for negative TTL, or default TTL
+				negativeTTL := d.defaultTTL
+				var soaRecord *dns.SOA
+				for _, rr := range upstreamResp.Ns {
+					if soa, ok := rr.(*dns.SOA); ok {
+						soaRecord = soa
+						negativeTTL = float64(soa.Hdr.Ttl)
+						break
+					}
+				}
+				effectiveTTL := time.Duration(negativeTTL) * time.Second
+				if !d.isFreshnessSensitive(&q) && effectiveTTL < d.ttlFloor {
+					effectiveTTL = d.ttlFloor
+				}
+				// Cache the SOA record as a marker for NXDOMAIN
+				// An empty slice signals NXDOMAIN when read from cache
+				if soaRecord != nil {
+					d.cache.Set(cacheKey, []dns.RR{soaRecord}, effectiveTTL)
+				} else {
+					d.cache.Set(cacheKey, []dns.RR{}, effectiveTTL)
+				}
+				requestCtx.snapshot.AddUpstreamTTL(getQueryType(&q), negativeTTL)
+			}
+		}
+
 		// Propagate the upstream response Rcode if not successful
 		err := errors.NewWithDepthf(0,
 			"upstream resolver (%s) returned Rcode: %s for query: %s",
@@ -418,7 +459,26 @@ func (d *DNSDispatcher) resolveUpstream(requestCtx *RequestContext, unansweredQu
 		cacheKey := getCacheKey(&q, requestCtx.subnet)
 		qAnswers := extractAnswersForQuestion(q, upstreamResp.Answer)
 
-		if len(qAnswers) > 0 {
+		// Cache both positive and negative responses
+		// For NODATA (NOERROR with 0 answers): Cache an empty slice
+		if len(qAnswers) == 0 {
+			// Negative caching: NODATA (NOERROR, no answers)
+			// Use SOA from authority section for TTL, or default TTL
+			negativeTTL := d.defaultTTL
+			for _, rr := range upstreamResp.Ns {
+				if soa, ok := rr.(*dns.SOA); ok {
+					negativeTTL = float64(soa.Hdr.Ttl)
+					break
+				}
+			}
+			effectiveTTL := time.Duration(negativeTTL) * time.Second
+			if !d.isFreshnessSensitive(&q) && effectiveTTL < d.ttlFloor {
+				effectiveTTL = d.ttlFloor
+			}
+			d.cache.Set(cacheKey, qAnswers, effectiveTTL)
+			requestCtx.snapshot.AddUpstreamTTL(getQueryType(&q), negativeTTL)
+		} else {
+			// Positive caching: Cache the extracted answers
 			upstreamTTL := qAnswers[0].Header().Ttl
 			for _, ans := range qAnswers {
 				if ans.Header().Ttl < upstreamTTL {
