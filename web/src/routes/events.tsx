@@ -68,7 +68,7 @@ function EventPage() {
           Show aggregates
         </Collapsible.Trigger>
         <Collapsible.Content>
-          <HStack padding="4" borderWidth="1px" alignItems="start">
+          <HStack pb={3} alignItems="start">
             <VStack alignItems="normal">
               <Card.Root>
                 <Card.Body>
