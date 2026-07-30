@@ -1,12 +1,14 @@
-import { Box, Flex, HStack, Span } from '@chakra-ui/react'
-import { createContext, useContext } from 'react'
-import { RouterLink } from '@/components/ui/router-link'
-import { UserAvatar } from './UserAvatar'
+import { createContext, useContext } from "react";
+import { Box, Flex, HStack, Span } from "@chakra-ui/react";
+import { RouterLink } from "@/components/ui/router-link";
+import { UserAvatar } from "./UserAvatar";
 
-export const NavbarToolbarContext = createContext<React.RefObject<HTMLDivElement | null> | null>(null)
+export const NavbarToolbarContext = createContext<React.RefObject<HTMLDivElement | null> | null>(
+  null
+);
 
 export function Navbar() {
-  const toolbarHostRef = useContext(NavbarToolbarContext)
+  const toolbarHostRef = useContext(NavbarToolbarContext);
   return (
     <Box
       as="nav"
@@ -23,17 +25,19 @@ export function Navbar() {
         <HStack gap={6}>
           <RouterLink to="/" fontSize="xl" gap={0}>
             <Span fontWeight="bold">DOT</Span>
-            <Span fontWeight="light" color="fg.subtle">block</Span>
+            <Span fontWeight="light" color="fg.subtle">
+              block
+            </Span>
           </RouterLink>
 
           <HStack gap={4} fontSize="sm" color="fg.muted">
-            <RouterLink to="/events" activeProps={{ fontWeight: 'semibold', color: 'blue.500' }}>
+            <RouterLink to="/events" activeProps={{ fontWeight: "semibold", color: "blue.500" }}>
               Events
             </RouterLink>
-            <RouterLink to="/settings" activeProps={{ fontWeight: 'semibold', color: 'blue.500' }}>
+            <RouterLink to="/settings" activeProps={{ fontWeight: "semibold", color: "blue.500" }}>
               Settings
             </RouterLink>
-            <RouterLink to="/about" activeProps={{ fontWeight: 'semibold', color: 'blue.500' }}>
+            <RouterLink to="/about" activeProps={{ fontWeight: "semibold", color: "blue.500" }}>
               About
             </RouterLink>
           </HStack>
@@ -45,5 +49,5 @@ export function Navbar() {
         </HStack>
       </Flex>
     </Box>
-  )
+  );
 }

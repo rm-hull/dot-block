@@ -1,9 +1,9 @@
-import type { RCode } from "@/hooks/useEvents"
-import { Badge } from "@chakra-ui/react"
+import { Badge } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
+import type { RCode } from "@/hooks/useEvents";
 
 interface ResultProps {
-  rcode: RCode
+  rcode: RCode;
 }
 
 // RCode mappings
@@ -18,13 +18,13 @@ const mapping: Record<RCode, { descr: string; color: string }> = {
   XRRSET: { descr: "RRset exists when it should not", color: "orange" },
   NOTAUTH: { descr: "Server not authoritative for zone", color: "yellow" },
   NOTZONE: { descr: "Name not in zone", color: "purple" },
-}
+};
 
 export function Result({ rcode }: ResultProps) {
   const { color, descr } = mapping[rcode] ?? {
     color: "gray",
     descr: `Unknown result code: ${rcode}`,
-  }
+  };
 
   return (
     <Tooltip content={descr}>

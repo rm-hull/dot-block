@@ -1,5 +1,5 @@
-import { fetchASN, type ASN } from "@/service/asn";
 import { useQuery } from "@tanstack/react-query";
+import { type ASN, fetchASN } from "@/service/asn";
 
 export function useASN(ipAddr: string) {
   return useQuery<ASN | null>({

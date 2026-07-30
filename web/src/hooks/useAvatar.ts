@@ -1,10 +1,10 @@
-import { fetchWhoAmI } from "@/service/whoami";
 import { useQuery } from "@tanstack/react-query";
+import { fetchWhoAmI } from "@/service/whoami";
 
 export function useAvatar() {
-  return  useQuery({
-    queryKey: ['whoami'],
+  return useQuery({
+    queryKey: ["whoami"],
     queryFn: fetchWhoAmI,
     retry: false,
-  })
+  });
 }

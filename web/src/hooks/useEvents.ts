@@ -1,6 +1,6 @@
-import { dateReviver } from "@/utils/date";
-import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
+import { dateReviver } from "@/utils/date";
 
 // Commmon RCodes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6 for full list
 const rCodes = [
@@ -61,15 +61,9 @@ interface EventFeed {
 }
 
 const createZeroedCounts = <T extends readonly string[]>(values: T) =>
-  Object.fromEntries(values.map((value) => [value, 0])) as Record<
-    T[number],
-    number
-  >;
+  Object.fromEntries(values.map((value) => [value, 0])) as Record<T[number], number>;
 
-const incrementCount = <K extends PropertyKey>(
-  counts: Record<K, number>,
-  key: K,
-) => {
+const incrementCount = <K extends PropertyKey>(counts: Record<K, number>, key: K) => {
   counts[key] = (counts[key] ?? 0) + 1;
 };
 
@@ -93,7 +87,7 @@ type Options = {
 export function useEvents(
   sseUrl: string,
   paused = false,
-  options: Options = { maxItems: 100, batchIntervalMs: 100 },
+  options: Options = { maxItems: 100, batchIntervalMs: 100 }
 ) {
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -149,10 +143,7 @@ export function useEvents(
           incrementCount(countsByResult, event.result);
 
           // Floor to the nearest minute
-          incrementCount(
-            countsByTimestamp,
-            Math.floor(event.ts.getTime() / 60000) * 60000,
-          );
+          incrementCount(countsByTimestamp, Math.floor(event.ts.getTime() / 60000) * 60000);
 
           if (event.cached) cached++;
           if (event.blocked) blocked++;

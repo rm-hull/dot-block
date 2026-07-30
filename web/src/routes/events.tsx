@@ -1,39 +1,53 @@
-import { ASN } from '@/components/ASN';
-import { PieChartStat, type DataPoint } from '@/components/PieChartStat';
-import { QueryType } from '@/components/QueryType';
-import { Result } from '@/components/Result';
-import TimeSeriesChart from '@/components/TimeSeriesChart';
-import { Timestamp } from '@/components/Timestamp';
-import { useEvents } from '@/hooks/useEvents';
-import { Badge, Card, Collapsible, Container, Highlight, HStack, Table, Text, VStack } from '@chakra-ui/react'
-import { createFileRoute } from '@tanstack/react-router'
-import { useContext, useLayoutEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { LuChevronRight } from 'react-icons/lu';
-import { NavbarToolbarContext } from '@/components/Navbar';
-import { PercentageStat } from '@/components/PercentageStat';
-import { EventToolbar, type Status } from '@/components/EventToolbar';
+import { useContext, useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  Badge,
+  Card,
+  Collapsible,
+  Container,
+  HStack,
+  Highlight,
+  Table,
+  Text,
+  VStack,
+} from "@chakra-ui/react";
+import { LuChevronRight } from "react-icons/lu";
 import { TiWarning } from "react-icons/ti";
-import { ConnectionIcon } from '@/components/ConnectionIcon';
-import { FilterTextField } from '@/components/FilterTextField';
+import { ASN } from "@/components/ASN";
+import { ConnectionIcon } from "@/components/ConnectionIcon";
+import { EventToolbar, type Status } from "@/components/EventToolbar";
+import { FilterTextField } from "@/components/FilterTextField";
+import { NavbarToolbarContext } from "@/components/Navbar";
+import { PercentageStat } from "@/components/PercentageStat";
+import { type DataPoint, PieChartStat } from "@/components/PieChartStat";
+import { QueryType } from "@/components/QueryType";
+import { Result } from "@/components/Result";
+import TimeSeriesChart from "@/components/TimeSeriesChart";
+import { Timestamp } from "@/components/Timestamp";
+import { useEvents } from "@/hooks/useEvents";
 
-
-const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
+const colors = [
+  "red.subtle",
+  "orange.subtle",
+  "yellow.subtle",
+  "green.subtle",
+  "blue.subtle",
+  "indigo.subtle",
+];
 
 function toData(data?: Record<string, number>): DataPoint[] {
-
   if (!data) {
     return [];
   }
 
   return Object.entries(data)
     .filter(([, value]) => value > 0)
-    .map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }))
+    .map(([name, value], index) => ({ name, value, color: colors[index % colors.length] }));
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
-
   const toolbarHostRef = useContext(NavbarToolbarContext);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
   const [status, setStatus] = useState<Status>("active");
@@ -45,11 +59,11 @@ function EventPage() {
   }, [toolbarHostRef]);
 
   if (isLoading) {
-    return <div>Loading...</div>
+    return <div>Loading...</div>;
   }
 
   if (error) {
-    return <div>Error: {error.message}</div>
+    return <div>Error: {error.message}</div>;
   }
 
   const trimmedFilterText = filterText.trim().toLowerCase();
@@ -63,25 +77,24 @@ function EventPage() {
 
   return (
     <Container>
-      {toolbarHost ? createPortal(
-        <HStack gap={4}>
-          <FilterTextField value={filterText} onValueChange={setFilterText} />
-          <EventToolbar connected={data?.connected} status={status} onStatusChange={setStatus} />
-          <ConnectionIcon connected={data?.connected} active={status === "active"} />
-        </HStack>,
-        toolbarHost) : null}
+      {toolbarHost
+        ? createPortal(
+            <HStack gap={4}>
+              <FilterTextField value={filterText} onValueChange={setFilterText} />
+              <EventToolbar
+                connected={data?.connected}
+                status={status}
+                onStatusChange={setStatus}
+              />
+              <ConnectionIcon connected={data?.connected} active={status === "active"} />
+            </HStack>,
+            toolbarHost
+          )
+        : null}
 
       <Collapsible.Root defaultOpen>
-        <Collapsible.Trigger
-          paddingY="3"
-          display="flex"
-          gap="2"
-          alignItems="center"
-        >
-          <Collapsible.Indicator
-            transition="transform 0.2s"
-            _open={{ transform: "rotate(90deg)" }}
-          >
+        <Collapsible.Trigger paddingY="3" display="flex" gap="2" alignItems="center">
+          <Collapsible.Indicator transition="transform 0.2s" _open={{ transform: "rotate(90deg)" }}>
             <LuChevronRight />
           </Collapsible.Indicator>
           Show aggregates
@@ -91,12 +104,22 @@ function EventPage() {
             <VStack alignItems="normal">
               <Card.Root>
                 <Card.Body>
-                  <PercentageStat title="Cache" value={data?.cached} total={data?.total} helpText="Hit rate" />
+                  <PercentageStat
+                    title="Cache"
+                    value={data?.cached}
+                    total={data?.total}
+                    helpText="Hit rate"
+                  />
                 </Card.Body>
               </Card.Root>
               <Card.Root>
                 <Card.Body>
-                  <PercentageStat title="Blocklist" value={data?.blocked} total={data?.total} helpText="Blocked URLs" />
+                  <PercentageStat
+                    title="Blocklist"
+                    value={data?.blocked}
+                    total={data?.total}
+                    helpText="Blocked URLs"
+                  />
                 </Card.Body>
               </Card.Root>
             </VStack>
@@ -145,16 +168,21 @@ function EventPage() {
           <Table.Body>
             {filteredEvents.flatMap((event, index, events) => {
               const previous = events[index - 1];
-              const gapSize = (!trimmedFilterText && previous) ? previous.seq - event.seq - 1 : 0;
+              const gapSize = !trimmedFilterText && previous ? previous.seq - event.seq - 1 : 0;
               const rows: React.ReactElement[] = [];
 
               if (!trimmedFilterText && previous && gapSize > 0) {
                 rows.push(
                   <Table.Row key={`gap-${previous.seq}-${event.seq}`}>
-                    <Table.Cell colSpan={9} >
+                    <Table.Cell colSpan={9}>
                       <HStack gap={4}>
-                        <Badge colorPalette="orange"><TiWarning size={16} /> Sequence gap</Badge>{' '}
-                        <Text fontSize="xs" color="fg.subtle">{gapSize} missing event{gapSize > 1 ? "s" : ""} between #{event.seq} and #{previous.seq}</Text>
+                        <Badge colorPalette="orange">
+                          <TiWarning size={16} /> Sequence gap
+                        </Badge>{" "}
+                        <Text fontSize="xs" color="fg.subtle">
+                          {gapSize} missing event{gapSize > 1 ? "s" : ""} between #{event.seq} and #
+                          {previous.seq}
+                        </Text>
                       </HStack>
                     </Table.Cell>
                   </Table.Row>
@@ -164,22 +192,39 @@ function EventPage() {
               rows.push(
                 <Table.Row key={`${event.seq}-${index}`}>
                   <Table.Cell>{event.seq}</Table.Cell>
-                  <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
-                  <Table.Cell><QueryType rrtype={event.queryType} /></Table.Cell>
+                  <Table.Cell>
+                    <Timestamp value={event.ts} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <QueryType rrtype={event.queryType} />
+                  </Table.Cell>
                   <Table.Cell truncate maxWidth={200}>
-                    <Highlight query={filterText} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
+                    <Highlight
+                      query={filterText}
+                      styles={{ bg: "yellow.subtle", color: "yellow.fg" }}
+                    >
                       {event.domain}
                     </Highlight>
                   </Table.Cell>
-                  <Table.Cell><Result rcode={event.result} /></Table.Cell>
                   <Table.Cell>
-                    <Highlight query={filterText} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
+                    <Result rcode={event.result} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Highlight
+                      query={filterText}
+                      styles={{ bg: "yellow.subtle", color: "yellow.fg" }}
+                    >
                       {event.ip}
                     </Highlight>
                   </Table.Cell>
-                  <Table.Cell truncate maxWidth={200}><ASN ipAddr={event.ip} /></Table.Cell>
+                  <Table.Cell truncate maxWidth={200}>
+                    <ASN ipAddr={event.ip} />
+                  </Table.Cell>
                   <Table.Cell>{event.src}</Table.Cell>
-                  <Table.Cell>{event.blocked && <Badge colorPalette="red">Blocked</Badge>} {event.cached && <Badge colorPalette="purple">Cached</Badge>}</Table.Cell>
+                  <Table.Cell>
+                    {event.blocked && <Badge colorPalette="red">Blocked</Badge>}{" "}
+                    {event.cached && <Badge colorPalette="purple">Cached</Badge>}
+                  </Table.Cell>
                 </Table.Row>
               );
 
@@ -189,10 +234,9 @@ function EventPage() {
         </Table.Root>
       </Table.ScrollArea>
     </Container>
-  )
+  );
 }
 
-
-export const Route = createFileRoute('/events')({
-  component: EventPage
-})
+export const Route = createFileRoute("/events")({
+  component: EventPage,
+});
