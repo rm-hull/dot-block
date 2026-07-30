@@ -5,14 +5,16 @@ import { Result } from '@/components/Result';
 import TimeSeriesChart from '@/components/TimeSeriesChart';
 import { Timestamp } from '@/components/Timestamp';
 import { useEvents } from '@/hooks/useEvents';
-import { Badge, Card, Collapsible, Container, HStack, Table, VStack } from '@chakra-ui/react'
+import { Badge, Card, Collapsible, Container, HStack, Table, Text, VStack } from '@chakra-ui/react'
 import { createFileRoute } from '@tanstack/react-router'
 import { useContext, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LuChevronRight } from 'react-icons/lu';
 import { NavbarToolbarContext } from '@/components/Navbar';
 import { PercentageStat } from '@/components/PercentageStat';
-import { EventToolbar } from '@/components/EventToolbar';
+import { EventToolbar, type Status } from '@/components/EventToolbar';
+import { TiWarning } from "react-icons/ti";
+
 
 const colors = ["red.subtle", "orange.subtle", "yellow.subtle", "green.subtle", "blue.subtle", "indigo.subtle"]
 
@@ -30,7 +32,8 @@ function toData(data?: Record<string, number>): DataPoint[] {
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
 
-  const { data, isLoading, error } = useEvents("/api/events");
+  const [status, setStatus] = useState<Status>("active");
+  const { data, isLoading, error } = useEvents("/api/events", status === "paused");
   const toolbarHostRef = useContext(NavbarToolbarContext);
   const [toolbarHost, setToolbarHost] = useState<HTMLDivElement | null>(null);
 
@@ -48,7 +51,7 @@ function EventPage() {
 
   return (
     <Container>
-      {toolbarHost ? createPortal(<EventToolbar connected={data?.connected} />, toolbarHost) : null}
+      {toolbarHost ? createPortal(<EventToolbar connected={data?.connected} status={status} onStatusChange={setStatus} />, toolbarHost) : null}
       <Collapsible.Root defaultOpen>
         <Collapsible.Trigger
           paddingY="3"
@@ -121,19 +124,40 @@ function EventPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            {data?.events.map((event) => (
-              <Table.Row key={event.seq}>
-                <Table.Cell>{event.seq}</Table.Cell>
-                <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
-                <Table.Cell><QueryType rrtype={event.queryType} /></Table.Cell>
-                <Table.Cell truncate maxWidth={200}>{event.domain}</Table.Cell>
-                <Table.Cell><Result rcode={event.result} /></Table.Cell>
-                <Table.Cell>{event.ip}</Table.Cell>
-                <Table.Cell truncate maxWidth={200}><ASN ipAddr={event.ip} /></Table.Cell>
-                <Table.Cell>{event.src}</Table.Cell>
-                <Table.Cell>{event.blocked && <Badge colorPalette="red">Blocked</Badge>} {event.cached && <Badge colorPalette="purple">Cached</Badge>}</Table.Cell>
-              </Table.Row>
-            ))}
+            {(data?.events ?? []).flatMap((event, index, events) => {
+              const previous = events[index - 1];
+              const gapSize = previous ? previous.seq - event.seq - 1 : 0;
+              const rows: React.ReactElement[] = [];
+
+              if (previous && gapSize > 0) {
+                rows.push(
+                  <Table.Row key={`gap-${previous.seq}-${event.seq}`}>
+                    <Table.Cell colSpan={9} >
+                      <HStack gap={4}>
+                        <Badge colorPalette="orange"><TiWarning size={16} /> Sequence gap</Badge>{' '}
+                        <Text fontSize="xs" color="fg.subtle">{gapSize} missing event{gapSize > 1 ? "s" : ""} between #{event.seq} and #{previous.seq}</Text>
+                      </HStack>
+                    </Table.Cell>
+                  </Table.Row>
+                );
+              }
+
+              rows.push(
+                <Table.Row key={`${event.seq}-${index}`}>
+                  <Table.Cell>{event.seq}</Table.Cell>
+                  <Table.Cell><Timestamp value={event.ts} /></Table.Cell>
+                  <Table.Cell><QueryType rrtype={event.queryType} /></Table.Cell>
+                  <Table.Cell truncate maxWidth={200}>{event.domain}</Table.Cell>
+                  <Table.Cell><Result rcode={event.result} /></Table.Cell>
+                  <Table.Cell>{event.ip}</Table.Cell>
+                  <Table.Cell truncate maxWidth={200}><ASN ipAddr={event.ip} /></Table.Cell>
+                  <Table.Cell>{event.src}</Table.Cell>
+                  <Table.Cell>{event.blocked && <Badge colorPalette="red">Blocked</Badge>} {event.cached && <Badge colorPalette="purple">Cached</Badge>}</Table.Cell>
+                </Table.Row>
+              );
+
+              return rows;
+            })}
           </Table.Body>
         </Table.Root>
       </Table.ScrollArea>

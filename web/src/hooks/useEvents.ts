@@ -2,8 +2,6 @@ import { dateReviver } from "@/utils/date";
 import { skipToken, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 
-const MAX_ITEMS = 50;
-
 // Commmon RCodes, see https://www.iana.org/assignments/dns-parameters/dns-parameters.xhtml#dns-parameters-6 for full list
 const rCodes = [
   "NOERROR",
@@ -87,7 +85,16 @@ const initial: EventFeed = {
   countsByTimestamp: {},
 };
 
-export function useEvents(sseUrl: string, batchIntervalMs = 100) {
+type Options = {
+  maxItems: number;
+  batchIntervalMs: number;
+};
+
+export function useEvents(
+  sseUrl: string,
+  paused = false,
+  options: Options = { maxItems: 100, batchIntervalMs: 100 },
+) {
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["events"],
@@ -98,13 +105,26 @@ export function useEvents(sseUrl: string, batchIntervalMs = 100) {
   // Buffer of events received since the last flush.
   const bufferRef = useRef<DnsEvent[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pausedRef = useRef(paused);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+
+    if (paused) {
+      if (timerRef.current !== null) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      bufferRef.current = [];
+    }
+  }, [paused]);
 
   useEffect(() => {
     const es = new EventSource(sseUrl);
 
     const flush = () => {
       timerRef.current = null;
-      if (bufferRef.current.length === 0) return;
+      if (pausedRef.current || bufferRef.current.length === 0) return;
 
       const batch = bufferRef.current;
       bufferRef.current = [];
@@ -113,7 +133,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 100) {
         // batch arrived oldest->newest; prepend newest-first to match existing order
         const events = [...batch].reverse().concat(old.events);
         const trimmed =
-          events.length > MAX_ITEMS ? events.slice(0, MAX_ITEMS) : events;
+          events.length > options.maxItems ? events.slice(0, options.maxItems) : events;
 
         const countsBySrc = { ...old.countsBySrc };
         const countsByQueryType = { ...old.countsByQueryType };
@@ -167,11 +187,13 @@ export function useEvents(sseUrl: string, batchIntervalMs = 100) {
         console.error("Failed to parse SSE event", err, e.data);
         return;
       }
+      if (pausedRef.current) return;
+
       bufferRef.current.push(event);
 
       // Schedule a flush if one isn't already pending (throttle, not debounce).
       if (timerRef.current === null) {
-        timerRef.current = setTimeout(flush, batchIntervalMs);
+        timerRef.current = setTimeout(flush, options.batchIntervalMs);
       }
     };
 
@@ -191,7 +213,7 @@ export function useEvents(sseUrl: string, batchIntervalMs = 100) {
       }
       bufferRef.current = [];
     };
-  }, [queryClient, sseUrl, batchIntervalMs]);
+  }, [queryClient, sseUrl, options.batchIntervalMs]);
 
   return query;
 }
