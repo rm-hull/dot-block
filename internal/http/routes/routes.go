@@ -110,6 +110,11 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 
 		c.Header("Content-Type", "text/event-stream")
 		c.Header("Connection", "keep-alive")
+		c.Header("Cache-Control", "no-cache")
+		c.Header("X-Accel-Buffering", "no")
+
+		c.SSEvent("hello", gin.H{"status": "connected"})
+		c.Writer.Flush()
 
 		for {
 			select {
