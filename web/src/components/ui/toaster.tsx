@@ -8,6 +8,7 @@ import {
   Toast,
   createToaster,
 } from "@chakra-ui/react";
+import { FiInfo } from "react-icons/fi";
 
 export const toaster = createToaster({
   placement: "bottom-end",
@@ -19,11 +20,23 @@ export const Toaster = () => {
     <Portal>
       <ChakraToaster toaster={toaster} insetInline={{ mdDown: "4" }}>
         {(toast) => (
-          <Toast.Root width={{ md: "sm" }}>
+          <Toast.Root
+            width={{ md: "sm" }}
+            {...(toast.type === "info"
+              ? {
+                  bg: "blue.subtle",
+                  color: "blue.fg",
+                  borderColor: "blue.muted",
+                  // borderWidth: "1px",
+                }
+              : {})}
+          >
             {toast.type === "loading" ? (
               <Spinner size="sm" color="blue.solid" />
+            ) : toast.type === "info" ? (
+              <FiInfo size="18" style={{ flexShrink: 0 }} />
             ) : (
-              <Toast.Indicator />
+              <Toast.Indicator color="blue.solid" />
             )}
             <Stack gap="1" flex="1" maxWidth="100%">
               {toast.title && <Toast.Title>{toast.title}</Toast.Title>}
