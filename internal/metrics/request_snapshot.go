@@ -36,6 +36,7 @@ type RequestSnapshot struct {
 	rcode          string
 	queryType      string
 	blockCause     string
+	answerCount    int
 }
 
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
@@ -129,6 +130,14 @@ func (t *RequestSnapshot) QueryType() string {
 
 func (t *RequestSnapshot) Rcode() string {
 	return t.rcode
+}
+
+func (t *RequestSnapshot) SetAnswerCount(count int) {
+	t.answerCount = count
+}
+
+func (t *RequestSnapshot) AnswerCount() int {
+	return t.answerCount
 }
 
 func (t *RequestSnapshot) Record(metrics *DnsMetrics) {

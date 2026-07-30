@@ -16,3 +16,4 @@ The `web/` directory contains the React-based frontend for the DoT Block DNS-ove
 - **Testing:** Prioritize `test-first` development with `vitest` (if configured) or standard React testing patterns.
 - **Architecture:** Keep API services under `src/service/` and UI components under `src/components/`.
 - **Verification:** Always run `pnpm run build` after making changes to ensure no build regressions.
+- **Filesystem access:** Never ever try and find or read from the root partition (`/`); operate only within the working repository directory.

@@ -22,7 +22,7 @@ type LogLevel string
 func (LogLevel) JSONSchema() *jsonschema.Type {
 	return &jsonschema.Type{
 		Type: "string",
-		Enum: []interface{}{"DEBUG", "INFO", "WARN", "ERROR"},
+		Enum: []any{"DEBUG", "INFO", "WARN", "ERROR"},
 	}
 }
 

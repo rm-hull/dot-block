@@ -46,6 +46,7 @@ export interface DnsEvent {
   src: Source;
   blocked: boolean;
   cached: boolean;
+  answers: number;
 }
 
 interface EventFeed {

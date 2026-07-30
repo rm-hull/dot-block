@@ -31,13 +31,17 @@ go run main.go --dev-mode
 
 ### Test
 ```bash
-go test -v ./...
+go test -race -v ./...
 ```
+> **Note:** Tests should always be run locally with the `-race` flag (as CI does) to catch concurrency bugs and data races that may not be visible with a normal `go test`.
 
 ### Build
 ```bash
 go build -ldflags="-w -s" -o dot-block .
 ```
+
+### General Development Notes
+- When using shell commands such as `find`, `grep -r`, or other file system traversal tools, always scope the search relative to the project root (e.g., `.`, `./internal`). **Never** perform system-wide traversals like `find / ...` or `grep -r /`, as these are slow, may expose sensitive information, and can produce non-deterministic results. Use ripgrep (`rg`) or `find .` instead.
 
 ## Key Technologies
 - **Language:** Go

@@ -241,7 +241,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 				// be populated yet. Retry the query a few times to allow the background
 				// fetch to complete.
 				foundBlockedSOA := false
-				for attempt := 0; attempt < 10; attempt++ {
+				for range 10 {
 					if isBlocked(resp) {
 						foundBlockedSOA = true
 						break
