@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1142,9 +1143,9 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_NODATA(t *testing.T) {
 	// This is particularly important for HTTPS/SVCB queries where a domain may not have
 	// an HTTPS record, and the NODATA response should be cached to avoid repeated
 	// upstream queries.
-	upstreamCallCount := 0
+	var upstreamCallCount int64
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
-		upstreamCallCount++
+		atomic.AddInt64(&upstreamCallCount, 1)
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.Rcode = dns.RcodeSuccess // NOERROR
@@ -1171,7 +1172,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_NODATA(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 	assert.Len(t, writer.WrittenMsg.Answer, 0, "Should have 0 answers (NODATA)")
 
-	firstCallCount := upstreamCallCount
+	firstCallCount := atomic.LoadInt64(&upstreamCallCount)
 
 	// Wait for the cache to be populated (cache updates are async)
 	cacheKey := getCacheKey(&req.Question[0], "")
@@ -1189,15 +1190,15 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_NODATA(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, writer2.WrittenMsg.Rcode)
 	assert.Len(t, writer2.WrittenMsg.Answer, 0, "Should have 0 answers from cache (NODATA)")
 
-	secondCallCount := upstreamCallCount
+	secondCallCount := atomic.LoadInt64(&upstreamCallCount)
 	assert.Equal(t, firstCallCount, secondCallCount,
 		"NODATA response should have been cached - upstream should not be called again")
 }
 
 func TestDNSDispatcher_HandleDNSRequest_CacheHit_NXDOMAIN(t *testing.T) {
-	upstreamCallCount := 0
+	var upstreamCallCount int64
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, r *dns.Msg) {
-		upstreamCallCount++
+		atomic.AddInt64(&upstreamCallCount, 1)
 		m := new(dns.Msg)
 		m.SetReply(r)
 		m.SetRcode(r, dns.RcodeNameError) // NXDOMAIN
@@ -1239,7 +1240,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_NXDOMAIN(t *testing.T) {
 	dispatcher.HandleDNSRequest("test")(writer, req)
 	require.NotNil(t, writer.WrittenMsg)
 	assert.Equal(t, dns.RcodeNameError, writer.WrittenMsg.Rcode)
-	firstCallCount := upstreamCallCount
+	firstCallCount := atomic.LoadInt64(&upstreamCallCount)
 
 	// Wait for cache to be populated
 	cacheKey := getCacheKey(&req.Question[0], "")
@@ -1255,7 +1256,7 @@ func TestDNSDispatcher_HandleDNSRequest_CacheHit_NXDOMAIN(t *testing.T) {
 	dispatcher.HandleDNSRequest("test")(writer2, req)
 	require.NotNil(t, writer2.WrittenMsg)
 	assert.Equal(t, dns.RcodeNameError, writer2.WrittenMsg.Rcode, "Should return NXDOMAIN from cache")
-	secondCallCount := upstreamCallCount
+	secondCallCount := atomic.LoadInt64(&upstreamCallCount)
 	assert.Equal(t, firstCallCount, secondCallCount,
 		"NXDOMAIN response should have been cached - upstream should not be called again")
 }
