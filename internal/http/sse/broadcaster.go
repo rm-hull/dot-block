@@ -20,6 +20,7 @@ type Event struct {
 	Blocked   bool      `json:"blocked"`
 	Cached    bool      `json:"cached"`
 	Cause     string    `json:"cause,omitempty"`
+	Answers   int       `json:"answers"`
 }
 
 type Broadcaster struct {

@@ -251,6 +251,7 @@ func (d *DNSDispatcher) snapshotWorker() {
 					Blocked:   snapshot.IsBlocked(),
 					Cached:    snapshot.FromCache(),
 					Cause:     snapshot.BlockCause(),
+					Answers:   snapshot.AnswerCount(),
 					Timestamp: time.Now(),
 				}
 
@@ -708,6 +709,7 @@ func (d *DNSDispatcher) forwardQuery(requestCtx *RequestContext, req *dns.Msg) (
 
 func (d *DNSDispatcher) sendResponse(ctx *RequestContext, writer dns.ResponseWriter, msg *dns.Msg) {
 	ctx.snapshot.SetRcode(dns.RcodeToString[msg.Rcode])
+	ctx.snapshot.SetAnswerCount(len(msg.Answer))
 	if err := writer.WriteMsg(msg); err != nil {
 		d.reportError(ctx, "response", err, "")
 		return
