@@ -102,7 +102,7 @@ func (app *App) RunServer(ctx context.Context) error {
 			return errors.Wrap(err, "failed to initialize GeoData database")
 		}
 	}
-	blockLists, blocklistUpdater, err := app.NewBlockLists(crontab)
+	blockLists, err := app.NewBlockLists(crontab)
 	if err != nil {
 		return errors.Wrap(err, "failed to create blocklist(s)")
 	}
@@ -167,7 +167,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	defer dispatcher.Close()
 
-	r, err := app.startHttpServer(dnsClient, blocklistUpdater, dispatcher, geoIpLookup, handlers.NewVersionInfoHandler(app.StartTime))
+	r, err := app.startHttpServer(dnsClient, blockLists, dispatcher, geoIpLookup, handlers.NewVersionInfoHandler(app.StartTime))
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -305,7 +305,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 
 func (app *App) startHttpServer(
 	dnsClient *forwarder.RoundRobinClient,
-	blocklistUpdater *blocklist.Updater,
+	blocklists []*blocklist.BlockList,
 	dispatcher *forwarder.DNSDispatcher,
 	geoIpLookup geoblock.GeoIpLookup,
 	versionInfoHandler *handlers.VersionInfoHandler,
@@ -315,7 +315,7 @@ func (app *App) startHttpServer(
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	blocklistHandler := handlers.NewBlocklistHandler(blocklistUpdater, app.Logger)
+	blocklistHandler := handlers.NewBlocklistHandler(blocklists, app.Logger)
 	if app.Config.Server.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
@@ -402,7 +402,7 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	return geoIpLookup, nil
 }
 
-func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *blocklist.Updater, error) {
+func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error) {
 	blockLists := make([]*blocklist.BlockList, 0, len(app.Config.Blocklist.Sources))
 	for idx, source := range app.Config.Blocklist.Sources {
 		name := source.Name
@@ -412,8 +412,6 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 		blockList := blocklist.NewBlockList(name, source.URL, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
 	}
-
-	updater := blocklist.NewUpdater(blockLists, 1*time.Minute)
 
 	// Register an independent cron job for each blocklist source that has a cron schedule
 	for idx, source := range app.Config.Blocklist.Sources {
@@ -426,14 +424,13 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, *bloc
 		}
 		app.Logger.Info("Creating blocklist downloader cron job", "name", name, "schedule", source.CronSchedule)
 		// Create a per-source updater that only updates this one blocklist
-		singleUpdater := blocklist.NewUpdater([]*blocklist.BlockList{blockLists[idx]}, 1*time.Minute)
+		singleUpdater := blocklist.NewUpdater(blockLists[idx], 1*time.Minute)
 		if _, err := crontab.AddJob(source.CronSchedule, singleUpdater); err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", name)
+			return nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", name)
 		}
+
+		go singleUpdater.Run()
 	}
 
-	app.Logger.Info("Starting initial blocklist fetch in background", "count", len(blockLists))
-	go updater.Run()
-
-	return blockLists, updater, nil
+	return blockLists, nil
 }

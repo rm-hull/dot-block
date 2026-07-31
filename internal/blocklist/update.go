@@ -2,37 +2,26 @@ package blocklist
 
 import (
 	"context"
-	"sync"
 	"time"
 )
 
 type Updater struct {
-	Blocklists []*BlockList
-	Timeout    time.Duration
+	Blocklist *BlockList
+	Timeout   time.Duration
 }
 
-func NewUpdater(blocklists []*BlockList, timeout time.Duration) *Updater {
-	return &Updater{Blocklists: blocklists, Timeout: timeout}
+func NewUpdater(blocklist *BlockList, timeout time.Duration) *Updater {
+	return &Updater{Blocklist: blocklist, Timeout: timeout}
 }
 
 func (job *Updater) Run() {
-	var wg sync.WaitGroup
-
 	ctx, cancel := context.WithTimeout(context.Background(), job.Timeout)
 	defer cancel()
 
-	for _, blockList := range job.Blocklists {
-		wg.Add(1)
-		go func(bl *BlockList) {
-			defer wg.Done()
-
-			if err := bl.Fetch(ctx); err != nil {
-				bl.logger.Error("failed to download blocklist",
-					"error", err,
-					"name", bl.name,
-					"url", bl.url)
-			}
-		}(blockList)
+	if err := job.Blocklist.Fetch(ctx); err != nil {
+		job.Blocklist.logger.Error("failed to download blocklist",
+			"error", err,
+			"name", job.Blocklist.name,
+			"url", job.Blocklist.url)
 	}
-	wg.Wait()
 }

@@ -58,7 +58,7 @@ func NewAdminGroup(
 			api.POST("/blocklist/reload", blocklistHandler.Reload)
 			api.POST("/blocklist/disable", blocklistHandler.Disable)
 			api.POST("/blocklist/reenable", blocklistHandler.Reenable)
-			api.GET("/blocklist/status", blocklistHandler.Status)
+			api.GET("/blocklist/status", blocklistHandler.Status(""))
 			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
 			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)

@@ -200,7 +200,7 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 func (blockList *BlockList) Fetch(ctx context.Context) error {
 	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.url, "")
 	if err != nil {
-		return errors.Wrapf(err, "failed to download blocklist for counting: %s", blockList.url)
+		return errors.Wrap(err, "failed to download blocklist")
 	}
 
 	defer func() {

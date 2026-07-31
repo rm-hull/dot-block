@@ -18,6 +18,8 @@ GET http://localhost:8080/.mobileconfig
 POST http://admin.localhost:8080/api/blocklist/reload
 User-Agent: test-client
 
+{"name": "dot-block"}
+
 
 ### Check blocklist (JSON)
 POST http://admin.localhost:8080/api/blocklist/check

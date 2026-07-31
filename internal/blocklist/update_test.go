@@ -10,10 +10,8 @@ import (
 
 func TestUpdater_Run(t *testing.T) {
 	// Use slog.Default() to prevent nil pointer in Fetch()
-	bls := []*BlockList{
-		NewBlockList("list1", "http://localhost:8080/does-not-exist", 0.001, slog.Default()),
-	}
-	updater := NewUpdater(bls, 5*time.Second)
+	bl := NewBlockList("list1", "http://localhost:8080/does-not-exist", 0.001, slog.Default())
+	updater := NewUpdater(bl, 5*time.Second)
 
 	// Expect Run() to return without panicking
 	assert.NotPanics(t, func() { updater.Run() })

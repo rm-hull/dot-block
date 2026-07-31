@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	iso8601 "github.com/channelmeter/iso8601duration"
@@ -14,25 +16,42 @@ import (
 )
 
 type BlocklistHandler struct {
-	updater *blocklist.Updater
-	logger  *slog.Logger
+	blocklists []*blocklist.BlockList
+	logger     *slog.Logger
 }
 
-func NewBlocklistHandler(updater *blocklist.Updater, logger *slog.Logger) *BlocklistHandler {
-	return &BlocklistHandler{updater: updater, logger: logger}
+func NewBlocklistHandler(blocklists []*blocklist.BlockList, logger *slog.Logger) *BlocklistHandler {
+	return &BlocklistHandler{blocklists: blocklists, logger: logger}
 }
 
 func (h *BlocklistHandler) Reload(c *gin.Context) {
-	go h.updater.Run()
-	m := make(map[string]string, len(h.updater.Blocklists))
-	for _, blockList := range h.updater.Blocklists {
-		m[blockList.Name()] = blockList.URL()
+	var payload struct {
+		Name string `json:"name,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
 	}
 
-	c.JSON(http.StatusAccepted, gin.H{
-		"message":    "Blocklist reload triggered",
-		"blocklists": m,
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	for _, bl := range h.blocklists {
+		if payload.Name == bl.Name() || payload.Name == "" {
+			wg.Add(1)
+			go func(bl *blocklist.BlockList) {
+				defer wg.Done()
+				err := bl.Fetch(ctx)
+				if err != nil {
+					_ = c.Error(err)
+				}
+			}(bl)
+		}
+	}
+	wg.Wait()
+
+	h.Status("Blocklist reloaded")(c)
 }
 
 func (h *BlocklistHandler) Disable(c *gin.Context) {
@@ -56,13 +75,13 @@ func (h *BlocklistHandler) Disable(c *gin.Context) {
 		return
 	}
 
-	for _, bl := range h.updater.Blocklists {
+	for _, bl := range h.blocklists {
 		if payload.Name == bl.Name() || payload.Name == "" {
 			bl.Disable(d)
 		}
 	}
 
-	h.Status(c)
+	h.Status("Blocklist disabled")(c)
 }
 
 func (h *BlocklistHandler) Reenable(c *gin.Context) {
@@ -74,21 +93,37 @@ func (h *BlocklistHandler) Reenable(c *gin.Context) {
 		return
 	}
 
-	for _, bl := range h.updater.Blocklists {
+	for _, bl := range h.blocklists {
 		if payload.Name == bl.Name() || payload.Name == "" {
 			bl.Reenable()
 		}
 	}
 
-	h.Status(c)
+	h.Status("Blocklist reenabled")(c)
 }
 
-func (h *BlocklistHandler) Status(c *gin.Context) {
-	blocklists := make(map[string]*blocklist.BlocklistStatus)
-	for _, bl := range h.updater.Blocklists {
-		blocklists[bl.Name()] = bl.Status()
+type StatusPayload struct {
+	Message    string                       `json:"message,omitempty"`
+	Errors     []string                     `json:"errors,omitempty"`
+	Blocklists []*blocklist.BlocklistStatus `json:"blocklists,omitempty"`
+}
+
+func (h *BlocklistHandler) Status(message string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		payload := StatusPayload{
+			Message:    message,
+			Errors:     c.Errors.Errors(),
+			Blocklists: make([]*blocklist.BlocklistStatus, len(h.blocklists)),
+		}
+		for idx, bl := range h.blocklists {
+			payload.Blocklists[idx] = bl.Status()
+		}
+		status := http.StatusOK
+		if len(c.Errors) > 0 {
+			status = http.StatusInternalServerError
+		}
+		c.JSON(status, payload)
 	}
-	c.JSON(http.StatusOK, blocklists)
 }
 
 func (h *BlocklistHandler) Check(c *gin.Context) {
@@ -149,7 +184,7 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 }
 
 func (h *BlocklistHandler) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
-	for _, blockList := range h.updater.Blocklists {
+	for _, blockList := range h.blocklists {
 		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
 			return isBlocked, blockList, err
 		}
