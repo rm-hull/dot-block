@@ -2,6 +2,12 @@ import { useMemo } from "react";
 import { Chart, useChart } from "@chakra-ui/charts";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 
+interface TimeSeriesPoint {
+  time: number;
+  count: number;
+  avg5min: number;
+}
+
 interface TimeSeriesChartProps {
   data?: Record<string, number>;
   height?: number;
@@ -28,7 +34,7 @@ export default function TimeSeriesChart({
       .sort((a, b) => a.time - b.time);
 
     if (all.length === 0) {
-      return { points: [] as Array<{ time: number; count: number; avg5min: number }>, domain: undefined as [number, number] | undefined };
+      return { points: [] as TimeSeriesPoint[], domain: undefined as [number, number] | undefined };
     }
 
     const latest = all[all.length - 1].time;
@@ -38,7 +44,7 @@ export default function TimeSeriesChart({
     // using a sliding window, so points near the start of the visible window
     // still have an accurate average based on preceding data.
     const ROLLING_WINDOW_MS = 5 * 60 * 1000;
-    const points: Array<{ time: number; count: number; avg5min: number }> = [];
+    const points: TimeSeriesPoint[] = [];
     let left = 0;
     let runningSum = 0;
     for (let right = 0; right < all.length; right++) {
