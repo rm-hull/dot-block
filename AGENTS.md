@@ -13,6 +13,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 - **Observability:** Sentry (errors), Prometheus (metrics).
 
 ## Development Principles
+- **Filesystem access:** NEVER ever try and find or read from the root partition (`/`); operate only within the working repository directory.
 - **Test-First:** Always verify existing behavior with tests and write failing tests before implementing changes. Use `github.com/stretchr/testify` for assertions.
 - **Verify:** ALWAYS run a full build (`go build ./...`) and run tests (`go test ./...`) after making code changes to ensure no regressions.
 - **Lint:** ALWAYS run `golangci-lint-v2 run ./...` and `go vet ./...` as part of build verification to ensure code quality and catch issues early.
