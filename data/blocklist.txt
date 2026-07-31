@@ -104,4 +104,4 @@ eu.i.posthog.com
 eu-assets.i.posthog.com
 
 events.api.bosecm.com
-lox.legalendowman.com
+lox.legalendowmad.com
