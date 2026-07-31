@@ -161,17 +161,17 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 	}
 
 	allowed := make([]string, 0)
-	blocked := make([]string, 0)
+	blocked := make(map[string]string)
 
 	for _, domain := range domains {
-		isBlocked, _, err := h.isBlocked(domain)
+		isBlocked, cause, err := h.isBlocked(domain)
 		if err != nil {
 			h.logger.Error("blocklist check failed", "error", err, "domain", domain)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 			return
 		}
 		if isBlocked {
-			blocked = append(blocked, domain)
+			blocked[domain] = cause.Name()
 		} else {
 			allowed = append(allowed, domain)
 		}
