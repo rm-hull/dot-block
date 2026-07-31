@@ -62,8 +62,8 @@ func DefaultConfig() *Config {
 		Blocklist: &BlocklistConfig{
 			Sources: []BlocklistSource{
 				{
-					Name:         "hagezi-pro",
-					URL:          "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",
+					Name:         "hagezi-pro.plus",
+					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
 					CronSchedule: "@every 19h",
 				},
 				{
