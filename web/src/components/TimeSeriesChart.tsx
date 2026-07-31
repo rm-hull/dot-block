@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 import { Chart, useChart } from "@chakra-ui/charts";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
+
+interface TimeSeriesPoint {
+  time: number;
+  count: number;
+  avg5min: number;
+}
 
 interface TimeSeriesChartProps {
   data?: Record<string, number>;
@@ -18,23 +24,47 @@ export default function TimeSeriesChart({
   width = 400,
   windowMs = 60 * 60 * 1000,
 }: TimeSeriesChartProps) {
-  // Convert { "unixMs": count } -> array of { time, count }, sorted,
-  // then keep only the last `windowMs` relative to the latest point.
-  // Also compute a fixed axis domain so the chart always spans a full
-  // `windowMs` window, even if there's less data than that.
+  // Convert { "unixMs": count } -> array of { time, count, avg5min },
+  // sorted, then keep only the last `windowMs` relative to the latest
+  // point. Also compute a fixed axis domain so the chart always spans a
+  // full `windowMs` window, even if there's less data than that.
   const { points, domain } = useMemo(() => {
     const all = Object.entries(data)
       .map(([time, count]) => ({ time: Number(time), count }))
       .sort((a, b) => a.time - b.time);
 
     if (all.length === 0) {
-      return { points: all, domain: undefined as [number, number] | undefined };
+      return { points: [] as TimeSeriesPoint[], domain: undefined as [number, number] | undefined };
     }
 
     const latest = all[all.length - 1].time;
     const cutoff = latest - windowMs;
+
+    // Compute a 5-minute rolling average across the full (sorted) dataset
+    // using a sliding window, so points near the start of the visible window
+    // still have an accurate average based on preceding data.
+    const ROLLING_WINDOW_MS = 5 * 60 * 1000;
+    const points: TimeSeriesPoint[] = [];
+    let left = 0;
+    let runningSum = 0;
+    for (let right = 0; right < all.length; right++) {
+      runningSum += all[right].count;
+      const windowStart = all[right].time - ROLLING_WINDOW_MS;
+      while (all[left].time < windowStart) {
+        runningSum -= all[left].count;
+        left++;
+      }
+      const windowCount = right - left + 1;
+      if (all[right].time >= cutoff) {
+        points.push({
+          ...all[right],
+          avg5min: runningSum / windowCount,
+        });
+      }
+    }
+
     return {
-      points: all.filter((p) => p.time >= cutoff),
+      points,
       domain: [cutoff, latest] as [number, number],
     };
   }, [data, windowMs]);
@@ -42,7 +72,12 @@ export default function TimeSeriesChart({
   const chart = useChart({
     data: points,
     sort: { by: "time", direction: "asc" },
-    series: [{ name: "count", color: "teal.solid" }],
+    // Render order matters: SVG uses the painter's model, so iterate the
+    // rolling-average line first so it draws *behind* the count area.
+    series: [
+      { name: "avg5min", color: "red.solid" },
+      { name: "count", color: "teal.solid" },
+    ],
   });
 
   return (
@@ -68,19 +103,39 @@ export default function TimeSeriesChart({
           stroke={chart.color("border")}
         />
         <YAxis allowDecimals={false} stroke={chart.color("border")} />
-        {chart.series.map((item) => (
-          <Area
-            key={item.name}
-            type="monotone"
-            dataKey={chart.key(item.name)}
-            stroke={chart.color(item.color)}
-            fill="url(#count-gradient)"
-            strokeWidth={2}
-            dot={false}
-            animationDuration={600}
-            animationEasing="ease-out"
-          />
-        ))}
+        {chart.series.map((item) => {
+          const isRollingAvg = item.name === "avg5min";
+          if (isRollingAvg) {
+            // Rolling average rendered as a dotted red line, no fill.
+            return (
+              <Line
+                key={item.name}
+                type="monotone"
+                dataKey={chart.key(item.name)}
+                stroke={chart.color(item.color)}
+                strokeWidth={2}
+                strokeDasharray="4 4"
+                strokeLinecap="round"
+                dot={false}
+                animationDuration={600}
+                animationEasing="ease-out"
+              />
+            );
+          }
+          return (
+            <Area
+              key={item.name}
+              type="monotone"
+              dataKey={chart.key(item.name)}
+              stroke={chart.color(item.color)}
+              fill="url(#count-gradient)"
+              strokeWidth={2}
+              dot={false}
+              animationDuration={600}
+              animationEasing="ease-out"
+            />
+          );
+        })}
       </AreaChart>
     </Chart.Root>
   );
