@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Chart, useChart } from "@chakra-ui/charts";
 import { Area, AreaChart, CartesianGrid, Line, XAxis, YAxis } from "recharts";
 
@@ -24,21 +24,52 @@ export default function TimeSeriesChart({
   width = 400,
   windowMs = 60 * 60 * 1000,
 }: TimeSeriesChartProps) {
+  // Track wall-clock time so the visible window keeps scrolling even when
+  // no new data arrives. Without this the domain is pinned to the last
+  // data point's timestamp, which freezes the chart during quiet periods.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(id);
+  }, []);
+
   // Convert { "unixMs": count } -> array of { time, count, avg5min },
   // sorted, then keep only the last `windowMs` relative to the latest
-  // point. Also compute a fixed axis domain so the chart always spans a
-  // full `windowMs` window, even if there's less data than that.
+  // point or the current wall-clock time, whichever is more recent. The
+  // axis domain is fixed so the chart always spans a full `windowMs`
+  // window, even if there's less data than that, and keeps scrolling in
+  // real time when no new data arrives.
   const { points, domain } = useMemo(() => {
-    const all = Object.entries(data)
+    // 1. Get raw entries, sorted
+    const rawEntries = Object.entries(data)
       .map(([time, count]) => ({ time: Number(time), count }))
       .sort((a, b) => a.time - b.time);
 
-    if (all.length === 0) {
-      return { points: [] as TimeSeriesPoint[], domain: undefined as [number, number] | undefined };
+    if (rawEntries.length === 0) {
+      // No data yet: still anchor the window to the current time so the
+      // chart shows a live, scrolling time axis rather than a frozen one.
+      return {
+        points: [] as TimeSeriesPoint[],
+        domain: [now - windowMs, now] as [number, number],
+      };
     }
 
-    const latest = all[all.length - 1].time;
+    // Anchor the window end to the current wall-clock time (or the most
+    // recent data point, whichever is later) so the chart keeps scrolling
+    // and ages data out as time passes, even between data updates.
+    const latest = Math.max(rawEntries[rawEntries.length - 1].time, now);
     const cutoff = latest - windowMs;
+
+    // 2. Densify: fill gaps and trailing quiet periods up to 'latest' with 0
+    const all: Array<{ time: number; count: number }> = [];
+    const first = rawEntries[0].time;
+    const dataMap = new Map(rawEntries.map(e => [e.time, e.count]));
+
+    for (let t = first; t <= latest; t += 60000) {
+      if (t >= cutoff) {
+        all.push({ time: t, count: dataMap.get(t) ?? 0 });
+      }
+    }
 
     // Compute a 5-minute rolling average across the full (sorted) dataset
     // using a sliding window, so points near the start of the visible window
@@ -67,7 +98,7 @@ export default function TimeSeriesChart({
       points,
       domain: [cutoff, latest] as [number, number],
     };
-  }, [data, windowMs]);
+  }, [data, now, windowMs]);
 
   const chart = useChart({
     data: points,
@@ -96,7 +127,7 @@ export default function TimeSeriesChart({
         <XAxis
           dataKey={chart.key("time")}
           type="number"
-          domain={domain ?? ["dataMin", "dataMax"]}
+          domain={domain}
           scale="time"
           minTickGap={40}
           tickFormatter={formatTime}
