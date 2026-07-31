@@ -84,26 +84,40 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 		return false, nil
 	}
 
-	isBlocked := blockList.bloomFilter.TestString(domain)
-
-	// Try the apex domain (e.g. for "ads.example.com", check "example.com")
-	// EffectiveTLDPlusOne returns an error for bare TLDs (e.g. "com") or domains
-	// with invalid labels, which is expected — we simply skip the apex domain check.
-	if !isBlocked {
-		if apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain); err == nil {
-			isBlocked = blockList.bloomFilter.TestString(apexDomain)
-		}
+	// 1. Check exact domain first (e.g., "8.lox.legalendowmad.com")
+	current := domain
+	if blockList.bloomFilter.TestString(current) {
+		return blockList.checkDisabled()
 	}
 
-	if isBlocked {
-		// Check if blocklist is temporarily disabled
-		if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
-			return false, nil
+	// 2. Iteratively check parent subdomains up to the apex domain (EffectiveTLDPlusOne)
+	apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
+	if err == nil {
+		for {
+			idx := strings.Index(current, ".")
+			if idx == -1 {
+				break
+			}
+			current = current[idx+1:]
+
+			if blockList.bloomFilter.TestString(current) {
+				return blockList.checkDisabled()
+			}
+
+			if current == apexDomain {
+				break
+			}
 		}
-		return true, nil
 	}
 
 	return false, nil
+}
+
+func (blockList *BlockList) checkDisabled() (bool, error) {
+	if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (blocklist *BlockList) Load(items []string) {

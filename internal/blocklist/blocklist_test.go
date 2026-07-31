@@ -37,3 +37,26 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, isBlocked, "example.com should be blocked again after disable period expires")
 }
+
+func TestBlocklist_SubdomainHierarchy(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	blockList := NewBlockList("test", "http://dummy_url", 0.0001, logger)
+	blockList.Load([]string{"lox.legalendowmad.com"})
+
+	testCases := []struct {
+		domain        string
+		expectBlocked bool
+	}{
+		{"lox.legalendowmad.com", true},
+		{"8.lox.legalendowmad.com", true},
+		{"sub.8.lox.legalendowmad.com", true},
+		{"legalendowmad.com", false},
+		{"other.com", false},
+	}
+
+	for _, tc := range testCases {
+		isBlocked, err := blockList.IsBlocked(tc.domain)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.expectBlocked, isBlocked, "domain %s expected blocked=%v", tc.domain, tc.expectBlocked)
+	}
+}
