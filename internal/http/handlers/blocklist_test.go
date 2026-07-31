@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -29,7 +30,7 @@ func TestBlocklistHandler_Status(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestBlocklistHandler_Disable(t *testing.T) {
+func TestBlocklistHandler_Disable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
@@ -67,7 +68,7 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestBlocklistHandler_Reenable(t *testing.T) {
+func TestBlocklistHandler_Reenable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
@@ -86,6 +87,44 @@ func TestBlocklistHandler_Reenable(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	statusBody := w.Body.String()
 	assert.NotContains(t, statusBody, "disabled_until")
+}
+
+func TestBlocklistHandler_Reenable_Single(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	bl1 := blocklist.NewBlockList("test1", "http://example.com/list1.txt", 0.001, logger)
+	bl2 := blocklist.NewBlockList("test2", "http://example.com/list2.txt", 0.001, logger)
+	// Pre-disable both blocklists
+	bl1.Disable(time.Hour)
+	bl2.Disable(time.Hour)
+	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl1, bl2}, 1*time.Minute)
+	h := NewBlocklistHandler(updater, logger)
+
+	w := httptest.NewRecorder()
+	// Re-enable only the blocklist named "test1"
+	payload := `{"name": "test1"}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/reenable", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.Reenable(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Parse the response to verify each blocklist's individual status
+	var statuses map[string]*blocklist.BlocklistStatus
+	err := json.Unmarshal(w.Body.Bytes(), &statuses)
+	assert.NoError(t, err)
+
+	// test1 should be re-enabled (no disabled_until)
+	assert.Contains(t, statuses, "test1")
+	assert.Nil(t, statuses["test1"].DisabledUntil,
+		"test1 should have been re-enabled")
+
+	// test2 should remain disabled
+	assert.Contains(t, statuses, "test2")
+	assert.NotNil(t, statuses["test2"].DisabledUntil,
+		"test2 should still be disabled")
 }
 
 func TestBlocklistHandler_Reload(t *testing.T) {

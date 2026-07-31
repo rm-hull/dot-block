@@ -66,8 +66,18 @@ func (h *BlocklistHandler) Disable(c *gin.Context) {
 }
 
 func (h *BlocklistHandler) Reenable(c *gin.Context) {
+	var payload struct {
+		Name string `json:"name,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload"})
+		return
+	}
+
 	for _, bl := range h.updater.Blocklists {
-		bl.Reenable()
+		if payload.Name == bl.Name() || payload.Name == "" {
+			bl.Reenable()
+		}
 	}
 
 	h.Status(c)
