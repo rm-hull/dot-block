@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
@@ -63,6 +64,7 @@ func NewAdminGroup(
 			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
 			api.GET("/version-info", versionInfoHandler.Info)
+			api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
 		}
 
 		distFS := web.DistFS()

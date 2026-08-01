@@ -315,7 +315,6 @@ func (app *App) startHttpServer(
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	blocklistHandler := handlers.NewBlocklistHandler(blocklists, app.Logger)
 	if app.Config.Server.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
@@ -357,7 +356,7 @@ func (app *App) startHttpServer(
 		handlers.NewDoHHandler(requestHandler))
 
 	routes.NewAdminGroup(r, "admin."+serverName, app.Config.Server.DevMode,
-		blocklistHandler,
+		handlers.NewBlocklistHandler(blocklists, app.Logger),
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
 		versionInfoHandler,

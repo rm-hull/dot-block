@@ -98,3 +98,7 @@ Access-Control-Request-Headers: Authorization, Content-Type
 ### DNS Events Stream (SSE)
 GET http://admin.localhost:8080/api/events
 Accept: text/event-stream
+
+
+### JSON Metrics
+GET http://admin.localhost:8080/api/metrics
