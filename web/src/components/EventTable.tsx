@@ -59,9 +59,7 @@ function EventRow({ event, index, filterText }: EventRowProps) {
           {event.domain}
         </Highlight>
       </Table.Cell>
-      <Table.Cell textAlign="right">
-        {event.answers}
-      </Table.Cell>
+      <Table.Cell textAlign="right">{event.answers}</Table.Cell>
       <Table.Cell>
         <Result rcode={event.result} />
       </Table.Cell>

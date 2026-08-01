@@ -63,7 +63,7 @@ export default function TimeSeriesChart({
     // 2. Densify: fill gaps and trailing quiet periods up to 'latest' with 0
     const all: Array<{ time: number; count: number }> = [];
     const first = rawEntries[0].time;
-    const dataMap = new Map(rawEntries.map(e => [e.time, e.count]));
+    const dataMap = new Map(rawEntries.map((e) => [e.time, e.count]));
 
     for (let t = first; t <= latest; t += 60000) {
       if (t >= cutoff) {
