@@ -18,6 +18,7 @@ import (
 
 type BlockList struct {
 	name            string
+	schedule        string
 	url             string
 	metadata        map[string]string
 	lastUpdated     *time.Time
@@ -35,17 +36,19 @@ type BlocklistStatus struct {
 	Name              string            `json:"name"`
 	URL               string            `json:"url"`
 	Size              uint              `json:"size"`
+	Schedule          string            `json:"schedule"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
 	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
 
-func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
+func NewBlockList(name, schedule, url string, fpRate float64, logger *slog.Logger) *BlockList {
 	metrics, _ := metrics.NewBlockListMetrics(name)
 
 	blocklist := &BlockList{
 		name:      name,
+		schedule:  schedule,
 		url:       url,
 		minFpRate: fpRate,
 		metrics:   metrics,
@@ -165,6 +168,7 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 	}
 	status := BlocklistStatus{
 		Name:              blocklist.name,
+		Schedule:          blocklist.schedule,
 		URL:               blocklist.url,
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,

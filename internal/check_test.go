@@ -26,7 +26,7 @@ func TestCheckHandler(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	// Use a small blocklist for testing
-	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
 
 	handler := handlers.NewBlocklistHandler([]*blocklist.BlockList{blockList}, logger)

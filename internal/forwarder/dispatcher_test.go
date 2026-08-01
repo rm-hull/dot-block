@@ -89,7 +89,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	blockList := blocklist.NewBlockList("dispatcher_test", "http://dummy.url", 0.0001, logger)
+	blockList := blocklist.NewBlockList("dispatcher_test", "@every 19h", "http://dummy.url", 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -423,7 +423,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+	blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -755,7 +755,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+			blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
 			blockList.Load([]string{"ads.com"})
 
 			cache := NewDNSCache(100, logger)

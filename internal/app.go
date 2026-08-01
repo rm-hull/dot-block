@@ -405,28 +405,17 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error) {
 	blockLists := make([]*blocklist.BlockList, 0, len(app.Config.Blocklist.Sources))
 	for idx, source := range app.Config.Blocklist.Sources {
-		name := source.Name
-		if name == "" {
-			name = fmt.Sprintf("Blocklist #%d", idx)
-		}
-		blockList := blocklist.NewBlockList(name, source.URL, 0.0001, app.Logger)
+		blockList := blocklist.NewBlockList(source.Name, source.CronSchedule, source.URL, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
-	}
 
-	// Register an independent cron job for each blocklist source that has a cron schedule
-	for idx, source := range app.Config.Blocklist.Sources {
 		if source.CronSchedule == "" {
 			continue
 		}
-		name := source.Name
-		if name == "" {
-			name = fmt.Sprintf("Blocklist #%d", idx)
-		}
-		app.Logger.Info("Creating blocklist downloader cron job", "name", name, "schedule", source.CronSchedule)
+		app.Logger.Info("Creating blocklist downloader cron job", "name", source.Name, "schedule", source.CronSchedule)
 		// Create a per-source updater that only updates this one blocklist
 		singleUpdater := blocklist.NewUpdater(blockLists[idx], 1*time.Minute)
 		if _, err := crontab.AddJob(source.CronSchedule, singleUpdater); err != nil {
-			return nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", name)
+			return nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", source.Name)
 		}
 
 		go singleUpdater.Run()
