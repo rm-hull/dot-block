@@ -83,12 +83,19 @@ const initial: EventFeed = {
 type Options = {
   maxItems: number;
   batchIntervalMs: number;
+  heartbeatTimeoutMs: number;
+  retryIntervalMs: number;
 };
 
 export function useEvents(
   sseUrl: string,
   paused = false,
-  options: Options = { maxItems: 100, batchIntervalMs: 100 }
+  options: Options = {
+    maxItems: 100,
+    batchIntervalMs: 100,
+    heartbeatTimeoutMs: 15000,
+    retryIntervalMs: 3000,
+  }
 ) {
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -115,97 +122,173 @@ export function useEvents(
   }, [paused]);
 
   useEffect(() => {
-    const es = new EventSource(sseUrl);
+    const setupEventSource = () => {
+      const es = new EventSource(sseUrl);
+      let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+      let heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const flush = () => {
-      timerRef.current = null;
-      if (pausedRef.current || bufferRef.current.length === 0) return;
+      const resetHeartbeat = () => {
+        if (heartbeatTimer !== null) {
+          clearTimeout(heartbeatTimer);
+        }
+        // If no activity is received for 15 seconds, consider connection lost.
+        heartbeatTimer = setTimeout(() => {
+          console.warn("[useEvents] Heartbeat timed out, marking disconnected and reconnecting...");
+          queryClient.setQueryData<EventFeed>(["events"], (old) => {
+            if (!old) return old;
+            return {
+              ...old,
+              connected: false,
+            };
+          });
+          es.close();
+          if (reconnectTimer === null) {
+            reconnectTimer = setTimeout(() => {
+              if (!isClosed) {
+                setupEventSource();
+              }
+            }, options.retryIntervalMs);
+          }
+        }, options.heartbeatTimeoutMs);
+      };
 
-      const batch = bufferRef.current;
-      bufferRef.current = [];
+      const flush = () => {
+        timerRef.current = null;
+        if (pausedRef.current || bufferRef.current.length === 0) return;
 
-      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => {
-        // batch arrived oldest->newest; prepend newest-first to match existing order
-        const events = [...batch].reverse().concat(old.events);
-        const trimmed =
-          events.length > options.maxItems ? events.slice(0, options.maxItems) : events;
+        const batch = bufferRef.current;
+        bufferRef.current = [];
 
-        const countsBySrc = { ...old.countsBySrc };
-        const countsByQueryType = { ...old.countsByQueryType };
-        const countsByResult = { ...old.countsByResult };
-        const countsByTimestamp = { ...old.countsByTimestamp };
+        queryClient.setQueryData<EventFeed>(["events"], (old = initial) => {
+          // batch arrived oldest->newest; prepend newest-first to match existing order
+          const events = [...batch].reverse().concat(old.events);
+          const trimmed =
+            events.length > options.maxItems ? events.slice(0, options.maxItems) : events;
 
-        let cached = 0;
-        let blocked = 0;
+          const countsBySrc = { ...old.countsBySrc };
+          const countsByQueryType = { ...old.countsByQueryType };
+          const countsByResult = { ...old.countsByResult };
+          const countsByTimestamp = { ...old.countsByTimestamp };
 
-        for (const event of batch) {
-          incrementCount(countsBySrc, event.src);
-          incrementCount(countsByQueryType, event.queryType);
-          incrementCount(countsByResult, event.result);
+          let cached = 0;
+          let blocked = 0;
 
-          // Floor to the nearest minute
-          incrementCount(countsByTimestamp, Math.floor(event.ts.getTime() / 60000) * 60000);
+          for (const event of batch) {
+            incrementCount(countsBySrc, event.src);
+            incrementCount(countsByQueryType, event.queryType);
+            incrementCount(countsByResult, event.result);
 
-          if (event.cached) cached++;
-          if (event.blocked) blocked++;
+            // Floor to the nearest minute
+            incrementCount(countsByTimestamp, Math.floor(event.ts.getTime() / 60000) * 60000);
+
+            if (event.cached) cached++;
+            if (event.blocked) blocked++;
+          }
+
+          return {
+            events: trimmed,
+            total: old.total + batch.length,
+            cached: old.cached + cached,
+            blocked: old.blocked + blocked,
+            connected: old.connected,
+            countsBySrc,
+            countsByQueryType,
+            countsByResult,
+            countsByTimestamp,
+          };
+        });
+      };
+
+      es.onopen = () => {
+        if (reconnectTimer !== null) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
+        resetHeartbeat();
+        queryClient.setQueryData<EventFeed>(["events"], (old = initial) => ({
+          ...old,
+          connected: true,
+        }));
+      };
+
+      es.onmessage = (e) => {
+        resetHeartbeat();
+        let event: DnsEvent;
+        try {
+          event = JSON.parse(e.data, dateReviver) as DnsEvent;
+        } catch (err) {
+          console.error("[useEvents] Failed to parse SSE event:", err, e.data);
+          return;
+        }
+        if (pausedRef.current) return;
+
+        bufferRef.current.push(event);
+
+        // Schedule a flush if one isn't already pending (throttle, not debounce).
+        if (timerRef.current === null) {
+          timerRef.current = setTimeout(flush, options.batchIntervalMs);
+        }
+      };
+
+      es.addEventListener("ping", resetHeartbeat);
+      es.onerror = (err) => {
+        console.error("[useEvents] SSE error:", err);
+
+        if (heartbeatTimer !== null) {
+          clearTimeout(heartbeatTimer);
+          heartbeatTimer = null;
         }
 
-        return {
-          events: trimmed,
-          total: old.total + batch.length,
-          cached: old.cached + cached,
-          blocked: old.blocked + blocked,
-          connected: old.connected,
-          countsBySrc,
-          countsByQueryType,
-          countsByResult,
-          countsByTimestamp,
-        };
-      });
+        // Ensure we mark as disconnected immediately when an error is caught.
+        queryClient.setQueryData<EventFeed>(["events"], (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            connected: false,
+          };
+        });
+
+        // Close the current EventSource to prevent browser's native reconnection.
+        es.close();
+
+        // Schedule a reconnection attempt.
+        if (reconnectTimer === null) {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            if (!isClosed) {
+              setupEventSource();
+            }
+          }, options.retryIntervalMs);
+        }
+      };
+
+      currentEs = es;
     };
 
-    es.onopen = () => {
-      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => ({
-        ...old,
-        connected: true,
-      }));
-    };
+    let isClosed = false;
+    let currentEs: EventSource | null = null;
 
-    es.onmessage = (e) => {
-      let event: DnsEvent;
-      try {
-        event = JSON.parse(e.data, dateReviver) as DnsEvent;
-      } catch (err) {
-        console.error("Failed to parse SSE event", err, e.data);
-        return;
-      }
-      if (pausedRef.current) return;
-
-      bufferRef.current.push(event);
-
-      // Schedule a flush if one isn't already pending (throttle, not debounce).
-      if (timerRef.current === null) {
-        timerRef.current = setTimeout(flush, options.batchIntervalMs);
-      }
-    };
-
-    es.onerror = (err) => {
-      console.error("SSE error", err);
-      queryClient.setQueryData<EventFeed>(["events"], (old = initial) => ({
-        ...old,
-        connected: false,
-      }));
-    };
+    setupEventSource();
 
     return () => {
-      es.close();
+      isClosed = true;
+      if (currentEs) {
+        currentEs.close();
+      }
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
         timerRef.current = null;
       }
       bufferRef.current = [];
     };
-  }, [queryClient, sseUrl, options.batchIntervalMs]);
+  }, [
+    queryClient,
+    sseUrl,
+    options.batchIntervalMs,
+    options.heartbeatTimeoutMs,
+    options.maxItems,
+    options.retryIntervalMs,
+  ]);
 
   return query;
 }

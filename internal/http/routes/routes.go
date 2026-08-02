@@ -115,10 +115,10 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 		c.Header("Cache-Control", "no-cache")
 		c.Header("X-Accel-Buffering", "no")
 
-		c.SSEvent("hello", gin.H{"status": "connected"})
+		c.SSEvent("ping", nil)
 		c.Writer.Flush()
 
-		ticker := time.NewTicker(15 * time.Second)
+		ticker := time.NewTicker(10 * time.Second)
 		defer ticker.Stop()
 
 		for {
@@ -130,7 +130,7 @@ func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 				c.SSEvent("message", event)
 				c.Writer.Flush()
 			case <-ticker.C:
-				_, _ = c.Writer.WriteString(": ping\n\n")
+				c.SSEvent("ping", nil)
 				c.Writer.Flush()
 			case <-c.Request.Context().Done():
 				return
