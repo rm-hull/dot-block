@@ -73,6 +73,8 @@ func DefaultConfig() *Config {
 				},
 				{
 					Name:         "dot-block",
+					Title:        "dot-block blocklist",
+					Description:  "internally curated blocklist, maintained at github.com/rm-hull/dot-block",
 					URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
 					CronSchedule: "@every 4h",
 				},

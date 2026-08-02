@@ -21,6 +21,8 @@ type BlockList struct {
 	source          *config.BlocklistSource
 	metadata        map[string]string
 	lastFetched     *time.Time
+	lastUpdated     *time.Time
+	lastError       error
 	minFpRate       float64
 	estimatedFpRate float64
 	bloomFilter     *bloom.BloomFilter
@@ -33,11 +35,15 @@ type BlockList struct {
 
 type BlocklistStatus struct {
 	Name              string            `json:"name"`
+	Title             string            `json:"title,omitempty"`
+	Description       string            `json:"description,omitempty"`
 	URL               string            `json:"url"`
 	Size              uint              `json:"size"`
 	Schedule          string            `json:"schedule"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
 	LastFetched       *time.Time        `json:"last_fetched,omitempty"`
+	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
+	LastError         string            `json:"error,omitempty"`
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
@@ -47,6 +53,7 @@ func NewBlockList(source *config.BlocklistSource, fpRate float64, logger *slog.L
 
 	blocklist := &BlockList{
 		source:    source,
+		metadata:  make(map[string]string),
 		minFpRate: fpRate,
 		metrics:   metrics,
 		logger:    logger.With("name", source.Name),
@@ -58,6 +65,20 @@ func NewBlockList(source *config.BlocklistSource, fpRate float64, logger *slog.L
 
 func (blockList *BlockList) Name() string {
 	return blockList.source.Name
+}
+
+func (blockList *BlockList) Title() string {
+	if title, ok := blockList.metadata["title"]; ok {
+		return title
+	}
+	return blockList.source.Title
+}
+
+func (blockList *BlockList) Description() string {
+	if description, ok := blockList.metadata["description"]; ok {
+		return description
+	}
+	return blockList.source.Description
 }
 
 func (blockList *BlockList) URL() string {
@@ -156,13 +177,21 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 	if blocklist.disabledUntil != nil && time.Now().Before(*blocklist.disabledUntil) {
 		disabledUntil = blocklist.disabledUntil
 	}
+	errorMessage := ""
+	if blocklist.lastError != nil {
+		errorMessage = blocklist.lastError.Error()
+	}
 	status := BlocklistStatus{
 		Name:              blocklist.Name(),
+		Title:             blocklist.Title(),
+		Description:       blocklist.Description(),
 		Schedule:          blocklist.source.CronSchedule,
 		URL:               blocklist.URL(),
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,
 		LastFetched:       blocklist.lastFetched,
+		LastUpdated:       blocklist.lastUpdated,
+		LastError:         errorMessage,
 		DisabledUntil:     disabledUntil,
 		FalsePositiveRate: blocklist.estimatedFpRate,
 	}
@@ -192,8 +221,9 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 }
 
 func (blockList *BlockList) Fetch(ctx context.Context) error {
-	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.URL(), "")
+	path, header, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.URL(), "")
 	if err != nil {
+		blockList.lastError = err
 		return errors.Wrap(err, "failed to download blocklist")
 	}
 
@@ -202,6 +232,13 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 			_ = os.Remove(path)
 		}
 	}()
+
+	blockList.lastError = nil
+	if lastUpdatedStr := header.Get("Last-Modified"); lastUpdatedStr != "" {
+		if t, err := time.Parse(time.RFC1123, lastUpdatedStr); err == nil {
+			blockList.lastUpdated = &t
+		}
+	}
 
 	return blockList.processFile(path)
 }
@@ -244,13 +281,6 @@ func (blockList *BlockList) processFile(path string) error {
 
 	if len(metadata) > 0 {
 		blockList.logger.Info("Loaded hosts into blocklist", "metadata", metadata)
-	}
-
-	if _, ok := metadata["title"]; !ok {
-		metadata["title"] = blockList.source.Title
-	}
-	if _, ok := metadata["description"]; !ok {
-		metadata["description"] = blockList.source.Description
 	}
 
 	blockList.applyBloomFilter(bloomFilter, hostCount, metadata)
