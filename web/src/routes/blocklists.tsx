@@ -31,7 +31,7 @@ function BlocklistsPage() {
         <Table.Header>
           <Table.Row>
             <Table.ColumnHeader>Blocklist</Table.ColumnHeader>
-            <Table.ColumnHeader width={150}>Last updated</Table.ColumnHeader>
+            <Table.ColumnHeader width={150}>Last fetched</Table.ColumnHeader>
             <Table.ColumnHeader width={50} textAlign="right">
               Size
             </Table.ColumnHeader>
@@ -60,8 +60,8 @@ function BlocklistsPage() {
                 </VStack>
               </Table.Cell>
               <Table.Cell>
-                {blocklist.last_updated === undefined ? "—" : <HStack gap={0}>
-                  <TimeAgo date={blocklist.last_updated} />
+                {blocklist.last_fetched === undefined ? "—" : <HStack gap={0}>
+                  <TimeAgo date={blocklist.last_fetched} />
                   <ReloadAction name={blocklist.name} />
                 </HStack>}
               </Table.Cell>

@@ -9,7 +9,7 @@ export interface Blocklist {
   url: string;
   schedule: string;
   size: number;
-  last_updated?: Date;
+  last_fetched?: Date;
   metadata?: Record<string, string>;
   estimated_false_positive_rate?: number;
   disabled_until?: Date;

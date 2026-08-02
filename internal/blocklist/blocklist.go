@@ -20,7 +20,7 @@ import (
 type BlockList struct {
 	source          *config.BlocklistSource
 	metadata        map[string]string
-	lastUpdated     *time.Time
+	lastFetched     *time.Time
 	minFpRate       float64
 	estimatedFpRate float64
 	bloomFilter     *bloom.BloomFilter
@@ -37,7 +37,7 @@ type BlocklistStatus struct {
 	Size              uint              `json:"size"`
 	Schedule          string            `json:"schedule"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
-	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
+	LastFetched       *time.Time        `json:"last_fetched,omitempty"`
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
@@ -162,7 +162,7 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 		URL:               blocklist.URL(),
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,
-		LastUpdated:       blocklist.lastUpdated,
+		LastFetched:       blocklist.lastFetched,
 		DisabledUntil:     disabledUntil,
 		FalsePositiveRate: blocklist.estimatedFpRate,
 	}
@@ -178,7 +178,7 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 	blocklist.bloomFilter = bf
 	blocklist.size = n
 	blocklist.metadata = metadata
-	blocklist.lastUpdated = new(time.Now())
+	blocklist.lastFetched = new(time.Now())
 	blocklist.estimatedFpRate = estimatedFpRate
 	blocklist.mutex.Unlock()
 
