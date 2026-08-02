@@ -60,10 +60,10 @@ function BlocklistsPage() {
                 </VStack>
               </Table.Cell>
               <Table.Cell>
-                <HStack gap={0}>
+                {blocklist.last_updated === undefined ? "—" : <HStack gap={0}>
                   <TimeAgo date={blocklist.last_updated} />
                   <ReloadAction name={blocklist.name} />
-                </HStack>
+                </HStack>}
               </Table.Cell>
               <Table.Cell textAlign="right">{blocklist.size}</Table.Cell>
               <Table.Cell>
