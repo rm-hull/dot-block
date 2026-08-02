@@ -6,10 +6,14 @@ export interface BlocklistStatus {
 
 export interface Blocklist {
   name: string;
+  title?: string;
+  description?: string;
   url: string;
   schedule: string;
   size: number;
   last_fetched?: Date;
+  last_updated?: Date;
+  error?: string;
   metadata?: Record<string, string>;
   estimated_false_positive_rate?: number;
   disabled_until?: Date;

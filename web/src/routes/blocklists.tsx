@@ -3,10 +3,11 @@ import { Badge, Container, HStack, Heading, Link, Table, Text, VStack } from "@c
 import TimeAgo from "react-time-ago";
 import { ActiveAction } from "@/actions/ActiveAction";
 import { ReloadAction } from "@/actions/ReloadAction";
-import { FreshSuffix } from "@/components/FreshSuffix";
+import { ErrorSuffix } from "@/components/ErrorSuffix";
 import { Loading } from "@/components/Loading";
 import { toaster } from "@/components/ui/toaster";
 import { useBlocklists } from "@/hooks/useBlocklists";
+import type { Blocklist } from "@/service/blocklists";
 
 function BlocklistsPage() {
   const { data, isLoading, error } = useBlocklists();
@@ -25,12 +26,9 @@ function BlocklistsPage() {
     return null;
   }
 
-  function lastModified(metadata: Record<string, string> | undefined): Date | undefined {
-    if (!metadata) {
-      return undefined;
-    }
+  function lastModified(blocklist: Blocklist): Date | undefined {
 
-    const lastModifiedStr = metadata.last_modified ?? metadata.last_updated ?? metadata.last_update;
+    const lastModifiedStr = blocklist.last_updated ?? blocklist.metadata?.last_modified ?? blocklist.metadata?.last_updated ?? blocklist.metadata?.last_update;
     if (!lastModifiedStr) {
       return undefined;
     }
@@ -60,14 +58,14 @@ function BlocklistsPage() {
         </Table.Header>
         <Table.Body>
           {data?.blocklists?.map((blocklist, index) => {
-            const modified = lastModified(blocklist.metadata);
+            const modified = lastModified(blocklist);
             return (
               <Table.Row key={index}>
                 <Table.Cell maxWidth={500}>
                   <VStack align="start" gap={0}>
-                    <Heading size="sm">{blocklist.metadata?.title}</Heading>
+                    <Heading size="sm">{blocklist.title}</Heading>
                     <Text fontSize="xs" color="fg.muted">
-                      {blocklist.metadata?.description}
+                      {blocklist.description}
                     </Text>
                     <Link
                       href={blocklist.url}
@@ -76,7 +74,7 @@ function BlocklistsPage() {
                       wordBreak="break-all"
                       display="ruby"
                     >
-                      {blocklist.url} <FreshSuffix url={blocklist.url} />
+                      {blocklist.url} <ErrorSuffix error={blocklist.error} />
                     </Link>
                   </VStack>
                 </Table.Cell>
