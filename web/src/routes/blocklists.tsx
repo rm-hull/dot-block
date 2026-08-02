@@ -5,17 +5,26 @@ import { ActiveAction } from "@/actions/ActiveAction";
 import { ReloadAction } from "@/actions/ReloadAction";
 import { FreshSuffix } from "@/components/FreshSuffix";
 import { useBlocklists } from "@/hooks/useBlocklists";
+import { toaster } from "@/components/ui/toaster";
+import { Loading } from "@/components/Loading";
 
 function BlocklistsPage() {
   const { data, isLoading, error } = useBlocklists();
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  if (data === undefined && isLoading) {
+    return <Loading />;
   }
 
   if (error) {
-    return <div>Error: {error.message}</div>;
+    toaster.create({
+      id: "event-stream-status",
+      title: "Error loading blocklists",
+      description: error.message,
+      type: "error",
+    });
+    return null;
   }
+
   return (
     <Container>
       <Table.Root size="sm" stickyHeader interactive>

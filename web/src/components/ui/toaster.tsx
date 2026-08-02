@@ -24,11 +24,10 @@ export const Toaster = () => {
             width={{ md: "sm" }}
             {...(toast.type === "info"
               ? {
-                  bg: "blue.subtle",
-                  color: "blue.fg",
-                  borderColor: "blue.muted",
-                  // borderWidth: "1px",
-                }
+                bg: "blue.subtle",
+                color: "blue.fg",
+                borderColor: "blue.muted",
+              }
               : {})}
           >
             {toast.type === "loading" ? (
@@ -36,7 +35,7 @@ export const Toaster = () => {
             ) : toast.type === "info" ? (
               <FiInfo size="18" style={{ flexShrink: 0 }} />
             ) : (
-              <Toast.Indicator color="blue.solid" />
+              <Toast.Indicator />
             )}
             <Stack gap="1" flex="1" maxWidth="100%">
               {toast.title && <Toast.Title>{toast.title}</Toast.Title>}

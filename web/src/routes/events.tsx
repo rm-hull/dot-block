@@ -6,6 +6,8 @@ import { EventPortalToolbar } from "@/components/EventPortalToolbar";
 import type { Status } from "@/components/EventStreamControls";
 import { EventTable } from "@/components/EventTable";
 import { useEvents } from "@/hooks/useEvents";
+import { toaster } from "@/components/ui/toaster";
+import { Loading } from "@/components/Loading";
 
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
@@ -13,12 +15,18 @@ function EventPage() {
   const [filterText, setFilterText] = useState<string>("");
   const { data, isLoading, error } = useEvents("/api/events", status === "paused");
 
-  if (isLoading) {
-    return <div>Loading...</div>;
+  if (data === undefined && isLoading) {
+    return <Loading />;
   }
 
   if (error) {
-    return <div>Error: {error.message}</div>;
+    toaster.create({
+      id: "event-stream-status",
+      title: "Error loading blocklists",
+      description: error.message,
+      type: "error",
+    });
+    return null;
   }
 
   return (
