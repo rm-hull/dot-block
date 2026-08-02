@@ -47,7 +47,7 @@ func stream(r io.Reader, handler ScannerFunc) (map[string]string, error) {
 
 		if after, ok := bytes.CutPrefix(line, []byte("# ")); ok {
 			if key, value, found := bytes.Cut(after, []byte(": ")); found {
-				metadata[snakeCase(string(key))] = string(value)
+				metadata[snakeCase(string(key))] = strings.TrimSpace(string(value))
 				continue
 			}
 		}
