@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toaster } from "@/components/ui/toaster";
 import { type Action, type BlocklistStatus, blocklistAction } from "@/service/blocklists";
 
 export function useBlocklistAction(
@@ -12,6 +13,12 @@ export function useBlocklistAction(
     mutationFn: () => blocklistAction(action, name, payload),
     onSuccess: (data) => {
       queryClient.setQueryData<BlocklistStatus>(["blocklists"], data);
+      toaster.create({
+        id: `blocklist-action`,
+        title: `${data.message} (${name})`,
+        description: `Action completed successfully.`,
+        type: "success",
+      });
     },
   });
 }
