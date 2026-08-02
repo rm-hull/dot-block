@@ -24,10 +24,10 @@ export const Toaster = () => {
             width={{ md: "sm" }}
             {...(toast.type === "info"
               ? {
-                bg: "blue.subtle",
-                color: "blue.fg",
-                borderColor: "blue.muted",
-              }
+                  bg: "blue.subtle",
+                  color: "blue.fg",
+                  borderColor: "blue.muted",
+                }
               : {})}
           >
             {toast.type === "loading" ? (

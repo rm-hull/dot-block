@@ -4,9 +4,9 @@ import TimeAgo from "react-time-ago";
 import { ActiveAction } from "@/actions/ActiveAction";
 import { ReloadAction } from "@/actions/ReloadAction";
 import { FreshSuffix } from "@/components/FreshSuffix";
-import { useBlocklists } from "@/hooks/useBlocklists";
-import { toaster } from "@/components/ui/toaster";
 import { Loading } from "@/components/Loading";
+import { toaster } from "@/components/ui/toaster";
+import { useBlocklists } from "@/hooks/useBlocklists";
 
 function BlocklistsPage() {
   const { data, isLoading, error } = useBlocklists();
@@ -59,53 +59,60 @@ function BlocklistsPage() {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {data?.blocklists?.map((blocklist, index) => (
-            <Table.Row key={index}>
-              <Table.Cell maxWidth={500}>
-                <VStack align="start" gap={0}>
-                  <Heading size="sm">{blocklist.metadata?.title}</Heading>
-                  <Text fontSize="xs" color="fg.muted">
-                    {blocklist.metadata?.description}
-                  </Text>
-                  <Link
-                    href={blocklist.url}
-                    fontSize="xs"
-                    colorPalette="blue"
-                    wordBreak="break-all"
-                    display="ruby"
-                  >
-                    {blocklist.url} <FreshSuffix url={blocklist.url} />
-                  </Link>
-                </VStack>
-              </Table.Cell>
-              <Table.Cell>
-                {blocklist.last_fetched === undefined ? "—" : <HStack gap={0}>
-                  <TimeAgo date={blocklist.last_fetched} />
-                  <ReloadAction name={blocklist.name} />
-                </HStack>}
-              </Table.Cell>
-              <Table.Cell>
-                {lastModified(blocklist.metadata) === undefined ? "—" : <TimeAgo date={lastModified(blocklist.metadata)} />}
-              </Table.Cell>
-              <Table.Cell textAlign="right">{blocklist.size}</Table.Cell>
-              <Table.Cell>
-                <Badge colorPalette="orange">{blocklist.schedule}</Badge>
-              </Table.Cell>
-              <Table.Cell width={150}>
-                <HStack gap={1}>
-                  <ActiveAction
-                    name={blocklist.name}
-                    active={blocklist.disabled_until === undefined}
-                  />
-                  {blocklist.disabled_until && (
-                    <Text fontSize="xs" color="fg.muted" lineHeight={1.25}>
-                      Re-enabled <TimeAgo date={blocklist.disabled_until} />
+          {data?.blocklists?.map((blocklist, index) => {
+            const modified = lastModified(blocklist.metadata);
+            return (
+              <Table.Row key={index}>
+                <Table.Cell maxWidth={500}>
+                  <VStack align="start" gap={0}>
+                    <Heading size="sm">{blocklist.metadata?.title}</Heading>
+                    <Text fontSize="xs" color="fg.muted">
+                      {blocklist.metadata?.description}
                     </Text>
+                    <Link
+                      href={blocklist.url}
+                      fontSize="xs"
+                      colorPalette="blue"
+                      wordBreak="break-all"
+                      display="ruby"
+                    >
+                      {blocklist.url} <FreshSuffix url={blocklist.url} />
+                    </Link>
+                  </VStack>
+                </Table.Cell>
+                <Table.Cell>
+                  {blocklist.last_fetched === undefined ? (
+                    "—"
+                  ) : (
+                    <HStack gap={0}>
+                      <TimeAgo date={blocklist.last_fetched} />
+                      <ReloadAction name={blocklist.name} />
+                    </HStack>
                   )}
-                </HStack>
-              </Table.Cell>
-            </Table.Row>
-          ))}
+                </Table.Cell>
+                <Table.Cell>
+                  {modified === undefined ? "—" : <TimeAgo date={modified} />}
+                </Table.Cell>
+                <Table.Cell textAlign="right">{blocklist.size}</Table.Cell>
+                <Table.Cell>
+                  <Badge colorPalette="orange">{blocklist.schedule}</Badge>
+                </Table.Cell>
+                <Table.Cell width={150}>
+                  <HStack gap={1}>
+                    <ActiveAction
+                      name={blocklist.name}
+                      active={blocklist.disabled_until === undefined}
+                    />
+                    {blocklist.disabled_until && (
+                      <Text fontSize="xs" color="fg.muted" lineHeight={1.25}>
+                        Re-enabled <TimeAgo date={blocklist.disabled_until} />
+                      </Text>
+                    )}
+                  </HStack>
+                </Table.Cell>
+              </Table.Row>
+            );
+          })}
         </Table.Body>
       </Table.Root>
     </Container>

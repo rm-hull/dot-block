@@ -5,9 +5,9 @@ import { EventAggregates } from "@/components/EventAggregates";
 import { EventPortalToolbar } from "@/components/EventPortalToolbar";
 import type { Status } from "@/components/EventStreamControls";
 import { EventTable } from "@/components/EventTable";
-import { useEvents } from "@/hooks/useEvents";
-import { toaster } from "@/components/ui/toaster";
 import { Loading } from "@/components/Loading";
+import { toaster } from "@/components/ui/toaster";
+import { useEvents } from "@/hooks/useEvents";
 
 // eslint-disable-next-line react-refresh/only-export-components
 function EventPage() {
