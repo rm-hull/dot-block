@@ -27,8 +27,11 @@ function BlocklistsPage() {
   }
 
   function lastModified(blocklist: Blocklist): Date | undefined {
-
-    const lastModifiedStr = blocklist.last_updated ?? blocklist.metadata?.last_modified ?? blocklist.metadata?.last_updated ?? blocklist.metadata?.last_update;
+    const lastModifiedStr =
+      blocklist.last_updated ??
+      blocklist.metadata?.last_modified ??
+      blocklist.metadata?.last_updated ??
+      blocklist.metadata?.last_update;
     if (!lastModifiedStr) {
       return undefined;
     }

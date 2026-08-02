@@ -8,7 +8,6 @@ interface ErrorSuffixProps {
 }
 
 export function ErrorSuffix({ error }: ErrorSuffixProps) {
-
   if (error) {
     return (
       <Span color="red.400">
