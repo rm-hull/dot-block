@@ -25,6 +25,24 @@ function BlocklistsPage() {
     return null;
   }
 
+  function lastModified(metadata: Record<string, string> | undefined): Date | undefined {
+    if (!metadata) {
+      return undefined;
+    }
+
+    const lastModifiedStr = metadata.last_modified ?? metadata.last_updated ?? metadata.last_update;
+    if (!lastModifiedStr) {
+      return undefined;
+    }
+
+    const dt = new Date(lastModifiedStr);
+    if (Number.isNaN(dt.getTime())) {
+      return undefined;
+    }
+
+    return dt;
+  }
+
   return (
     <Container>
       <Table.Root size="sm" stickyHeader interactive>
@@ -32,6 +50,7 @@ function BlocklistsPage() {
           <Table.Row>
             <Table.ColumnHeader>Blocklist</Table.ColumnHeader>
             <Table.ColumnHeader width={150}>Last fetched</Table.ColumnHeader>
+            <Table.ColumnHeader width={150}>Last updated</Table.ColumnHeader>
             <Table.ColumnHeader width={50} textAlign="right">
               Size
             </Table.ColumnHeader>
@@ -64,6 +83,9 @@ function BlocklistsPage() {
                   <TimeAgo date={blocklist.last_fetched} />
                   <ReloadAction name={blocklist.name} />
                 </HStack>}
+              </Table.Cell>
+              <Table.Cell>
+                {lastModified(blocklist.metadata) === undefined ? "—" : <TimeAgo date={lastModified(blocklist.metadata)} />}
               </Table.Cell>
               <Table.Cell textAlign="right">{blocklist.size}</Table.Cell>
               <Table.Cell>
