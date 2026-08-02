@@ -69,12 +69,19 @@ func DefaultConfig() *Config {
 				{
 					Name:         "cebeerre-nrd",
 					URL:          "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
-					CronSchedule: "@every 19h",
+					CronSchedule: "@every 23h",
 				},
 				{
 					Name:         "dot-block",
 					URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
-					CronSchedule: "@every 19h",
+					CronSchedule: "@every 4h",
+				},
+				{
+					Name:         "adaway",
+					Title:        "AdAway default blocklist",
+					Description:  "Blocking mobile ad providers and some analytics providers",
+					URL:          "https://adaway.org/hosts.txt",
+					CronSchedule: "@every 13h",
 				},
 			},
 		},
