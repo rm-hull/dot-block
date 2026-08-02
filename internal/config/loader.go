@@ -83,6 +83,27 @@ func DefaultConfig() *Config {
 					URL:          "https://adaway.org/hosts.txt",
 					CronSchedule: "@every 13h",
 				},
+				{
+					Name:         "firebog",
+					Title:        "Firebog blocklists",
+					Description:  "AdguardDNS, parsed and mirrored by https://firebog.net",
+					URL:          "https://v.firebog.net/hosts/AdguardDNS.txt",
+					CronSchedule: "@every 17h",
+				},
+				{
+					Name:         "yoyo",
+					Title:        "Yoyo blocklist",
+					Description:  "Blocklist for use with hosts files to block ads, trackers, and other nasty things. For more information about this list, see: https://pgl.yoyo.org/adservers/",
+					URL:          "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
+					CronSchedule: "@every 26h",
+				},
+				{
+					Name:         "phishing-army",
+					Title:        "Phishing Army blocklist",
+					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
+					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
+					CronSchedule: "@every 23h",
+				},
 			},
 		},
 		Geoblock: &GeoblockConfig{
