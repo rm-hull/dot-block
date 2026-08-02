@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,8 +26,8 @@ func TestCheckHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	// Use a small blocklist for testing
-	blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy.url"}
+	blockList := blocklist.NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
 
 	handler := handlers.NewBlocklistHandler([]*blocklist.BlockList{blockList}, logger)

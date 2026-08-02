@@ -6,14 +6,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	// Use a dummy handler that won't panic when passed nil
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	// Create a blocklist with one entry
-	blockList := NewBlockList("test", "@every 19h", "http://dummy_url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	blockList := NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"example.com"})
 
 	// Initially, example.com should be blocked
@@ -40,7 +41,8 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 
 func TestBlocklist_SubdomainHierarchy(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	blockList := NewBlockList("test", "@every 19h", "http://dummy_url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	blockList := NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"lox.legalendowmad.com"})
 
 	testCases := []struct {

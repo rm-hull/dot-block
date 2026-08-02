@@ -84,6 +84,8 @@ type BlocklistConfig struct {
 
 type BlocklistSource struct {
 	Name         string `yaml:"name,omitempty" json:"name,omitempty" descr:"Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N')."`
+	Title        string `yaml:"title,omitempty" json:"title,omitempty" descr:"Optional title for the blocklist."`
+	Description  string `yaml:"description,omitempty" json:"description,omitempty" descr:"Optional description for the blocklist."`
 	URL          string `yaml:"url,omitempty" json:"url,omitempty" descr:"URL of the blocklist source."`
 	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty" descr:"Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates."`
 }

@@ -11,15 +11,14 @@ import (
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cockroachdb/errors"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/downloader"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"golang.org/x/net/publicsuffix"
 )
 
 type BlockList struct {
-	name            string
-	schedule        string
-	url             string
+	source          *config.BlocklistSource
 	metadata        map[string]string
 	lastUpdated     *time.Time
 	minFpRate       float64
@@ -43,35 +42,26 @@ type BlocklistStatus struct {
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
 
-func NewBlockList(name, schedule, url string, fpRate float64, logger *slog.Logger) *BlockList {
-	metrics, _ := metrics.NewBlockListMetrics(name)
+func NewBlockList(source *config.BlocklistSource, fpRate float64, logger *slog.Logger) *BlockList {
+	metrics, _ := metrics.NewBlockListMetrics(source.Name)
 
 	blocklist := &BlockList{
-		name:      name,
-		schedule:  schedule,
-		url:       url,
+		source:    source,
 		minFpRate: fpRate,
 		metrics:   metrics,
-		logger:    logger.With("name", name),
+		logger:    logger.With("name", source.Name),
 		mutex:     &sync.RWMutex{},
 	}
 
 	return blocklist
 }
 
-func (BlockList *BlockList) Name() string {
-	return BlockList.name
+func (blockList *BlockList) Name() string {
+	return blockList.source.Name
 }
 
 func (blockList *BlockList) URL() string {
-	return blockList.url
-}
-
-func (BlockList *BlockList) Metadata(attr, defaultValue string) string {
-	if value, ok := BlockList.metadata[attr]; ok {
-		return value
-	}
-	return defaultValue
+	return blockList.source.URL
 }
 
 // Returns whether the URL (or part of the URL) is on a block list.
@@ -139,7 +129,7 @@ func (blocklist *BlockList) Disable(duration time.Duration) time.Time {
 
 	blocklist.disabledUntil = new(time.Now().Add(duration))
 	blocklist.logger.Warn("Blocklist temporarily disabled",
-		"name", blocklist.name,
+		"name", blocklist.Name(),
 		"until", blocklist.disabledUntil)
 
 	return *blocklist.disabledUntil
@@ -154,7 +144,7 @@ func (blocklist *BlockList) Reenable() bool {
 	}
 
 	blocklist.disabledUntil = nil
-	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.name)
+	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.Name())
 	return true
 }
 
@@ -167,9 +157,9 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 		disabledUntil = blocklist.disabledUntil
 	}
 	status := BlocklistStatus{
-		Name:              blocklist.name,
-		Schedule:          blocklist.schedule,
-		URL:               blocklist.url,
+		Name:              blocklist.Name(),
+		Schedule:          blocklist.source.CronSchedule,
+		URL:               blocklist.URL(),
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,
 		LastUpdated:       blocklist.lastUpdated,
@@ -193,7 +183,7 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 	blocklist.mutex.Unlock()
 
 	blocklist.logger.Info("Bloom filter created",
-		"name", blocklist.name,
+		"name", blocklist.Name(),
 		"actual_size", n,
 		"estimated_size", bf.ApproximatedSize(),
 		"estimated_fp_rate", estimatedFpRate)
@@ -202,7 +192,7 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 }
 
 func (blockList *BlockList) Fetch(ctx context.Context) error {
-	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.url, "")
+	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.URL(), "")
 	if err != nil {
 		return errors.Wrap(err, "failed to download blocklist")
 	}
@@ -223,18 +213,18 @@ func (blockList *BlockList) processFile(path string) error {
 	file, err := os.Open(path)
 	// count, err := countLines(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.URL())
 	}
 	defer func() { _ = file.Close() }()
 
 	estimate, err := countNewlines(file)
 	if err != nil {
-		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.URL())
 	}
 
 	// Seek back to the beginning for streaming
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.URL())
 	}
 
 	bloomFilter := bloom.NewWithEstimates(estimate+1, blockList.minFpRate)
@@ -254,6 +244,13 @@ func (blockList *BlockList) processFile(path string) error {
 
 	if len(metadata) > 0 {
 		blockList.logger.Info("Loaded hosts into blocklist", "metadata", metadata)
+	}
+
+	if _, ok := metadata["title"]; !ok {
+		metadata["title"] = blockList.source.Title
+	}
+	if _, ok := metadata["description"]; !ok {
+		metadata["description"] = blockList.source.Description
 	}
 
 	blockList.applyBloomFilter(bloomFilter, hostCount, metadata)

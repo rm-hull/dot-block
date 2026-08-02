@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/rm-hull/dot-block/internal/config"
 )
 
 const nrd7AsteriskURL = "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt"
@@ -69,7 +71,8 @@ func BenchmarkBlocklist_ProcessFile(b *testing.B) {
 	b.ReportAllocs()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := NewBlockList("nrd7_asterisk", "@every 19h", nrd7AsteriskURL, 0.0001, logger)
+	source := &config.BlocklistSource{Name: "nrd7_asterisk", URL: nrd7AsteriskURL}
+	blockList := NewBlockList(source, 0.0001, logger)
 
 	b.ResetTimer()
 

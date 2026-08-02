@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdater_Run(t *testing.T) {
-	// Use slog.Default() to prevent nil pointer in Fetch()
-	bl := NewBlockList("list1", "@every 19h", "http://localhost:8080/does-not-exist", 0.001, slog.Default())
+	source := &config.BlocklistSource{Name: "list1", URL: "http://localhost:8080/does-not-exist"}
+	bl := NewBlockList(source, 0.001, slog.Default())
 	updater := NewUpdater(bl, 5*time.Second)
 
 	// Expect Run() to return without panicking

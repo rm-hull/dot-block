@@ -21,7 +21,7 @@ func (job *Updater) Run() {
 	if err := job.Blocklist.Fetch(ctx); err != nil {
 		job.Blocklist.logger.Error("failed to download blocklist",
 			"error", err,
-			"name", job.Blocklist.name,
-			"url", job.Blocklist.url)
+			"name", job.Blocklist.Name(),
+			"url", job.Blocklist.URL())
 	}
 }

@@ -404,7 +404,7 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error) {
 	blockLists := make([]*blocklist.BlockList, 0, len(app.Config.Blocklist.Sources))
 	for idx, source := range app.Config.Blocklist.Sources {
-		blockList := blocklist.NewBlockList(source.Name, source.CronSchedule, source.URL, 0.0001, app.Logger)
+		blockList := blocklist.NewBlockList(&source, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
 
 		if source.CronSchedule == "" {

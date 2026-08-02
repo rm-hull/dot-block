@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -89,7 +90,8 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	blockList := blocklist.NewBlockList("dispatcher_test", "@every 19h", "http://dummy.url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+	blockList := blocklist.NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -423,7 +425,8 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+	blockList := blocklist.NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -755,7 +758,8 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			blockList := blocklist.NewBlockList("test", "@every 19h", "http://dummy.url", 0.0001, logger)
+			source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+			blockList := blocklist.NewBlockList(source, 0.0001, logger)
 			blockList.Load([]string{"ads.com"})
 
 			cache := NewDNSCache(100, logger)

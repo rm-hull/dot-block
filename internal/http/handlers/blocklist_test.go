@@ -12,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,7 +33,11 @@ func TestBlocklistHandler_Status(t *testing.T) {
 func TestBlocklistHandler_Disable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "@every 19h", "http://example.com/list.txt", 0.001, logger)
+	source := &config.BlocklistSource{
+		Name: "test",
+		URL:  "http://example.com/list.txt",
+	}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
@@ -51,7 +56,8 @@ func TestBlocklistHandler_Disable_Single(t *testing.T) {
 func TestBlocklistHandler_Disable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "@every 19h", "http://example.com/list.txt", 0.001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
@@ -68,7 +74,8 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 func TestBlocklistHandler_Reenable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "@every 19h", "http://example.com/list.txt", 0.001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	// Pre-disable it
 	bl.Disable(time.Hour)
 	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
@@ -88,8 +95,10 @@ func TestBlocklistHandler_Reenable_All(t *testing.T) {
 func TestBlocklistHandler_Reenable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl1 := blocklist.NewBlockList("test1", "@every 19h", "http://example.com/list1.txt", 0.001, logger)
-	bl2 := blocklist.NewBlockList("test2", "@every 19h", "http://example.com/list2.txt", 0.001, logger)
+	source1 := &config.BlocklistSource{Name: "test1", URL: "http://example.com/list1.txt"}
+	source2 := &config.BlocklistSource{Name: "test2", URL: "http://example.com/list2.txt"}
+	bl1 := blocklist.NewBlockList(source1, 0.001, logger)
+	bl2 := blocklist.NewBlockList(source2, 0.001, logger)
 	// Pre-disable both blocklists
 	bl1.Disable(time.Hour)
 	bl2.Disable(time.Hour)
@@ -125,7 +134,8 @@ func TestBlocklistHandler_Reenable_Single(t *testing.T) {
 func TestBlocklistHandler_Reload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "@every 19h", "http://localhost:9999/does-not-exist", 0.001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://localhost:9999/does-not-exist"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
@@ -248,7 +258,8 @@ func TestParseDuration(t *testing.T) {
 func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "@every 19h", "http://example.com/list.txt", 0.001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	tests := []struct {
