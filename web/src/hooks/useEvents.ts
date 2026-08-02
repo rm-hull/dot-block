@@ -84,8 +84,14 @@ type Options = {
   maxItems: number;
   batchIntervalMs: number;
   heartbeatTimeoutMs: number;
-  retryIntervalMs: number;
 };
+
+const MAX_RETRY_DELAY_MS = 30_000;
+
+function computeRetryDelay(retryCount: number): number {
+  const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s, 8s, etc.
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+}
 
 export function useEvents(
   sseUrl: string,
@@ -94,7 +100,6 @@ export function useEvents(
     maxItems: 100,
     batchIntervalMs: 100,
     heartbeatTimeoutMs: 15000,
-    retryIntervalMs: 3000,
   }
 ) {
   const queryClient = useQueryClient();
@@ -143,11 +148,13 @@ export function useEvents(
           });
           es.close();
           if (reconnectTimer === null) {
+            const delay = computeRetryDelay(retryCount++);
             reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
               if (!isClosed) {
                 setupEventSource();
               }
-            }, options.retryIntervalMs);
+            }, delay);
           }
         }, options.heartbeatTimeoutMs);
       };
@@ -200,6 +207,7 @@ export function useEvents(
       };
 
       es.onopen = () => {
+        retryCount = 0;
         if (reconnectTimer !== null) {
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
@@ -251,14 +259,15 @@ export function useEvents(
         // Close the current EventSource to prevent browser's native reconnection.
         es.close();
 
-        // Schedule a reconnection attempt.
+        // Schedule a reconnection attempt with exponential backoff.
         if (reconnectTimer === null) {
+          const delay = computeRetryDelay(retryCount++);
           reconnectTimer = setTimeout(() => {
             reconnectTimer = null;
             if (!isClosed) {
               setupEventSource();
             }
-          }, options.retryIntervalMs);
+          }, delay);
         }
       };
 
@@ -267,6 +276,7 @@ export function useEvents(
 
     let isClosed = false;
     let currentEs: EventSource | null = null;
+    let retryCount = 0;
 
     setupEventSource();
 
@@ -281,14 +291,7 @@ export function useEvents(
       }
       bufferRef.current = [];
     };
-  }, [
-    queryClient,
-    sseUrl,
-    options.batchIntervalMs,
-    options.heartbeatTimeoutMs,
-    options.maxItems,
-    options.retryIntervalMs,
-  ]);
+  }, [queryClient, sseUrl, options.batchIntervalMs, options.heartbeatTimeoutMs, options.maxItems]);
 
   return query;
 }
