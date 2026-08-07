@@ -272,8 +272,8 @@ github.com/redis/go-redis/v9 v9.21.0 h1:FPBE4hhbAke+TLmcY3WkpbDffJEomdqPn3HYiqAt
 github.com/redis/go-redis/v9 v9.21.0/go.mod h1:v/M13XI1PVCDcm01VtPFOADfZtHf8YW3baQf57KlIkA=
 github.com/rm-hull/godx v0.2.4 h1:5oPx+VHWkzNJ1jJojdojoQ116sLLEraEbuBN7XbUfS8=
 github.com/rm-hull/godx v0.2.4/go.mod h1:bVa3+ZY0TgOvwrlhDb4kngU8L63BlqcwSYu63GCHowQ=
-github.com/rm-hull/jasengo v0.5.12 h1:S94JAp85gEYf9LR63Oqh1PSEp5Vh4v5FIjPDmYAhVtg=
-github.com/rm-hull/jasengo v0.5.12/go.mod h1:oivGS3nTYEPMsJaG0irjXKRaNskWMW2eNi8mPCTE6Sc=
+github.com/rm-hull/jasengo v0.5.14 h1:Z0zU/oNYZldMhim2WQSjxmmaIblUp8QV+r0ZBdkTERE=
+github.com/rm-hull/jasengo v0.5.14/go.mod h1:oivGS3nTYEPMsJaG0irjXKRaNskWMW2eNi8mPCTE6Sc=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
