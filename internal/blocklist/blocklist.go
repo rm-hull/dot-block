@@ -11,6 +11,7 @@ import (
 
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cockroachdb/errors"
+	"github.com/rm-hull/dot-block/internal/blocklist/hostfile"
 	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/downloader"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -248,7 +249,6 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 // (which first downloads the file) and is also used directly by benchmarks.
 func (blockList *BlockList) processFile(path string) error {
 	file, err := os.Open(path)
-	// count, err := countLines(path)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.URL())
 	}
@@ -270,10 +270,12 @@ func (blockList *BlockList) processFile(path string) error {
 	// filter and extract metadata comments into a map. Rather than logging
 	// metadata as it is encountered, we dump it in a single log message afterwards.
 	var hostCount uint
-	metadata, err := stream(file, func(host []byte) bool {
-		bloomFilter.Add(host)
-		hostCount++
-		return false
+	metadata, err := hostfile.Stream(file, func(entry hostfile.Entry) error {
+		for _, host := range entry.Hostnames {
+			bloomFilter.AddString(host)
+			hostCount++
+		}
+		return nil
 	})
 	if err != nil {
 		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
@@ -285,4 +287,26 @@ func (blockList *BlockList) processFile(path string) error {
 
 	blockList.applyBloomFilter(bloomFilter, hostCount, metadata)
 	return nil
+}
+
+// countNewlines reads through an io.Reader and counts newline characters,
+// providing a fast, low-memory estimate of the number of lines (and thus
+// approximate number of hosts) in a blocklist file.
+func countNewlines(r io.Reader) (uint, error) {
+	var count uint
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := r.Read(buf)
+		for i := range n {
+			if buf[i] == '\n' {
+				count++
+			}
+		}
+		if err == io.EOF {
+			return count, nil
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
 }
