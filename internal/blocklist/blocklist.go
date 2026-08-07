@@ -264,7 +264,6 @@ func (blockList *BlockList) processFile(path string) error {
 		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.URL())
 	}
 
-	// Avoid creating a bloom filter with 0 items, which will panic
 	bloomFilter := bloom.NewWithEstimates(estimate+1, blockList.minFpRate)
 
 	// Stream the file in a single pass: add hostnames directly to the bloom
@@ -279,7 +278,7 @@ func (blockList *BlockList) processFile(path string) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.URL())
+		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
 	}
 
 	if len(metadata) > 0 {
