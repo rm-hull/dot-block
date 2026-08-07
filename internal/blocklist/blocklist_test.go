@@ -8,14 +8,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	// Use a dummy handler that won't panic when passed nil
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	// Create a blocklist with one entry
-	blockList := NewBlockList("test", "http://dummy_url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	blockList := NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"example.com"})
 
 	// Initially, example.com should be blocked
@@ -40,6 +41,30 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	assert.True(t, isBlocked, "example.com should be blocked again after disable period expires")
 }
 
+func TestBlocklist_SubdomainHierarchy(t *testing.T) {
+	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	blockList := NewBlockList(source, 0.0001, logger)
+	blockList.Load([]string{"lox.legalendowmad.com"})
+
+	testCases := []struct {
+		domain        string
+		expectBlocked bool
+	}{
+		{"lox.legalendowmad.com", true},
+		{"8.lox.legalendowmad.com", true},
+		{"sub.8.lox.legalendowmad.com", true},
+		{"legalendowmad.com", false},
+		{"other.com", false},
+	}
+
+	for _, tc := range testCases {
+		isBlocked, err := blockList.IsBlocked(tc.domain)
+		assert.NoError(t, err)
+		assert.Equal(t, tc.expectBlocked, isBlocked, "domain %s expected blocked=%v", tc.domain, tc.expectBlocked)
+	}
+}
+
 func TestBlocklist_Fetch(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 
@@ -57,7 +82,8 @@ example.com
 	err := os.WriteFile(tmpFile, []byte(content), 0644)
 	assert.NoError(t, err)
 
-	blockList := NewBlockList("test", "file://"+tmpFile, 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "file://" + tmpFile}
+	blockList := NewBlockList(source, 0.0001, logger)
 
 	err = blockList.Fetch(t.Context())
 	assert.NoError(t, err)
@@ -70,8 +96,8 @@ example.com
 	}
 
 	// Verify metadata was extracted
-	assert.Equal(t, "Test Blocklist", blockList.Metadata("title", ""))
-	assert.Equal(t, "Tester", blockList.Metadata("author", ""))
+	assert.Equal(t, "Test Blocklist", blockList.Title())
+	assert.Equal(t, "Tester", blockList.Status().MetaData["author"])
 
 	// Verify status
 	status := blockList.Status()
@@ -88,7 +114,8 @@ func TestBlocklist_Fetch_EmptyFile(t *testing.T) {
 	err := os.WriteFile(tmpFile, []byte(""), 0644)
 	assert.NoError(t, err)
 
-	blockList := NewBlockList("test", "file://"+tmpFile, 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "file://" + tmpFile}
+	blockList := NewBlockList(source, 0.0001, logger)
 
 	err = blockList.Fetch(t.Context())
 	assert.NoError(t, err)

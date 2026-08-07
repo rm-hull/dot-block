@@ -12,16 +12,18 @@ import (
 	"github.com/bits-and-blooms/bloom/v3"
 	"github.com/cockroachdb/errors"
 	"github.com/rm-hull/dot-block/internal/blocklist/hostfile"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/downloader"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"golang.org/x/net/publicsuffix"
 )
 
 type BlockList struct {
-	name            string
-	url             string
+	source          *config.BlocklistSource
 	metadata        map[string]string
+	lastFetched     *time.Time
 	lastUpdated     *time.Time
+	lastError       error
 	minFpRate       float64
 	estimatedFpRate float64
 	bloomFilter     *bloom.BloomFilter
@@ -34,42 +36,54 @@ type BlockList struct {
 
 type BlocklistStatus struct {
 	Name              string            `json:"name"`
+	Title             string            `json:"title,omitempty"`
+	Description       string            `json:"description,omitempty"`
 	URL               string            `json:"url"`
 	Size              uint              `json:"size"`
+	Schedule          string            `json:"schedule"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
+	LastFetched       *time.Time        `json:"last_fetched,omitempty"`
 	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
+	LastError         string            `json:"error,omitempty"`
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
 }
 
-func NewBlockList(name string, url string, fpRate float64, logger *slog.Logger) *BlockList {
-	metrics, _ := metrics.NewBlockListMetrics(name)
+func NewBlockList(source *config.BlocklistSource, fpRate float64, logger *slog.Logger) *BlockList {
+	metrics, _ := metrics.NewBlockListMetrics(source.Name)
 
 	blocklist := &BlockList{
-		name:      name,
-		url:       url,
+		source:    source,
+		metadata:  make(map[string]string),
 		minFpRate: fpRate,
 		metrics:   metrics,
-		logger:    logger.With("name", name),
+		logger:    logger.With("name", source.Name),
 		mutex:     &sync.RWMutex{},
 	}
 
 	return blocklist
 }
 
-func (BlockList *BlockList) Name() string {
-	return BlockList.name
+func (blockList *BlockList) Name() string {
+	return blockList.source.Name
+}
+
+func (blockList *BlockList) Title() string {
+	if title, ok := blockList.metadata["title"]; ok {
+		return title
+	}
+	return blockList.source.Title
+}
+
+func (blockList *BlockList) Description() string {
+	if description, ok := blockList.metadata["description"]; ok {
+		return description
+	}
+	return blockList.source.Description
 }
 
 func (blockList *BlockList) URL() string {
-	return blockList.url
-}
-
-func (BlockList *BlockList) Metadata(attr, defaultValue string) string {
-	if value, ok := BlockList.metadata[attr]; ok {
-		return value
-	}
-	return defaultValue
+	return blockList.source.URL
 }
 
 // Returns whether the URL (or part of the URL) is on a block list.
@@ -85,26 +99,40 @@ func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
 		return false, nil
 	}
 
-	isBlocked := blockList.bloomFilter.TestString(domain)
-
-	// Try the apex domain (e.g. for "ads.example.com", check "example.com")
-	// EffectiveTLDPlusOne returns an error for bare TLDs (e.g. "com") or domains
-	// with invalid labels, which is expected — we simply skip the apex domain check.
-	if !isBlocked {
-		if apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain); err == nil {
-			isBlocked = blockList.bloomFilter.TestString(apexDomain)
-		}
+	// 1. Check exact domain first (e.g., "8.lox.legalendowmad.com")
+	current := domain
+	if blockList.bloomFilter.TestString(current) {
+		return blockList.checkDisabled()
 	}
 
-	if isBlocked {
-		// Check if blocklist is temporarily disabled
-		if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
-			return false, nil
+	// 2. Iteratively check parent subdomains up to the apex domain (EffectiveTLDPlusOne)
+	apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
+	if err == nil {
+		for {
+			idx := strings.Index(current, ".")
+			if idx == -1 {
+				break
+			}
+			current = current[idx+1:]
+
+			if blockList.bloomFilter.TestString(current) {
+				return blockList.checkDisabled()
+			}
+
+			if current == apexDomain {
+				break
+			}
 		}
-		return true, nil
 	}
 
 	return false, nil
+}
+
+func (blockList *BlockList) checkDisabled() (bool, error) {
+	if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (blocklist *BlockList) Load(items []string) {
@@ -123,7 +151,7 @@ func (blocklist *BlockList) Disable(duration time.Duration) time.Time {
 
 	blocklist.disabledUntil = new(time.Now().Add(duration))
 	blocklist.logger.Warn("Blocklist temporarily disabled",
-		"name", blocklist.name,
+		"name", blocklist.Name(),
 		"until", blocklist.disabledUntil)
 
 	return *blocklist.disabledUntil
@@ -138,7 +166,7 @@ func (blocklist *BlockList) Reenable() bool {
 	}
 
 	blocklist.disabledUntil = nil
-	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.name)
+	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.Name())
 	return true
 }
 
@@ -150,12 +178,21 @@ func (blocklist *BlockList) Status() *BlocklistStatus {
 	if blocklist.disabledUntil != nil && time.Now().Before(*blocklist.disabledUntil) {
 		disabledUntil = blocklist.disabledUntil
 	}
+	errorMessage := ""
+	if blocklist.lastError != nil {
+		errorMessage = blocklist.lastError.Error()
+	}
 	status := BlocklistStatus{
-		Name:              blocklist.name,
-		URL:               blocklist.url,
+		Name:              blocklist.Name(),
+		Title:             blocklist.Title(),
+		Description:       blocklist.Description(),
+		Schedule:          blocklist.source.CronSchedule,
+		URL:               blocklist.URL(),
 		Size:              blocklist.size,
 		MetaData:          blocklist.metadata,
+		LastFetched:       blocklist.lastFetched,
 		LastUpdated:       blocklist.lastUpdated,
+		LastError:         errorMessage,
 		DisabledUntil:     disabledUntil,
 		FalsePositiveRate: blocklist.estimatedFpRate,
 	}
@@ -171,12 +208,12 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 	blocklist.bloomFilter = bf
 	blocklist.size = n
 	blocklist.metadata = metadata
-	blocklist.lastUpdated = new(time.Now())
+	blocklist.lastFetched = new(time.Now())
 	blocklist.estimatedFpRate = estimatedFpRate
 	blocklist.mutex.Unlock()
 
 	blocklist.logger.Info("Bloom filter created",
-		"name", blocklist.name,
+		"name", blocklist.Name(),
 		"actual_size", n,
 		"estimated_size", bf.ApproximatedSize(),
 		"estimated_fp_rate", estimatedFpRate)
@@ -185,9 +222,10 @@ func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, meta
 }
 
 func (blockList *BlockList) Fetch(ctx context.Context) error {
-	path, _, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.url, "")
+	path, header, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.URL(), "")
 	if err != nil {
-		return errors.Wrapf(err, "failed to download blocklist for counting: %s", blockList.url)
+		blockList.lastError = err
+		return errors.Wrap(err, "failed to download blocklist")
 	}
 
 	defer func() {
@@ -196,25 +234,34 @@ func (blockList *BlockList) Fetch(ctx context.Context) error {
 		}
 	}()
 
+	blockList.lastError = nil
+	if lastUpdatedStr := header.Get("Last-Modified"); lastUpdatedStr != "" {
+		if t, err := time.Parse(time.RFC1123, lastUpdatedStr); err == nil {
+			blockList.lastUpdated = &t
+		}
+	}
+
 	return blockList.processFile(path)
 }
 
+// processFile reads a blocklist file from disk, counts entries, builds a bloom
+// filter, and applies it. It is the core processing logic shared by Fetch
+// (which first downloads the file) and is also used directly by benchmarks.
 func (blockList *BlockList) processFile(path string) error {
-
 	file, err := os.Open(path)
 	if err != nil {
-		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.URL())
 	}
 	defer func() { _ = file.Close() }()
 
 	estimate, err := countNewlines(file)
 	if err != nil {
-		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.URL())
 	}
 
 	// Seek back to the beginning for streaming
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.URL())
 	}
 
 	// Avoid creating a bloom filter with 0 items, which will panic
@@ -232,7 +279,7 @@ func (blockList *BlockList) processFile(path string) error {
 		return nil
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.url)
+		return errors.Wrapf(err, "failed to stream hosts from file %s (url: %s)", path, blockList.URL())
 	}
 
 	if len(metadata) > 0 {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -43,8 +44,8 @@ func (w *benchResponseWriter) Hijack()                     {}
 func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDispatcher {
 	b.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-
-	blockList := blocklist.NewBlockList("bench", "http://dummy.url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "bench", URL: "http://dummy.url"}
+	blockList := blocklist.NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net", "tracker.example.com"})
 
 	cache := NewDNSCache(10000, logger)

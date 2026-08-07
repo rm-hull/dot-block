@@ -1,18 +1,18 @@
-import { Chart, useChart } from "@chakra-ui/charts"
-import { Pie, PieChart, Sector, Legend } from "recharts"
+import { Chart, useChart } from "@chakra-ui/charts";
+import { Legend, Pie, PieChart, Sector } from "recharts";
 
 export interface DataPoint {
-  name: string
-  value: number
-  color?: string
+  name: string;
+  value: number;
+  color?: string;
 }
 
 interface PieChartStatProps {
-  data: DataPoint[]
+  data: DataPoint[];
 }
 
 export function PieChartStat({ data }: PieChartStatProps) {
-  const chart = useChart({ data })
+  const chart = useChart({ data });
 
   return (
     <Chart.Root boxSize="200px" mx="auto" chart={chart}>
@@ -23,11 +23,9 @@ export function PieChartStat({ data }: PieChartStatProps) {
           data={chart.data}
           dataKey={chart.key("value")}
           nameKey="name"
-          shape={(props) => (
-            <Sector {...props} fill={chart.color(props.payload!.color)} />
-          )}
+          shape={(props) => <Sector {...props} fill={chart.color(props.payload!.color)} />}
         />
       </PieChart>
     </Chart.Root>
-  )
+  );
 }

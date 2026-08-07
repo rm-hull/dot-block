@@ -8,32 +8,36 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/http/handlers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheckHandler(t *testing.T) {
+	type payload struct {
+		Allowed []string          `json:"allowed"`
+		Blocked map[string]string `json:"blocked"`
+	}
+
 	gin.SetMode(gin.TestMode)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	// Use a small blocklist for testing
-	blockList := blocklist.NewBlockList("test", "http://dummy.url", 0.0001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy.url"}
+	blockList := blocklist.NewBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{blockList}, 1*time.Minute)
 
-	handler := handlers.NewBlocklistHandler(updater, logger)
+	handler := handlers.NewBlocklistHandler([]*blocklist.BlockList{blockList}, logger)
 
 	tests := []struct {
 		name           string
 		contentType    string
 		body           []byte
 		expectedStatus int
-		expectedBody   map[string][]string
+		expectedBody   *payload
 	}{
 		{
 			name:        "Plain text - mixed",
@@ -44,9 +48,9 @@ blocked.com
 allowed.org
 `),
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string][]string{
-				"allowed": {"google.com", "allowed.org"},
-				"blocked": {"blocked.com"},
+			expectedBody: &payload{
+				Allowed: []string{"google.com", "allowed.org"},
+				Blocked: map[string]string{"blocked.com": "test"},
 			},
 		},
 		{
@@ -54,9 +58,9 @@ allowed.org
 			contentType:    "application/json",
 			body:           []byte(`["google.com", "blocked.com", "ads.net", "allowed.org"]`),
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string][]string{
-				"allowed": {"google.com", "allowed.org"},
-				"blocked": {"blocked.com", "ads.net"},
+			expectedBody: &payload{
+				Allowed: []string{"google.com", "allowed.org"},
+				Blocked: map[string]string{"blocked.com": "test", "ads.net": "test"},
 			},
 		},
 		{
@@ -65,9 +69,9 @@ allowed.org
 			body: []byte(`google.com
 allowed.org`),
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string][]string{
-				"allowed": {"google.com", "allowed.org"},
-				"blocked": {},
+			expectedBody: &payload{
+				Allowed: []string{"google.com", "allowed.org"},
+				Blocked: map[string]string{},
 			},
 		},
 		{
@@ -76,9 +80,9 @@ allowed.org`),
 			body: []byte(`blocked.com
 ads.net`),
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string][]string{
-				"allowed": {},
-				"blocked": {"blocked.com", "ads.net"},
+			expectedBody: &payload{
+				Allowed: []string{},
+				Blocked: map[string]string{"blocked.com": "test", "ads.net": "test"},
 			},
 		},
 		{
@@ -86,9 +90,9 @@ ads.net`),
 			contentType:    "application/json",
 			body:           []byte(`[]`),
 			expectedStatus: http.StatusOK,
-			expectedBody: map[string][]string{
-				"allowed": {},
-				"blocked": {},
+			expectedBody: &payload{
+				Allowed: []string{},
+				Blocked: map[string]string{},
 			},
 		},
 		{
@@ -114,11 +118,11 @@ ads.net`),
 			assert.Equal(t, tt.expectedStatus, w.Code)
 
 			if tt.expectedBody != nil {
-				var response map[string][]string
+				var response payload
 				err := json.Unmarshal(w.Body.Bytes(), &response)
 				require.NoError(t, err)
-				assert.Equal(t, tt.expectedBody["allowed"], response["allowed"])
-				assert.Equal(t, tt.expectedBody["blocked"], response["blocked"])
+				assert.Equal(t, tt.expectedBody.Allowed, response.Allowed)
+				assert.Equal(t, tt.expectedBody.Blocked, response.Blocked)
 			}
 		})
 	}

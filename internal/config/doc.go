@@ -15,13 +15,13 @@ func reflectorWithComments() jsonschema.Reflector {
 		DoNotReference:            true,
 		CommentMap:                buildCommentMap(),
 		TypeMapper: func(t reflect.Type) *jsonschema.Type {
-			if t == reflect.TypeOf(LogLevel("")) {
+			if t == reflect.TypeFor[LogLevel]() {
 				return &jsonschema.Type{
 					Type: "string",
 					Enum: []any{"DEBUG", "INFO", "WARN", "ERROR"},
 				}
 			}
-			if t == reflect.TypeOf(time.Duration(0)) {
+			if t == reflect.TypeFor[time.Duration]() {
 				return &jsonschema.Type{
 					Type:    "string",
 					Format:  "duration",
@@ -39,21 +39,21 @@ func buildCommentMap() map[string]string {
 	commentMap := make(map[string]string)
 	pkgPath := "github.com/rm-hull/dot-block/internal/config"
 
-	collectDescriptions(reflect.TypeOf(Config{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(ServerConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(ProxyProtocolConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(LetsEncryptConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(DNSConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(ECSConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(CacheConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(NoiseFilter{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(TimeoutsConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(BlocklistConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(BlocklistSource{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(GeoblockConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(IpinfoConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(TelemetryConfig{}), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeOf(TopKConfig{}), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[Config](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[ServerConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[ProxyProtocolConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[LetsEncryptConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[DNSConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[ECSConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[CacheConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[NoiseFilter](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[TimeoutsConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[BlocklistConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[BlocklistSource](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[GeoblockConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[IpinfoConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[TelemetryConfig](), pkgPath, commentMap)
+	collectDescriptions(reflect.TypeFor[TopKConfig](), pkgPath, commentMap)
 
 	return commentMap
 }
@@ -66,8 +66,8 @@ func collectDescriptions(t reflect.Type, pkgPath string, commentMap map[string]s
 	if t.Kind() != reflect.Struct {
 		return
 	}
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
+	for field := range t.Fields() {
+		field := field
 		descr := field.Tag.Get("descr")
 		if descr != "" {
 			key := pkgPath + "." + t.Name() + "." + field.Name

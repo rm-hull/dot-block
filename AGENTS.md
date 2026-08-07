@@ -13,6 +13,7 @@ A DNS-over-TLS (DoT) server written in Go. Acts as a secure DNS forwarder with a
 - **Observability:** Sentry (errors), Prometheus (metrics).
 
 ## Development Principles
+- **Filesystem access:** NEVER ever try and find or read from the root partition (`/`); operate only within the working repository directory.
 - **Test-First:** Always verify existing behavior with tests and write failing tests before implementing changes. Use `github.com/stretchr/testify` for assertions.
 - **Verify:** ALWAYS run a full build (`go build ./...`) and run tests (`go test ./...`) after making code changes to ensure no regressions.
 - **Lint:** ALWAYS run `golangci-lint-v2 run ./...` and `go vet ./...` as part of build verification to ensure code quality and catch issues early.
@@ -31,13 +32,17 @@ go run main.go --dev-mode
 
 ### Test
 ```bash
-go test -v ./...
+go test -race -v ./...
 ```
+> **Note:** Tests should always be run locally with the `-race` flag (as CI does) to catch concurrency bugs and data races that may not be visible with a normal `go test`.
 
 ### Build
 ```bash
 go build -ldflags="-w -s" -o dot-block .
 ```
+
+### General Development Notes
+- When using shell commands such as `find`, `grep -r`, or other file system traversal tools, always scope the search relative to the project root (e.g., `.`, `./internal`). **Never** perform system-wide traversals like `find / ...` or `grep -r /`, as these are slow, may expose sensitive information, and can produce non-deterministic results. Use ripgrep (`rg`) or `find .` instead.
 
 ## Key Technologies
 - **Language:** Go

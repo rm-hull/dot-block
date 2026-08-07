@@ -15,12 +15,17 @@ type upstreamTTLInfo struct {
 	ttl       float64
 }
 
+type blockedDomain struct {
+	domain string
+	cause  string
+}
+
 type RequestSnapshot struct {
 	source         string
 	ipAddr         string
 	startTime      time.Time
 	primaryDomain  string
-	blockedDomains []string
+	blockedDomains []blockedDomain
 	domains        []string
 	queryCounts    []queryCountInfo
 	upstreamTTLs   []upstreamTTLInfo
@@ -31,6 +36,7 @@ type RequestSnapshot struct {
 	rcode          string
 	queryType      string
 	blockCause     string
+	answerCount    int
 }
 
 func (t *RequestSnapshot) Finished() *RequestSnapshot {
@@ -78,7 +84,7 @@ func (t *RequestSnapshot) PrimaryDomain() string {
 }
 
 func (t *RequestSnapshot) AddBlockedDomain(domain string, cause string) {
-	t.blockedDomains = append(t.blockedDomains, domain)
+	t.blockedDomains = append(t.blockedDomains, blockedDomain{domain: domain, cause: cause})
 	t.blockCause = cause
 }
 
@@ -126,6 +132,14 @@ func (t *RequestSnapshot) Rcode() string {
 	return t.rcode
 }
 
+func (t *RequestSnapshot) SetAnswerCount(count int) {
+	t.answerCount = count
+}
+
+func (t *RequestSnapshot) AnswerCount() int {
+	return t.answerCount
+}
+
 func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 	metrics.RequestLatency.Observe(t.requestLatency)
 	metrics.RequestCounts.WithLabelValues("total", t.source).Inc()
@@ -171,8 +185,8 @@ func (t *RequestSnapshot) Record(metrics *DnsMetrics) {
 		}
 		metrics.QueryCounts.WithLabelValues(qc.queryType, isBlocked).Inc()
 	}
-	for _, domain := range t.blockedDomains {
-		metrics.TopBlockedDomains.Add(domain)
+	for _, bd := range t.blockedDomains {
+		metrics.TopBlockedDomains.Add(bd.domain + "|" + bd.cause)
 	}
 	for _, domain := range t.domains {
 		metrics.TopDomains.Add(domain)

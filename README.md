@@ -306,16 +306,22 @@ dns:
     dial: 300ms                      # Timeout for establishing connections to upstreams
 
 blocklist:
-  sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule
+  sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule (title and description are optional)
     - name: "hagezi-pro"             # Human-readable name for the blocklist
       url: "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt"
       cron_schedule: "@every 19h"    # Cron spec for reloading this specific blocklist
     - name: "cebeerre-nrd"
       url: "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt"
-      cron_schedule: "@every 19h"
+      cron_schedule: "@every 23h"
     - name: "dot-block"
+      title: "dot-block blocklist",
+	  description: "internally curated blocklist, maintained at github.com/rm-hull/dot-block",
       url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"
-      cron_schedule: "@every 19h"
+      cron_schedule: "@every 4h"
+
+# Blocklists are fetched asynchronously on startup, so the DNS server begins
+# listening immediately. Domains are not blocked until the initial fetch
+# completes. Subsequent reloads are also asynchronous (see /api/blocklist/reload).
 
 geoblock:
   ipinfo:

@@ -1,13 +1,13 @@
-import { useASN } from "@/hooks/useASN"
-import { Badge, HStack, Skeleton } from "@chakra-ui/react"
+import { Badge, HStack, Skeleton } from "@chakra-ui/react";
+import { useASN } from "@/hooks/useASN";
 import { Flag } from "./Flag";
 
 interface ASNProps {
-  ipAddr: string
-};
+  ipAddr: string;
+}
 
 export function ASN({ ipAddr }: ASNProps) {
-  const { data, isLoading, error } = useASN(ipAddr)
+  const { data, isLoading, error } = useASN(ipAddr);
 
   if (error) {
     return <Badge colorPalette="red">{error.toString()}</Badge>;
@@ -18,9 +18,11 @@ export function ASN({ ipAddr }: ASNProps) {
   return (
     <Skeleton asChild loading={isLoading}>
       <HStack>
-        <Badge colorPalette="blue">{data?.asn}: {data?.provider}</Badge>
+        <Badge colorPalette="blue">
+          {data?.asn}: {data?.provider}
+        </Badge>
         <Flag isoCode={data?.iso_code} width={20} />
       </HStack>
     </Skeleton>
-  )
+  );
 }

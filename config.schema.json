@@ -14,8 +14,16 @@
                 "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
                 "type": "string"
               },
+              "description": {
+                "description": "Optional description for the blocklist.",
+                "type": "string"
+              },
               "name": {
                 "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                "type": "string"
+              },
+              "title": {
+                "description": "Optional title for the blocklist.",
                 "type": "string"
               },
               "url": {
@@ -37,8 +45,16 @@
           "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
           "type": "string"
         },
+        "description": {
+          "description": "Optional description for the blocklist.",
+          "type": "string"
+        },
         "name": {
           "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+          "type": "string"
+        },
+        "title": {
+          "description": "Optional title for the blocklist.",
           "type": "string"
         },
         "url": {
@@ -83,8 +99,16 @@
                     "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
                     "type": "string"
                   },
+                  "description": {
+                    "description": "Optional description for the blocklist.",
+                    "type": "string"
+                  },
                   "name": {
                     "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                    "type": "string"
+                  },
+                  "title": {
+                    "description": "Optional title for the blocklist.",
                     "type": "string"
                   },
                   "url": {
@@ -691,8 +715,16 @@
                 "description": "Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates.",
                 "type": "string"
               },
+              "description": {
+                "description": "Optional description for the blocklist.",
+                "type": "string"
+              },
               "name": {
                 "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
+                "type": "string"
+              },
+              "title": {
+                "description": "Optional title for the blocklist.",
                 "type": "string"
               },
               "url": {

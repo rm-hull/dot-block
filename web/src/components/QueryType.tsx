@@ -1,9 +1,9 @@
-import type { RRType } from "@/hooks/useEvents"
-import { Badge } from "@chakra-ui/react"
+import { Badge } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
+import type { RRType } from "@/hooks/useEvents";
 
 interface QueryTypeProps {
-  rrtype: RRType
+  rrtype: RRType;
 }
 
 // RRType mappings
@@ -18,11 +18,11 @@ const mapping: Record<RRType, { descr: string }> = {
   MX: { descr: "Mail exchange server" },
   TXT: { descr: "Text record" },
   SOA: { descr: "Start of authority" },
-  SRV: { descr: "Server selection" }
-}
+  SRV: { descr: "Server selection" },
+};
 
 export function QueryType({ rrtype }: QueryTypeProps) {
-  const descr = mapping[rrtype]?.descr ?? `Unknown record type: ${rrtype}`
+  const descr = mapping[rrtype]?.descr ?? `Unknown record type: ${rrtype}`;
 
   return (
     <Tooltip content={descr}>

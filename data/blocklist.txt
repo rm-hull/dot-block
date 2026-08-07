@@ -1,4 +1,5 @@
 # Title: dot-block custom blocklist
+# Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
 # Last modified: 19 July 2026 01:15 BST
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
@@ -102,3 +103,9 @@ www.googleadservices.com
 # PostHog analytics
 eu.i.posthog.com
 eu-assets.i.posthog.com
+
+events.api.bosecm.com
+lox.legalendowmad.com
+whichfreely.com
+viafoura.co
+neutral.ttwstatic.com

@@ -171,65 +171,83 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var resp *dns.Msg
-			var err error
+	// sendQuery sends a DNS query using the specified protocol and returns the response.
+	// It is extracted as a helper to support retry logic for blocked-domain tests,
+	// since the initial blocklist fetch is now asynchronous and may not have completed
+	// by the time the DNS server starts accepting connections.
+	sendQuery := func(t *testing.T, protocol string, port int, domain string) *dns.Msg {
+		t.Helper()
+		msg := new(dns.Msg)
+		msg.SetQuestion(domain, dns.TypeA)
 
-			if tt.protocol == "doh-get" || tt.protocol == "doh-post" {
-				msg := new(dns.Msg)
-				msg.SetQuestion(tt.domain, dns.TypeA)
-				packed, err := msg.Pack()
-				require.NoError(t, err)
+		if protocol == "doh-get" || protocol == "doh-post" {
+			packed, err := msg.Pack()
+			require.NoError(t, err)
 
-				var httpResp *http.Response
-				var httpErr error
+			var httpResp *http.Response
+			var httpErr error
 
-				if tt.protocol == "doh-get" {
-					encoded := base64.RawURLEncoding.EncodeToString(packed)
-					url := fmt.Sprintf("http://127.0.0.1:%d/dns-query?dns=%s", tt.port, encoded)
-					httpResp, httpErr = http.Get(url)
-				} else {
-					url := fmt.Sprintf("http://127.0.0.1:%d/dns-query", tt.port)
-					httpResp, httpErr = http.Post(url, "application/dns-message", bytes.NewReader(packed))
-				}
-
-				require.NoError(t, httpErr, "HTTP request failed")
-				defer func() { _ = httpResp.Body.Close() }()
-				require.Equal(t, http.StatusOK, httpResp.StatusCode)
-
-				body, err := io.ReadAll(httpResp.Body)
-				require.NoError(t, err)
-
-				resp = new(dns.Msg)
-				err = resp.Unpack(body)
-				require.NoError(t, err, "Failed to unpack DNS response from DoH")
+			if protocol == "doh-get" {
+				encoded := base64.RawURLEncoding.EncodeToString(packed)
+				url := fmt.Sprintf("http://127.0.0.1:%d/dns-query?dns=%s", port, encoded)
+				httpResp, httpErr = http.Get(url)
 			} else {
-				msg := new(dns.Msg)
-				msg.SetQuestion(tt.domain, dns.TypeA)
-
-				client := &dns.Client{
-					Net:     tt.protocol,
-					Timeout: 2 * time.Second,
-				}
-
-				addr := fmt.Sprintf("127.0.0.1:%d", tt.port)
-				resp, _, err = client.Exchange(msg, addr)
-				require.NoError(t, err, "DNS exchange failed")
+				url := fmt.Sprintf("http://127.0.0.1:%d/dns-query", port)
+				httpResp, httpErr = http.Post(url, "application/dns-message", bytes.NewReader(packed))
 			}
 
+			require.NoError(t, httpErr, "HTTP request failed")
+			defer func() { _ = httpResp.Body.Close() }()
+			require.Equal(t, http.StatusOK, httpResp.StatusCode)
+
+			body, err := io.ReadAll(httpResp.Body)
+			require.NoError(t, err)
+
+			resp := new(dns.Msg)
+			err = resp.Unpack(body)
+			require.NoError(t, err, "Failed to unpack DNS response from DoH")
+			return resp
+		}
+
+		client := &dns.Client{
+			Net:     protocol,
+			Timeout: 2 * time.Second,
+		}
+		addr := fmt.Sprintf("127.0.0.1:%d", port)
+		resp, _, err := client.Exchange(msg, addr)
+		require.NoError(t, err, "DNS exchange failed")
+		return resp
+	}
+
+	// isBlocked checks whether the DNS response contains a blocked SOA record.
+	isBlocked := func(resp *dns.Msg) bool {
+		for _, rr := range append(resp.Answer, resp.Ns...) {
+			if soa, ok := rr.(*dns.SOA); ok {
+				if soa.Ns == "ns.blocked.local." {
+					return true
+				}
+			}
+		}
+		return false
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := sendQuery(t, tt.protocol, tt.port, tt.domain)
 			require.NotNil(t, resp, "DNS response is nil")
 
 			if tt.expectBlocked {
-				// Based on internal/forwarder/dispatcher.go, blocked domains return a SOA record with ns.blocked.local.
+				// The initial blocklist fetch is asynchronous, so the bloom filter may not
+				// be populated yet. Retry the query a few times to allow the background
+				// fetch to complete.
 				foundBlockedSOA := false
-				for _, rr := range append(resp.Answer, resp.Ns...) {
-					if soa, ok := rr.(*dns.SOA); ok {
-						if soa.Ns == "ns.blocked.local." {
-							foundBlockedSOA = true
-							break
-						}
+				for range 10 {
+					if isBlocked(resp) {
+						foundBlockedSOA = true
+						break
 					}
+					time.Sleep(200 * time.Millisecond)
+					resp = sendQuery(t, tt.protocol, tt.port, tt.domain)
 				}
 				assert.True(t, foundBlockedSOA, "Expected blocked SOA record for %s", tt.domain)
 			} else {

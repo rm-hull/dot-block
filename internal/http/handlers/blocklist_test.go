@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -11,30 +12,33 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/stretchr/testify/assert"
 )
 
 func setupHandler(t *testing.T) (*BlocklistHandler, *slog.Logger) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
-	return NewBlocklistHandler(updater, logger), logger
+	return NewBlocklistHandler([]*blocklist.BlockList{}, logger), logger
 }
 
 func TestBlocklistHandler_Status(t *testing.T) {
 	h, _ := setupHandler(t)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	h.Status(c)
+	h.Status("")(c)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestBlocklistHandler_Disable(t *testing.T) {
+func TestBlocklistHandler_Disable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	source := &config.BlocklistSource{
+		Name: "test",
+		URL:  "http://example.com/list.txt",
+	}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
 	payload := `{"name": "test", "duration": "1h"}`
@@ -52,9 +56,9 @@ func TestBlocklistHandler_Disable(t *testing.T) {
 func TestBlocklistHandler_Disable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
 	payload := `{"duration": "30m"}`
@@ -67,14 +71,14 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
-func TestBlocklistHandler_Reenable(t *testing.T) {
+func TestBlocklistHandler_Reenable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
 	// Pre-disable it
 	bl.Disable(time.Hour)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -88,27 +92,74 @@ func TestBlocklistHandler_Reenable(t *testing.T) {
 	assert.NotContains(t, statusBody, "disabled_until")
 }
 
+func TestBlocklistHandler_Reenable_Single(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	source1 := &config.BlocklistSource{Name: "test1", URL: "http://example.com/list1.txt"}
+	source2 := &config.BlocklistSource{Name: "test2", URL: "http://example.com/list2.txt"}
+	bl1 := blocklist.NewBlockList(source1, 0.001, logger)
+	bl2 := blocklist.NewBlockList(source2, 0.001, logger)
+	// Pre-disable both blocklists
+	bl1.Disable(time.Hour)
+	bl2.Disable(time.Hour)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl1, bl2}, logger)
+
+	w := httptest.NewRecorder()
+	// Re-enable only the blocklist named "test1"
+	payload := `{"name": "test1"}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/reenable", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	h.Reenable(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Parse the response to verify each blocklist's individual status
+	var statusPayload StatusPayload
+	err := json.Unmarshal(w.Body.Bytes(), &statusPayload)
+	assert.NoError(t, err)
+
+	// test1 should be re-enabled (no disabled_until)
+	assert.Equal(t, statusPayload.Blocklists[0].Name, "test1")
+	assert.Nil(t, statusPayload.Blocklists[0].DisabledUntil,
+		"test1 should have been re-enabled")
+
+	// test2 should remain disabled
+	assert.Equal(t, statusPayload.Blocklists[1].Name, "test2")
+	assert.NotNil(t, statusPayload.Blocklists[1].DisabledUntil,
+		"test2 should still be disabled")
+}
+
 func TestBlocklistHandler_Reload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "http://localhost:9999/does-not-exist", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://localhost:9999/does-not-exist"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	w := httptest.NewRecorder()
+
+	payload := `{"name": "test"}`
 	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/reload", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
 
 	h.Reload(c)
 
-	assert.Equal(t, http.StatusAccepted, w.Code)
-	assert.NotEmpty(t, w.Body.String())
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	var statusPayload StatusPayload
+	err := json.Unmarshal(w.Body.Bytes(), &statusPayload)
+	assert.NoError(t, err)
+
+	assert.Equal(t, statusPayload.Message, "Blocklist reloaded")
+	assert.Contains(t, statusPayload.Errors[0], "failed to download blocklist")
 }
 
 func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{}, logger)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -124,13 +175,12 @@ func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 func TestBlocklistHandler_CheckTooManyDomains(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{}, logger)
 
 	// Create a JSON array with 101 items (limit is 100)
 	var sb strings.Builder
 	sb.WriteString("[")
-	for i := 0; i < 101; i++ {
+	for i := range 101 {
 		if i > 0 {
 			sb.WriteString(",")
 		}
@@ -208,9 +258,9 @@ func TestParseDuration(t *testing.T) {
 func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	bl := blocklist.NewBlockList("test", "http://example.com/list.txt", 0.001, logger)
-	updater := blocklist.NewUpdater([]*blocklist.BlockList{bl}, 1*time.Minute)
-	h := NewBlocklistHandler(updater, logger)
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	bl := blocklist.NewBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
 
 	tests := []struct {
 		name       string

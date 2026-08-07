@@ -18,6 +18,8 @@ GET http://localhost:8080/.mobileconfig
 POST http://admin.localhost:8080/api/blocklist/reload
 User-Agent: test-client
 
+{"name": "dot-block"}
+
 
 ### Check blocklist (JSON)
 POST http://admin.localhost:8080/api/blocklist/check
@@ -33,18 +35,21 @@ Content-Type: text/plain
 google.com
 www.ex.co
 ads.net
+track.wargaming-aff.com
 
 
 ### Disable blocklist
 POST http://admin.localhost:8080/api/blocklist/disable
 Content-Type: application/json
 
-{"name": "Blocklist #0", "duration": "PT5M"}
+{"name": "dot-block", "duration": "PT5M"}
 
 
 ### Re-enable blocklist
 POST http://admin.localhost:8080/api/blocklist/reenable
 Content-Type: application/json
+
+{"name": "dot-block"}
 
 
 ### Blocklist status
@@ -93,3 +98,7 @@ Access-Control-Request-Headers: Authorization, Content-Type
 ### DNS Events Stream (SSE)
 GET http://admin.localhost:8080/api/events
 Accept: text/event-stream
+
+
+### JSON Metrics
+GET http://admin.localhost:8080/api/metrics

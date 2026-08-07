@@ -62,19 +62,49 @@ func DefaultConfig() *Config {
 		Blocklist: &BlocklistConfig{
 			Sources: []BlocklistSource{
 				{
-					Name:         "hagezi-pro",
-					URL:          "https://raw.githubusercontent.com/hagezi/dns-blocklists/refs/heads/main/hosts/pro.txt",
+					Name:         "hagezi-pro.plus",
+					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
 					CronSchedule: "@every 19h",
 				},
 				{
 					Name:         "cebeerre-nrd",
 					URL:          "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
-					CronSchedule: "@every 19h",
+					CronSchedule: "@every 23h",
 				},
 				{
 					Name:         "dot-block",
+					Title:        "dot-block blocklist",
+					Description:  "internally curated blocklist, maintained at github.com/rm-hull/dot-block",
 					URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
-					CronSchedule: "@every 19h",
+					CronSchedule: "@every 4h",
+				},
+				{
+					Name:         "adaway",
+					Title:        "AdAway default blocklist",
+					Description:  "Blocking mobile ad providers and some analytics providers",
+					URL:          "https://adaway.org/hosts.txt",
+					CronSchedule: "@every 13h",
+				},
+				{
+					Name:         "firebog",
+					Title:        "Firebog blocklists",
+					Description:  "AdguardDNS, parsed and mirrored by https://firebog.net",
+					URL:          "https://v.firebog.net/hosts/AdguardDNS.txt",
+					CronSchedule: "@every 17h",
+				},
+				{
+					Name:         "yoyo",
+					Title:        "Yoyo blocklist",
+					Description:  "Blocklist for use with hosts files to block ads, trackers, and other nasty things. For more information about this list, see: https://pgl.yoyo.org/adservers/",
+					URL:          "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
+					CronSchedule: "@every 26h",
+				},
+				{
+					Name:         "phishing-army",
+					Title:        "Phishing Army blocklist",
+					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
+					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
+					CronSchedule: "@every 23h",
 				},
 			},
 		},
