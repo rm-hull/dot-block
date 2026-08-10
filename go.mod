@@ -17,7 +17,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/libdns/cloudflare v0.2.2
 	github.com/miekg/dns v1.1.72
-	github.com/oschwald/maxminddb-golang/v2 v2.4.1
+	github.com/oschwald/maxminddb-golang/v2 v2.5.0
 	github.com/pires/go-proxyproto v0.15.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2
@@ -49,13 +49,13 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
-	github.com/grpc-ecosystem/grpc-gateway/v2 v2.29.0 // indirect
+	github.com/grpc-ecosystem/grpc-gateway/v2 v2.30.0 // indirect
 	github.com/iancoleman/orderedmap v0.3.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0 // indirect
 	github.com/influxdata/line-protocol v0.0.0-20210922203350-b1ad95c89adf // indirect
 	github.com/kamstrup/intmap v0.5.2 // indirect
-	github.com/klauspost/compress v1.19.1 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -69,8 +69,8 @@ require (
 	github.com/prometheus/common v0.70.1 // indirect
 	github.com/prometheus/procfs v0.21.1 // indirect
 	github.com/rabbitmq/amqp091-go v1.13.0 // indirect
-	github.com/redis/go-redis/v9 v9.21.0 // indirect
-	github.com/rogpeppe/go-internal v1.15.0 // indirect
+	github.com/redis/go-redis/v9 v9.22.0 // indirect
+	github.com/rogpeppe/go-internal v1.16.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
@@ -88,8 +88,8 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20260807164820-c8921c73eeea // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260807164820-c8921c73eeea // indirect
 	google.golang.org/grpc v1.83.0 // indirect
 )
 
@@ -125,8 +125,8 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/tavsec/gin-healthcheck v1.7.16
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
-	github.com/ugorji/go/codec v1.3.1 // indirect
-	golang.org/x/arch v0.29.0 // indirect
+	github.com/ugorji/go/codec v1.3.2 // indirect
+	golang.org/x/arch v0.30.0 // indirect
 	golang.org/x/mod v0.38.0 // indirect
 	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
