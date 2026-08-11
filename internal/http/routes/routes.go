@@ -62,7 +62,7 @@ func NewAdminGroup(
 			api.POST("/blocklist/reenable", blocklistHandler.Reenable)
 			api.GET("/blocklist/status", blocklistHandler.Status(""))
 			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
-			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), sseHandler(broadcaster))
+			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
 			api.GET("/version-info", versionInfoHandler.Info)
 			api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
@@ -100,44 +100,6 @@ func NewAdminGroup(
 	}
 
 	return admin
-}
-
-func sseHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if broadcaster == nil {
-			c.AbortWithStatus(http.StatusServiceUnavailable)
-			return
-		}
-		subscriber := broadcaster.Subscribe()
-		defer broadcaster.Unsubscribe(subscriber)
-
-		c.Header("Content-Type", "text/event-stream")
-		c.Header("Connection", "keep-alive")
-		c.Header("Cache-Control", "no-cache")
-		c.Header("X-Accel-Buffering", "no")
-
-		c.SSEvent("ping", nil)
-		c.Writer.Flush()
-
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case event, ok := <-subscriber:
-				if !ok {
-					return
-				}
-				c.SSEvent("message", event)
-				c.Writer.Flush()
-			case <-ticker.C:
-				c.SSEvent("ping", nil)
-				c.Writer.Flush()
-			case <-c.Request.Context().Done():
-				return
-			}
-		}
-	}
 }
 
 func corsPreflightHandler(c *gin.Context) {
