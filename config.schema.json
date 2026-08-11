@@ -231,6 +231,15 @@
         "server": {
           "additionalProperties": true,
           "properties": {
+            "api_keys": {
+              "description": "Map of API keys to user descriptions for admin API access.",
+              "patternProperties": {
+                ".*": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
             "data_dir": {
               "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
               "type": "string"
@@ -542,6 +551,15 @@
     "ServerConfig": {
       "additionalProperties": true,
       "properties": {
+        "api_keys": {
+          "description": "Map of API keys to user descriptions for admin API access.",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "data_dir": {
           "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
           "type": "string"
@@ -847,6 +865,15 @@
     "server": {
       "additionalProperties": true,
       "properties": {
+        "api_keys": {
+          "description": "Map of API keys to user descriptions for admin API access.",
+          "patternProperties": {
+            ".*": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
         "data_dir": {
           "description": "Directory for storing persistent data (e.g., TLS certificate cache).",
           "type": "string"

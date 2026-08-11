@@ -10,3 +10,5 @@ server:
   lets_encrypt:
     allowed_hosts:
       - localhost
+  api_keys:
+    test-key: "test API key for development"

@@ -58,6 +58,8 @@ GET http://admin.localhost:8080/api/blocklist/status
 
 ### ASN Lookup
 GET http://admin.localhost:8080/api/asn/24.123.12.0
+X-API-Key: test-key
+Accept: application/json
 
 
 ### DoH POST

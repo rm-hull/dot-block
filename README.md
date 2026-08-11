@@ -4,21 +4,21 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 
 ## Features
 
--   **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
--   **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
--   **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
--   **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
--   **High Performance:** Built with Go for speed and efficiency.
--   **Intelligent Caching:** Caches DNS responses to speed up subsequent lookups with configurable TTL flooring.
--   **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
--   **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
--   **Advanced Observability:** Exports detailed Prometheus metrics including upstream health, failure reasons, and cache effectiveness.
--   **Real-time Request Streaming:** An admin-only SSE endpoint streams live DNS requests, including client IP, location data (ASN/Country), and blocking status.
--   **Latency-Aware Routing:** Automatically prefers the fastest upstream resolvers based on real-time response latency and applies penalties to failing servers to ensure high availability.
--   **Hardened TLS:** Uses a strict TLS configuration (TLS 1.2+) with forward-secrecy prioritized cipher suites to ensure maximum security for DoT connections.
--   **Distributed Tracing:** Integrates with OpenTelemetry (OTel), providing end-to-end traces of DNS requests and correlating them with logs via `trace_id` and `span_id`.
--   **Noise-Reduced Error Reporting:** Integrates with Sentry, with intelligent filtering to avoid logging protocol-valid negative responses (like NXDOMAIN or NOTIMP) as errors.
--   **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
+- **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
+- **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
+- **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
+- **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
+- **High Performance:** Built with Go for speed and efficiency.
+- **Intelligent Caching:** Caches DNS responses to speed up subsequent lookups with configurable TTL flooring.
+- **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
+- **Automatic TLS:** Uses Let's Encrypt to automatically obtain and renew TLS certificates.
+- **Advanced Observability:** Exports detailed Prometheus metrics including upstream health, failure reasons, and cache effectiveness.
+- **Real-time Request Streaming:** An admin-only SSE endpoint streams live DNS requests, including client IP, location data (ASN/Country), and blocking status.
+- **Latency-Aware Routing:** Automatically prefers the fastest upstream resolvers based on real-time response latency and applies penalties to failing servers to ensure high availability.
+- **Hardened TLS:** Uses a strict TLS configuration (TLS 1.2+) with forward-secrecy prioritized cipher suites to ensure maximum security for DoT connections.
+- **Distributed Tracing:** Integrates with OpenTelemetry (OTel), providing end-to-end traces of DNS requests and correlating them with logs via `trace_id` and `span_id`.
+- **Noise-Reduced Error Reporting:** Integrates with Sentry, with intelligent filtering to avoid logging protocol-valid negative responses (like NXDOMAIN or NOTIMP) as errors.
+- **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
 
 ## Getting Started
 
@@ -45,12 +45,12 @@ For high-traffic environments, you may need to tune the network stack to avoid p
 
 ```yaml
 services:
-  dot-block:
-    # ... other configuration ...
-    sysctls:
-      - net.ipv4.ip_local_port_range=1024 65535
-      - net.core.rmem_max=26214400
-      - net.core.wmem_max=26214400
+    dot-block:
+        # ... other configuration ...
+        sysctls:
+            - net.ipv4.ip_local_port_range=1024 65535
+            - net.core.rmem_max=26214400
+            - net.core.wmem_max=26214400
 ```
 
 - `net.ipv4.ip_local_port_range`: Expands the ephemeral port range to allow more concurrent outgoing UDP requests.
@@ -66,18 +66,18 @@ The easiest way to achieve this is by running Unbound in a separate container on
 
 ```yaml
 services:
-  unbound:
-    image: mvance/unbound:latest
-    container_name: unbound
-    restart: unless-stopped
-    # No ports exposed to the host; only accessible internally by dot-block
+    unbound:
+        image: mvance/unbound:latest
+        container_name: unbound
+        restart: unless-stopped
+        # No ports exposed to the host; only accessible internally by dot-block
 
-  dot-block:
-    image: your-username/dot-block:latest
-    # ... other configuration ...
-    command: ["--upstreams=unbound:53"]
-    depends_on:
-      - unbound
+    dot-block:
+        image: your-username/dot-block:latest
+        # ... other configuration ...
+        command: ["--upstreams=unbound:53"]
+        depends_on:
+            - unbound
 ```
 
 In this configuration, `dot-block` handles the TLS termination, ad-blocking, and caching, while `unbound` performs the actual recursive resolution and DNSSEC validation.
@@ -185,7 +185,14 @@ If `metrics_auth` is configured, the `/metrics` endpoint is protected by basic a
 
 #### Admin endpoints
 
-While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`):
+While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`). Admin API requests must authenticate using one of two methods:
+
+- `X-API-Key` header with a value defined in `server.api_keys`
+- Proxy auth headers: `X-Auth-Request-User` and optional `X-Auth-Request-Email`
+
+These proxy auth headers are typically populated by a reverse proxy such as Traefik and an OAuth2/auth proxy plugin.
+
+If both are present, `X-API-Key` is validated first.
 
 - `POST /api/blocklist/reload`: Triggers an asynchronous reload of all configured blocklists.
 - `GET /api/blocklist/status`: Returns the current status of all blocklists, including metadata, record counts, and enabled status.
@@ -223,17 +230,20 @@ You can configure your browser to use DoT Block for DNS queries directly, withou
 **Generic URL:** `https://dot.your-domain.com/dns-query`
 
 #### Google Chrome
+
 1.  Open **Settings** -> **Privacy and security** -> **Security**.
 2.  Scroll down to **Use secure DNS**.
 3.  Select **With: Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Mozilla Firefox
+
 1.  Open **Settings** -> **Privacy & Security**.
 2.  Scroll down to **DNS over HTTPS**.
 3.  Select **Max Protection** or **Increased Protection**.
 4.  Under **Choose provider**, select **Custom** and enter your DoH URL: `https://dot.your-domain.com/dns-query`.
 
 #### Safari (macOS/iOS)
+
 Safari uses the system DNS settings. To use DoH in Safari, you must configure it at the OS level (see [iOS Configuration](#ios--ipados-configuration) or your macOS network settings).
 
 ## Building
@@ -284,6 +294,11 @@ server:
     email: ""                        # Email address for Let's Encrypt registration
     cloudflare_api_token: ""         # Cloudflare API token for DNS-01 challenge
     allowed_hosts: []                # Domains for CertManager allow policy / mobileconfig
+  api_keys:
+    "key1": "API key for user 1"
+    "key2": "API key for user 2"
+    # API keys are used to authenticate admin API requests on the admin host.
+    # Requests may also authenticate with proxy auth headers (X-Auth-Request-User / X-Auth-Request-Email).
 
 dns:
   upstreams:                         # Upstream DNS resolvers
@@ -346,25 +361,25 @@ All fields are optional — any omitted values fall back to defaults. The `$sche
 
 All configuration values can be overridden via environment variables:
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `DEV_MODE` | Set to `true` to enable development mode (disables TLS). | `false` |
-| `LOG_LEVEL` | The log level (DEBUG, INFO, WARN, ERROR). | `INFO` |
-| `DATA_DIR` | Directory for storing persistent data. | `./data` |
-| `HTTP_PORT` | The port to run HTTP server on. | `80` |
-| `DNS_PORT` | The port to run regular DNS (UDP/TCP) server on. | `0` |
-| `DOT_PORT` | The port to run DNS-over-TLS server on. | `853` |
-| `REQUIRE_PROXY_PROTOCOL` | Set to `true` to require PROXY protocol header. | `false` |
-| `TRUSTED_PROXIES` | Comma-separated list of trusted proxy CIDRs (deprecated, use `proxy_protocol.trusted_proxies` in config). | `""` |
-| `METRICS_AUTH` | Credentials for basic auth on `/metrics` (format: `user:pass`). | `""` |
-| `ENABLE_ECS` | Set to `true` to enable EDNS0 Client Subnet (ECS) steering. | `false` |
-| `DISABLE_IPINFO` | Set to `true` to disable IPinfo.io geolocation lookups. | `false` |
-| `ACME_EMAIL` | Email address for Let's Encrypt registration (see `server.lets_encrypt.email`). | `""` |
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token for DNS-01 challenge (see `server.lets_encrypt.cloudflare_api_token`). | `""` |
-| `IPINFO_TOKEN` | IPInfo.io token for downloading geoIP locations (see `geoblock.ipinfo.token`). | `""` |
-| `SENTRY_DSN` | DSN for Sentry error reporting (see `telemetry.sentry_dsn`). | `""` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (see `telemetry.otel_endpoint`). | `""` |
-| `OTEL_SAMPLING_RATIO` | Ratio of traces to sample (0.0 to 1.0) (see `telemetry.otel_sampling_ratio`). | `0.01` |
+| Variable                      | Description                                                                                               | Default  |
+| :---------------------------- | :-------------------------------------------------------------------------------------------------------- | :------- |
+| `DEV_MODE`                    | Set to `true` to enable development mode (disables TLS).                                                  | `false`  |
+| `LOG_LEVEL`                   | The log level (DEBUG, INFO, WARN, ERROR).                                                                 | `INFO`   |
+| `DATA_DIR`                    | Directory for storing persistent data.                                                                    | `./data` |
+| `HTTP_PORT`                   | The port to run HTTP server on.                                                                           | `80`     |
+| `DNS_PORT`                    | The port to run regular DNS (UDP/TCP) server on.                                                          | `0`      |
+| `DOT_PORT`                    | The port to run DNS-over-TLS server on.                                                                   | `853`    |
+| `REQUIRE_PROXY_PROTOCOL`      | Set to `true` to require PROXY protocol header.                                                           | `false`  |
+| `TRUSTED_PROXIES`             | Comma-separated list of trusted proxy CIDRs (deprecated, use `proxy_protocol.trusted_proxies` in config). | `""`     |
+| `METRICS_AUTH`                | Credentials for basic auth on `/metrics` (format: `user:pass`).                                           | `""`     |
+| `ENABLE_ECS`                  | Set to `true` to enable EDNS0 Client Subnet (ECS) steering.                                               | `false`  |
+| `DISABLE_IPINFO`              | Set to `true` to disable IPinfo.io geolocation lookups.                                                   | `false`  |
+| `ACME_EMAIL`                  | Email address for Let's Encrypt registration (see `server.lets_encrypt.email`).                           | `""`     |
+| `CLOUDFLARE_API_TOKEN`        | Cloudflare API token for DNS-01 challenge (see `server.lets_encrypt.cloudflare_api_token`).               | `""`     |
+| `IPINFO_TOKEN`                | IPInfo.io token for downloading geoIP locations (see `geoblock.ipinfo.token`).                            | `""`     |
+| `SENTRY_DSN`                  | DSN for Sentry error reporting (see `telemetry.sentry_dsn`).                                              | `""`     |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OpenTelemetry OTLP gRPC endpoint (see `telemetry.otel_endpoint`).                                         | `""`     |
+| `OTEL_SAMPLING_RATIO`         | Ratio of traces to sample (0.0 to 1.0) (see `telemetry.otel_sampling_ratio`).                             | `0.01`   |
 
 ### Configuration Precedence
 

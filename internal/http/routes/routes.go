@@ -33,6 +33,7 @@ func NewAdminGroup(
 	r *gin.Engine,
 	adminHost string,
 	devMode bool,
+	apiKeys map[string]string,
 	blocklistHandler *handlers.BlocklistHandler,
 	broadcaster *sse.Broadcaster,
 	geoIp geoblock.GeoIpLookup,
@@ -47,12 +48,12 @@ func NewAdminGroup(
 		api.Use(cors.New(cors.Config{
 			AllowOrigins:     []string{"*"},
 			AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-			AllowHeaders:     []string{"Authorization", "Content-Type"},
+			AllowHeaders:     []string{"Authorization", "Content-Type", "X-API-Key"},
 			ExposeHeaders:    []string{"Content-Length"},
 			AllowCredentials: true,
 			MaxAge:           12 * time.Hour,
 		}))
-		api.Use(middlewares.RequireProxyAuth(devMode))
+		api.Use(middlewares.RequireAnyAuth(middlewares.APIKeyAuth(apiKeys), middlewares.ProxyAuth(devMode)))
 		{
 			api.OPTIONS("/*path", corsPreflightHandler)
 			api.POST("/blocklist/check", blocklistHandler.Check)

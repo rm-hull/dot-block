@@ -355,7 +355,10 @@ func (app *App) startHttpServer(
 		handlers.NewMobileconfigHandler(serverName),
 		handlers.NewDoHHandler(requestHandler))
 
-	routes.NewAdminGroup(r, "admin."+serverName, app.Config.Server.DevMode,
+	routes.NewAdminGroup(r,
+		"admin."+serverName,
+		app.Config.Server.DevMode,
+		app.Config.Server.ApiKeys,
 		handlers.NewBlocklistHandler(blocklists, app.Logger),
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
