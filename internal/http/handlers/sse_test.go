@@ -58,18 +58,19 @@ func TestSSEHandler_QueryFiltersBlockedEvents(t *testing.T) {
 	// Give the handler a moment to process broadcast events.
 	time.Sleep(50 * time.Millisecond)
 
-	body := w.Body.String()
-	assert.Contains(t, body, "event:ping")
-	assert.Contains(t, body, "blocked.example", "blocked=true should include blocked events")
-	assert.NotContains(t, body, "allowed.example", "blocked=true should not include non-blocked events")
-
-	// Signal cancellation to stop the handler cleanly.
+	// Stop the handler and wait for it to finish before reading the recorder
 	cancel()
 	select {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("handler did not exit after cancellation")
 	}
+
+	// Now it's safe to read the recorder without races
+	body := w.Body.String()
+	assert.Contains(t, body, "event:ping")
+	assert.Contains(t, body, "blocked.example", "blocked=true should include blocked events")
+	assert.NotContains(t, body, "allowed.example", "blocked=true should not include non-blocked events")
 }
 
 func TestSSEHandler_InvalidQueryParamReturnsBadRequest(t *testing.T) {
@@ -138,15 +139,17 @@ func TestSSEHandler_DomainFiltersMatchMultiple(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	body := w.Body.String()
-	assert.Contains(t, body, "a.b.example.com")
-	assert.Contains(t, body, "x.other.com")
-	assert.NotContains(t, body, "nope.notmatched")
-
+	// Stop the handler and wait for it to finish before reading the recorder
 	cancel()
 	select {
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("handler did not exit after cancellation")
 	}
+
+	// Now safe to read the response body
+	body := w.Body.String()
+	assert.Contains(t, body, "a.b.example.com")
+	assert.Contains(t, body, "x.other.com")
+	assert.NotContains(t, body, "nope.notmatched")
 }
