@@ -202,6 +202,28 @@ If both are present, `X-API-Key` is validated first.
 - `GET /api/whoami`: Returns information about the currently authenticated user.
 - `GET /api/version-info`: Returns the application version (`app_version`), Go runtime version (`go_version`), and server uptime in seconds (`uptime`).
 - `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
+- `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
+
+    Optional query parameters can be used to filter the streamed events:
+    - `blocked=true|false` — when present, only events whose `blocked` field matches the boolean value will be sent.
+    - `domain=<hostname>` — repeatable. When one or more `domain` parameters are provided the handler only streams events whose queried domain equals or is a subdomain of any of the provided values (suffix match). Examples:
+        - `?domain=example.com` matches `example.com` and `www.example.com`.
+        - `?domain=example.com&domain=other.com` matches any event under either suffix.
+
+    Note on combining parameters: When multiple different query parameters are provided they are combined using logical AND — an event must satisfy every provided parameter to be streamed. The `domain` parameter is the exception in that it may be supplied multiple times; multiple `domain` values are treated as an OR (match any of the provided domain suffixes), and that OR result is then ANDed with the other parameters.
+
+    Examples:
+    - Stream only blocked events:
+
+        ```bash
+        curl -N -H "Accept: text/event-stream" "http://admin.localhost:8080/api/events?blocked=true"
+        ```
+
+    - Stream events for multiple domains (suffix match):
+
+        ```bash
+        curl -N -H "Accept: text/event-stream" "http://admin.localhost:8080/api/events?domain=example.com&domain=other.com"
+        ```
 
 ### Testing the Event Stream
 
