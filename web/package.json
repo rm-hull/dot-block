@@ -35,7 +35,7 @@
     "@tanstack/react-query-devtools": "^5.101.4",
     "@tanstack/react-router-devtools": "^1.167.1",
     "@tanstack/router-cli": "^1.167.25",
-    "@tanstack/router-devtools": "^1.167.0",
+    "@tanstack/router-devtools": "^1.167.1",
     "@tanstack/router-plugin": "^1.168.20",
     "@trivago/prettier-plugin-sort-imports": "^6.0.2",
     "@types/babel__core": "^7.20.5",
