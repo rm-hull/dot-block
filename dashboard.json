@@ -5,8 +5,8 @@
     "name": "a039bfc8-0cb5-4e7c-8043-367b69df33e1",
     "namespace": "default",
     "uid": "oYO54DV0Uu4cEJGbXLDoV7fmgiBXDk5OyweM0uWA3akX",
-    "resourceVersion": "1785069997864003",
-    "generation": 71,
+    "resourceVersion": "1786577019701989",
+    "generation": 72,
     "creationTimestamp": "2025-12-28T23:44:02Z",
     "labels": {
       "grafana.app/deprecatedInternalID": "6"
@@ -16,7 +16,7 @@
       "grafana.app/folder": "",
       "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
       "grafana.app/updatedBy": "user:ef8i63jnry77ka",
-      "grafana.app/updatedTimestamp": "2026-07-26T12:46:37Z"
+      "grafana.app/updatedTimestamp": "2026-08-12T23:23:39Z"
     }
   },
   "spec": {
@@ -169,7 +169,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(blocklist_age)",
+                        "expr": "min(blocklist_age)",
                         "range": true
                       }
                     },
