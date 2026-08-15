@@ -149,9 +149,19 @@ func (app *App) RunServer(ctx context.Context) error {
 	}
 	cache := forwarder.NewDNSCache(app.Config.DNS.Cache.MaxSize, app.Logger)
 
+	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup, metrics.TopKConfig{
+		NumDomains: app.Config.Telemetry.TopK.NumDomains,
+		NumBlocked: app.Config.Telemetry.TopK.NumBlocked,
+		NumClients: app.Config.Telemetry.TopK.NumClients,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize metrics")
+	}
+
 	// Rate limiter — shared across all four listeners (UDP, TCP, DoT, DoH).
 	// DoH is gated by the Gin middleware; UDP/TCP/DoT by the dispatcher.
-	rateLimiter, err := limiter.New(app.Config.Server.RateLimit)
+	// Metrics are wired in via WithMetrics so Prometheus counters are populated.
+	rateLimiter, err := limiter.New(app.Config.Server.RateLimit, limiter.WithMetrics(metrics))
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize rate limiter")
 	}
@@ -161,14 +171,6 @@ func (app *App) RunServer(ctx context.Context) error {
 	})
 	app.Logger.Info("Rate limiter initialized", "enabled", app.Config.Server.RateLimit.Enabled)
 
-	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup, metrics.TopKConfig{
-		NumDomains: app.Config.Telemetry.TopK.NumDomains,
-		NumBlocked: app.Config.Telemetry.TopK.NumBlocked,
-		NumClients: app.Config.Telemetry.TopK.NumClients,
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to initialize metrics")
-	}
 	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Config.DNS.Timeouts.Read, app.Config.DNS.Timeouts.Write, app.Config.DNS.Timeouts.Dial, app.Logger, app.Config.DNS.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
