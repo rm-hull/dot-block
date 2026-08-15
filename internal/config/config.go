@@ -35,7 +35,7 @@ type ServerConfig struct {
 	DotPort       int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty" descr:"The port to run DNS-over-TLS server on."`
 	ProxyProtocol *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
 	LetsEncrypt   *LetsEncryptConfig   `yaml:"lets_encrypt,omitempty" json:"lets_encrypt,omitempty"`
-	ApiKeys       map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" descr:"Map of API keys to user descriptions for admin API access."`
+	ApiKeys       map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" log:"redacted" descr:"Map of API keys to user descriptions for admin API access."`
 }
 
 type ProxyProtocolConfig struct {
