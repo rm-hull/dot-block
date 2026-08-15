@@ -292,6 +292,19 @@ func (l *Limiter) Reap() {
 	l.bansMu.Unlock()
 }
 
+// BannedIPs returns a snapshot of currently-banned IPs and the time their
+// ban expires. The map is a copy — safe to iterate without holding the lock.
+func (l *Limiter) BannedIPs() map[string]time.Time {
+	l.bansMu.RLock()
+	defer l.bansMu.RUnlock()
+
+	out := make(map[string]time.Time, len(l.bans))
+	for ip, until := range l.bans {
+		out[ip] = until
+	}
+	return out
+}
+
 // ClientIP strips the port from a "host:port" address, which is what you'll
 // typically get from net.Conn.RemoteAddr().String() or a UDP packet's
 // source address. Falls back to returning the input unchanged if it's not

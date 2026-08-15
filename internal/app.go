@@ -385,6 +385,7 @@ func (app *App) startHttpServer(
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
 		versionInfoHandler,
+		rateLimiter,
 	)
 
 	return r, nil
