@@ -61,7 +61,6 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 
 	rateLimiter, err := limiter.New(&config.RateLimitConfig{Enabled: false})
 	require.NoError(b, err)
-	b.Cleanup(rateLimiter.Close)
 
 	dispatcher, err := NewDNSDispatcher(
 		cache, dnsMetrics, dnsClient,

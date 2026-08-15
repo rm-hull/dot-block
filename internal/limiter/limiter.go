@@ -127,11 +127,6 @@ func New(cfg *config.RateLimitConfig, opts ...Option) (*Limiter, error) {
 	return l, nil
 }
 
-// Close is a no-op; the reaper is now driven externally via Reap() on the
-// existing cron scheduler (see app.go's startHttpServer / RunServer).
-// Retained for API compatibility.
-func (l *Limiter) Close() {}
-
 // Allow reports whether a query from ip should proceed. Call this as early
 // as possible in the request path — right after extracting the client IP,
 // before any cache lookup or upstream dispatch — so rejected traffic costs

@@ -165,10 +165,6 @@ func (app *App) RunServer(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize rate limiter")
 	}
-	app.monitorShutdown(ctx, "Rate limiter", func() error {
-		rateLimiter.Close()
-		return nil
-	})
 	app.Logger.Info("Rate limiter initialized", "enabled", app.Config.Server.RateLimit.Enabled)
 
 	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Config.DNS.Timeouts.Read, app.Config.DNS.Timeouts.Write, app.Config.DNS.Timeouts.Dial, app.Logger, app.Config.DNS.Upstreams...)

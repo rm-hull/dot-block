@@ -92,7 +92,6 @@ func newTestLimiter(t *testing.T) *limiter.Limiter {
 	t.Helper()
 	l, err := limiter.New(&config.RateLimitConfig{Enabled: false})
 	require.NoError(t, err)
-	t.Cleanup(l.Close)
 	return l
 }
 
