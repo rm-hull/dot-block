@@ -317,41 +317,51 @@
               "description": "Rate limiting configuration for client IPs.",
               "properties": {
                 "ban_duration": {
+                  "description": "Duration to ban an IP after exceeding limits.",
                   "format": "duration",
                   "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
                   "type": "string"
                 },
                 "burst": {
+                  "description": "Maximum burst size for rate limiting.",
                   "type": "integer"
                 },
                 "enabled": {
+                  "description": "Whether to enable rate limiting.",
                   "type": "boolean"
                 },
                 "idle_ttl": {
+                  "description": "Time-to-live for idle entries before eviction.",
                   "format": "duration",
                   "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
                   "type": "string"
                 },
                 "max_tracked_ips": {
+                  "description": "Maximum number of client IPs to track for rate limiting.",
                   "type": "integer"
                 },
                 "nxdomain_min_queries": {
+                  "description": "Minimum number of queries before evaluating NXDOMAIN ratio.",
                   "type": "integer"
                 },
                 "nxdomain_threshold": {
+                  "description": "Threshold ratio of NXDOMAIN responses to trigger a ban.",
                   "type": "number"
                 },
                 "nxdomain_window": {
+                  "description": "Rolling window duration to evaluate NXDOMAIN ratio.",
                   "format": "duration",
                   "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
                   "type": "string"
                 },
                 "reap_interval": {
+                  "description": "Interval for reaping stale entries from the rate limiter.",
                   "format": "duration",
                   "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
                   "type": "string"
                 },
                 "requests_per_second": {
+                  "description": "Maximum allowed requests per second per client IP.",
                   "type": "number"
                 }
               },
@@ -598,41 +608,51 @@
       "description": "Rate limiting configuration for client IPs.",
       "properties": {
         "ban_duration": {
+          "description": "Duration to ban an IP after exceeding limits.",
           "format": "duration",
           "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         },
         "burst": {
+          "description": "Maximum burst size for rate limiting.",
           "type": "integer"
         },
         "enabled": {
+          "description": "Whether to enable rate limiting.",
           "type": "boolean"
         },
         "idle_ttl": {
+          "description": "Time-to-live for idle entries before eviction.",
           "format": "duration",
           "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         },
         "max_tracked_ips": {
+          "description": "Maximum number of client IPs to track for rate limiting.",
           "type": "integer"
         },
         "nxdomain_min_queries": {
+          "description": "Minimum number of queries before evaluating NXDOMAIN ratio.",
           "type": "integer"
         },
         "nxdomain_threshold": {
+          "description": "Threshold ratio of NXDOMAIN responses to trigger a ban.",
           "type": "number"
         },
         "nxdomain_window": {
+          "description": "Rolling window duration to evaluate NXDOMAIN ratio.",
           "format": "duration",
           "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         },
         "reap_interval": {
+          "description": "Interval for reaping stale entries from the rate limiter.",
           "format": "duration",
           "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
           "type": "string"
         },
         "requests_per_second": {
+          "description": "Maximum allowed requests per second per client IP.",
           "type": "number"
         }
       },
@@ -727,41 +747,51 @@
           "description": "Rate limiting configuration for client IPs.",
           "properties": {
             "ban_duration": {
+              "description": "Duration to ban an IP after exceeding limits.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "burst": {
+              "description": "Maximum burst size for rate limiting.",
               "type": "integer"
             },
             "enabled": {
+              "description": "Whether to enable rate limiting.",
               "type": "boolean"
             },
             "idle_ttl": {
+              "description": "Time-to-live for idle entries before eviction.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "max_tracked_ips": {
+              "description": "Maximum number of client IPs to track for rate limiting.",
               "type": "integer"
             },
             "nxdomain_min_queries": {
+              "description": "Minimum number of queries before evaluating NXDOMAIN ratio.",
               "type": "integer"
             },
             "nxdomain_threshold": {
+              "description": "Threshold ratio of NXDOMAIN responses to trigger a ban.",
               "type": "number"
             },
             "nxdomain_window": {
+              "description": "Rolling window duration to evaluate NXDOMAIN ratio.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "reap_interval": {
+              "description": "Interval for reaping stale entries from the rate limiter.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "requests_per_second": {
+              "description": "Maximum allowed requests per second per client IP.",
               "type": "number"
             }
           },
@@ -1086,41 +1116,51 @@
           "description": "Rate limiting configuration for client IPs.",
           "properties": {
             "ban_duration": {
+              "description": "Duration to ban an IP after exceeding limits.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "burst": {
+              "description": "Maximum burst size for rate limiting.",
               "type": "integer"
             },
             "enabled": {
+              "description": "Whether to enable rate limiting.",
               "type": "boolean"
             },
             "idle_ttl": {
+              "description": "Time-to-live for idle entries before eviction.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "max_tracked_ips": {
+              "description": "Maximum number of client IPs to track for rate limiting.",
               "type": "integer"
             },
             "nxdomain_min_queries": {
+              "description": "Minimum number of queries before evaluating NXDOMAIN ratio.",
               "type": "integer"
             },
             "nxdomain_threshold": {
+              "description": "Threshold ratio of NXDOMAIN responses to trigger a ban.",
               "type": "number"
             },
             "nxdomain_window": {
+              "description": "Rolling window duration to evaluate NXDOMAIN ratio.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "reap_interval": {
+              "description": "Interval for reaping stale entries from the rate limiter.",
               "format": "duration",
               "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
               "type": "string"
             },
             "requests_per_second": {
+              "description": "Maximum allowed requests per second per client IP.",
               "type": "number"
             }
           },
