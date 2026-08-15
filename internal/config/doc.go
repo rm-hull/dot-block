@@ -33,45 +33,55 @@ func reflectorWithComments() jsonschema.Reflector {
 	}
 }
 
-// buildCommentMap generates a CommentMap from the `descr:"..."` struct tags on Config and its nested types.
+// buildCommentMap generates a CommentMap from the `descr:"..."` struct tags
+// on Config and all reachable nested struct types. It walks the type graph
+// recursively starting from Config, so new structs added to the config
+// hierarchy are automatically included without requiring manual registration.
 // The keys are in the format "packagepath.TypeName.FieldName".
 func buildCommentMap() map[string]string {
 	commentMap := make(map[string]string)
 	pkgPath := "github.com/rm-hull/dot-block/internal/config"
+	visited := make(map[reflect.Type]struct{})
 
-	collectDescriptions(reflect.TypeFor[Config](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[ServerConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[ProxyProtocolConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[LetsEncryptConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[DNSConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[ECSConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[CacheConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[NoiseFilter](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[TimeoutsConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[BlocklistConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[BlocklistSource](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[GeoblockConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[IpinfoConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[TelemetryConfig](), pkgPath, commentMap)
-	collectDescriptions(reflect.TypeFor[TopKConfig](), pkgPath, commentMap)
-
+	walkStructTypes(reflect.TypeFor[Config](), pkgPath, visited, commentMap)
 	return commentMap
 }
 
-// collectDescriptions walks a struct type and collects `descr:"..."` tags into the commentMap.
-func collectDescriptions(t reflect.Type, pkgPath string, commentMap map[string]string) {
+// walkStructTypes recursively discovers all struct types reachable from t
+// (via pointer fields, slice elements, and map elements) and collects their
+// `descr:"..."` tags into the commentMap. Types outside the config package
+// are skipped since only config struct descriptions need to be mapped.
+func walkStructTypes(t reflect.Type, pkgPath string, visited map[reflect.Type]struct{}, commentMap map[string]string) {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	if t.Kind() != reflect.Struct {
+
+	// Only recurse into structs defined in the config package.
+	if t.Kind() != reflect.Struct || t.PkgPath() != pkgPath {
 		return
 	}
+
+	// Guard against infinite recursion on cyclic type references.
+	if _, seen := visited[t]; seen {
+		return
+	}
+	visited[t] = struct{}{}
+
 	for field := range t.Fields() {
-		field := field
-		descr := field.Tag.Get("descr")
-		if descr != "" {
+		// Collect the description tag for this field.
+		if descr := field.Tag.Get("descr"); descr != "" {
 			key := pkgPath + "." + t.Name() + "." + field.Name
 			commentMap[key] = descr
+		}
+
+		// Recurse into nested struct types (pointer fields, slice/map element types).
+		switch field.Type.Kind() {
+		case reflect.Pointer:
+			walkStructTypes(field.Type.Elem(), pkgPath, visited, commentMap)
+		case reflect.Slice:
+			walkStructTypes(field.Type.Elem(), pkgPath, visited, commentMap)
+		case reflect.Map:
+			walkStructTypes(field.Type.Elem(), pkgPath, visited, commentMap)
 		}
 	}
 }
