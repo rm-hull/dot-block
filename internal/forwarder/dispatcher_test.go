@@ -86,11 +86,23 @@ func (m *MockResponseWriter) TsigTimersOnly(b bool) {
 func (m *MockResponseWriter) Hijack() {
 }
 
-// newTestLimiter creates a disabled limiter for use in tests where rate
-// limiting should not interfere with DNS processing.
+// newTestLimiter creates a rate limiter with high limits (100K RPS, 100K burst)
+// suitable for tests that exercise the rate-limiting code path without actually
+// triggering rate limiting during normal test traffic.
 func newTestLimiter(t *testing.T) *limiter.Limiter {
 	t.Helper()
-	l, err := limiter.New(&config.RateLimitConfig{Enabled: false})
+	l, err := limiter.New(&config.RateLimitConfig{
+		Enabled:             true,
+		RequestsPerSecond:   100000,
+		Burst:               100000,
+		MaxTrackedIPs:       100000,
+		BanDuration:         time.Hour,
+		NXDOMAINWindow:      time.Minute,
+		NXDOMAINMinQueries:  1000,
+		NXDOMAINThreshold:   0.8,
+		ReapInterval:        time.Minute,
+		IdleTTL:             10 * time.Minute,
+	})
 	require.NoError(t, err)
 	return l
 }
