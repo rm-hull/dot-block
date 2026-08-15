@@ -161,7 +161,7 @@ func (app *App) RunServer(ctx context.Context) error {
 	// Rate limiter — shared across all four listeners (UDP, TCP, DoT, DoH).
 	// DoH is gated by the Gin middleware; UDP/TCP/DoT by the dispatcher.
 	// Metrics are wired in via WithMetrics so Prometheus counters are populated.
-	rateLimiter, err := limiter.New(app.Config.Server.RateLimit, limiter.WithMetrics(metrics))
+	rateLimiter, err := limiter.New(app.Config.Server.RateLimit, metrics)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize rate limiter")
 	}

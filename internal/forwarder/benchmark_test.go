@@ -59,7 +59,18 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 	dnsClient, err := NewRoundRobinClient(dnsMetrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(b, err)
 
-	rateLimiter, err := limiter.New(&config.RateLimitConfig{Enabled: false})
+	rateLimiter, err := limiter.New(&config.RateLimitConfig{
+		Enabled:            true,
+		RequestsPerSecond:  1000000,
+		Burst:              10000000,
+		MaxTrackedIPs:      10,
+		BanDuration:        time.Hour,
+		NXDOMAINWindow:     time.Minute,
+		NXDOMAINMinQueries: 1000,
+		NXDOMAINThreshold:  0.8,
+		ReapInterval:       time.Minute,
+		IdleTTL:            10 * time.Minute,
+	}, dnsMetrics)
 	require.NoError(b, err)
 
 	dispatcher, err := NewDNSDispatcher(

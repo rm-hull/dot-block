@@ -89,20 +89,20 @@ func (m *MockResponseWriter) Hijack() {
 // newTestLimiter creates a rate limiter with high limits (100K RPS, 100K burst)
 // suitable for tests that exercise the rate-limiting code path without actually
 // triggering rate limiting during normal test traffic.
-func newTestLimiter(t *testing.T) *limiter.Limiter {
+func newTestLimiter(t *testing.T, metrics *metrics.DnsMetrics) *limiter.Limiter {
 	t.Helper()
 	l, err := limiter.New(&config.RateLimitConfig{
-		Enabled:             true,
-		RequestsPerSecond:   100000,
-		Burst:               100000,
-		MaxTrackedIPs:       100000,
-		BanDuration:         time.Hour,
-		NXDOMAINWindow:      time.Minute,
-		NXDOMAINMinQueries:  1000,
-		NXDOMAINThreshold:   0.8,
-		ReapInterval:        time.Minute,
-		IdleTTL:             10 * time.Minute,
-	})
+		Enabled:            true,
+		RequestsPerSecond:  100000,
+		Burst:              100000,
+		MaxTrackedIPs:      100000,
+		BanDuration:        time.Hour,
+		NXDOMAINWindow:     time.Minute,
+		NXDOMAINMinQueries: 1000,
+		NXDOMAINThreshold:  0.8,
+		ReapInterval:       time.Minute,
+		IdleTTL:            10 * time.Minute,
+	}, metrics)
 	require.NoError(t, err)
 	return l
 }
@@ -126,7 +126,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, enableECS, newTestLimiter(t))
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, enableECS, newTestLimiter(t, metrics))
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
@@ -461,7 +461,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), -1*time.Second, logger, false, newTestLimiter(t))
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), -1*time.Second, logger, false, newTestLimiter(t, metrics))
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -790,7 +790,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 
-			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, tt.enableECS, newTestLimiter(t))
+			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, tt.enableECS, newTestLimiter(t, metrics))
 			defer dispatcher.Close()
 
 			// Mock ResponseWriter with the specific client IP

@@ -5,7 +5,6 @@
 package middlewares
 
 import (
-	"net"
 	"net/http"
 	"strconv"
 
@@ -50,62 +49,3 @@ func RateLimit(l *limiter.Limiter) gin.HandlerFunc {
 		}
 	}
 }
-
-// --- UDP listener (illustrative) -------------------------------------------
-//
-// func (s *Server) handleUDP(conn *net.UDPConn) {
-//     buf := make([]byte, 4096)
-//     for {
-//         n, addr, err := conn.ReadFromUDP(buf)
-//         if err != nil { continue }
-//
-//         ip := addr.IP.String()
-//         if ok, _ := s.limiter.Allow(ip); !ok {
-//             // Deliberately drop rather than respond. A REFUSED reply to a
-//             // spoofed source IP is itself amplification traffic; silence
-//             // is the safer default for UDP specifically. TCP/DoT/DoH can
-//             // afford an explicit rejection since the handshake already
-//             // proves the source address isn't spoofed.
-//             continue
-//         }
-//
-//         msg := new(dns.Msg)
-//         if err := msg.Unpack(buf[:n]); err != nil { continue }
-//
-//         resp := s.dispatcher.Resolve(msg) // existing cache/upstream path
-//         s.limiter.RecordResult(ip, resp.Rcode == dns.RcodeNameError)
-//
-//         out, _ := resp.Pack()
-//         _, _ = conn.WriteToUDP(out, addr)
-//     }
-// }
-
-// --- TCP / DoT listener (illustrative) --------------------------------------
-//
-// func (s *Server) handleConn(conn net.Conn) {
-//     defer conn.Close()
-//     ip := limiter.ClientIP(conn.RemoteAddr().String())
-//
-//     // Gate at accept time too, in addition to per-query, since one TCP
-//     // connection can pipeline many queries and shouldn't get a free pass
-//     // on the RPS check just by staying connected.
-//     if ok, _ := s.limiter.Allow(ip); !ok {
-//         return // close immediately, no response
-//     }
-//
-//     for {
-//         msg, err := readDNSMessage(conn) // existing length-prefixed read
-//         if err != nil { return }
-//
-//         if ok, reason := s.limiter.Allow(ip); !ok {
-//             writeRefused(conn, msg, reason)
-//             return
-//         }
-//
-//         resp := s.dispatcher.Resolve(msg)
-//         s.limiter.RecordResult(ip, resp.Rcode == dns.RcodeNameError)
-//         writeDNSMessage(conn, resp)
-//     }
-// }
-
-var _ = net.SplitHostPort // silence unused import in this illustrative file

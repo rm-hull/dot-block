@@ -19,7 +19,6 @@
 package limiter
 
 import (
-	"net"
 	"sync"
 	"time"
 
@@ -46,11 +45,6 @@ type Metrics interface {
 	SetTrackedIPs(n int)
 }
 
-type noopMetrics struct{}
-
-func (noopMetrics) IncRateLimited(Reason) {}
-func (noopMetrics) SetTrackedIPs(int)     {}
-
 // bucketEntry pairs a token bucket with a last-seen timestamp so the reaper
 // can evict idle IPs without waiting for the LRU to fill up.
 type bucketEntry struct {
@@ -68,20 +62,9 @@ type nxEntry struct {
 	nxdomain    int
 }
 
-// Clock abstracts time so tests can run deterministically instead of
-// depending on real sleeps.
-type Clock interface {
-	Now() time.Time
-}
-
-type realClock struct{}
-
-func (realClock) Now() time.Time { return time.Now() }
-
 // Limiter is safe for concurrent use.
 type Limiter struct {
 	cfg     *config.RateLimitConfig
-	clock   Clock
 	metrics Metrics
 
 	mu      sync.Mutex // guards buckets/nx maps only; bans has its own lock
@@ -92,13 +75,7 @@ type Limiter struct {
 	bans   map[string]time.Time // ip -> ban expiry
 }
 
-// Option configures optional dependencies (metrics, clock) at construction.
-type Option func(*Limiter)
-
-func WithMetrics(m Metrics) Option { return func(l *Limiter) { l.metrics = m } }
-func WithClock(c Clock) Option     { return func(l *Limiter) { l.clock = c } }
-
-func New(cfg *config.RateLimitConfig, opts ...Option) (*Limiter, error) {
+func New(cfg *config.RateLimitConfig, metrics Metrics) (*Limiter, error) {
 	maxTrackedIPs := cfg.MaxTrackedIPs
 	if maxTrackedIPs <= 0 {
 		maxTrackedIPs = 10000
@@ -113,15 +90,11 @@ func New(cfg *config.RateLimitConfig, opts ...Option) (*Limiter, error) {
 	}
 
 	l := &Limiter{
-		cfg:        cfg,
-		clock:      realClock{},
-		metrics:    noopMetrics{},
-		buckets:    buckets,
-		nx:         nx,
-		bans:       make(map[string]time.Time),
-	}
-	for _, opt := range opts {
-		opt(l)
+		cfg:     cfg,
+		metrics: metrics,
+		buckets: buckets,
+		nx:      nx,
+		bans:    make(map[string]time.Time),
 	}
 
 	return l, nil
@@ -138,7 +111,7 @@ func (l *Limiter) Allow(ip string) (bool, Reason) {
 		return true, ReasonNone
 	}
 
-	now := l.clock.Now()
+	now := time.Now()
 
 	// Cheapest check first: is this IP currently banned?
 	if until, banned := l.isBanned(ip, now); banned {
@@ -164,7 +137,7 @@ func (l *Limiter) RetryAfter(ip string) time.Duration {
 		return 0
 	}
 
-	now := l.clock.Now()
+	now := time.Now()
 
 	if until, ok := l.isBanned(ip, now); ok {
 		return time.Until(until)
@@ -194,7 +167,7 @@ func (l *Limiter) RecordResult(ip string, isNXDOMAIN bool) {
 		return
 	}
 
-	now := l.clock.Now()
+	now := time.Now()
 
 	l.mu.Lock()
 	entry, ok := l.nx.Get(ip)
@@ -264,7 +237,7 @@ func (l *Limiter) ban(ip string, now time.Time) {
 // on its own goroutine, so there is no background goroutine to manage or
 // shut down.
 func (l *Limiter) Reap() {
-	now := l.clock.Now()
+	now := time.Now()
 
 	l.mu.Lock()
 	for _, ip := range l.buckets.Keys() {
@@ -303,16 +276,4 @@ func (l *Limiter) BannedIPs() map[string]time.Time {
 		out[ip] = until
 	}
 	return out
-}
-
-// ClientIP strips the port from a "host:port" address, which is what you'll
-// typically get from net.Conn.RemoteAddr().String() or a UDP packet's
-// source address. Falls back to returning the input unchanged if it's not
-// in host:port form (e.g. already a bare IP).
-func ClientIP(addr string) string {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return addr
-	}
-	return host
 }
