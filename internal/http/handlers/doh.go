@@ -79,7 +79,9 @@ func NewDoHResponseWriter(clientIP string) (*doHResponseWriter, error) {
 }
 
 func (w *doHResponseWriter) Write(b []byte) (int, error) {
-	return len(b), w.msg.Unpack(b)
+	// doHResponseWriter only supports WriteMsg; Write is unused by miekg/dns server ServeDNS
+	// when responses are sent via WriteMsg. We return len(b) to satisfy io.Writer without unpacking.
+	return len(b), nil
 }
 
 func (w *doHResponseWriter) LocalAddr() net.Addr {
