@@ -61,4 +61,3 @@ func ProxyAuth(devMode bool) Authenticator {
 		return true
 	}
 }
-
