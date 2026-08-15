@@ -12,6 +12,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
 	"github.com/rm-hull/dot-block/internal/http/sse"
+	"github.com/rm-hull/dot-block/internal/limiter"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/rm-hull/dot-block/internal/telemetry"
@@ -61,6 +62,7 @@ type DNSDispatcher struct {
 	noiseFilter *noisefilter.NoiseFilter
 	broadcaster *sse.Broadcaster
 	enableECS   bool
+	limiter     *limiter.Limiter
 	snapshotCh  chan *metrics.RequestSnapshot
 	done        chan struct{}
 }
@@ -75,6 +77,7 @@ func NewDNSDispatcher(
 	ttlFloor time.Duration,
 	logger *slog.Logger,
 	enableECS bool,
+	rateLimiter *limiter.Limiter,
 ) (*DNSDispatcher, error) {
 
 	if ttlFloor < 0 {
@@ -92,6 +95,7 @@ func NewDNSDispatcher(
 		noiseFilter: noiseFilter,
 		broadcaster: broadcaster,
 		enableECS:   enableECS,
+		limiter:     rateLimiter,
 		snapshotCh:  make(chan *metrics.RequestSnapshot, SNAPSHOT_BUFFER_SIZE),
 		done:        make(chan struct{}),
 	}
@@ -106,6 +110,9 @@ func NewDNSDispatcher(
 
 func (d *DNSDispatcher) Close() {
 	d.cache.Close()
+	if d.limiter != nil {
+		d.limiter.Close()
+	}
 	close(d.done)
 }
 
@@ -130,6 +137,25 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 				"error", err)
 
 			ipAddr = "unknown" // Fallback to "unknown" if IP parsing fails
+		}
+
+		// Rate limit check — do this as early as possible (before any tracing
+		// or setup work) so rejected traffic costs as little as possible.
+		// DoH queries are handled by the Gin middleware instead.
+		shouldRateLimit := ipAddr != "unknown" && source != SourceDoH
+		if shouldRateLimit {
+			if ok, reason := d.limiter.Allow(ipAddr); !ok {
+				d.logger.Debug("client rate limited", "ip", ipAddr, "source", source, "reason", reason)
+				if source != SourceUDP {
+					// TCP/DoT: send REFUSED so the client knows to back off.
+					// (A banned source address is provably reachable for TCP.)
+					refused := d.newReply(req)
+					refused.Rcode = dns.RcodeRefused
+					_ = writer.WriteMsg(refused)
+				}
+				// UDP: silent drop to avoid amplification via spoofed-source replies.
+				return
+			}
 		}
 
 		// Start root span for the request
@@ -165,6 +191,15 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 		}()
 
 		resp := d.newReply(req)
+
+		// Record the rate-limiting result (for NXDOMAIN-flood detection)
+		// after the response has been constructed. Skipped for DoH — the
+		// Gin middleware handles RecordResult for HTTP clients.
+		if shouldRateLimit {
+			defer func() {
+				d.limiter.RecordResult(ipAddr, resp.Rcode == dns.RcodeNameError)
+			}()
+		}
 
 		unansweredQuestions := make([]dns.Question, 0, len(req.Question))
 

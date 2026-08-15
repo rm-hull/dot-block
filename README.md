@@ -19,6 +19,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 - **Distributed Tracing:** Integrates with OpenTelemetry (OTel), providing end-to-end traces of DNS requests and correlating them with logs via `trace_id` and `span_id`.
 - **Noise-Reduced Error Reporting:** Integrates with Sentry, with intelligent filtering to avoid logging protocol-valid negative responses (like NXDOMAIN or NOTIMP) as errors.
 - **Proxy Protocol Support:** Supports PROXY protocol for DoT connections, enabling correct client IP identification when running behind a proxy.
+- **Rate Limiting & Abuse Protection:** Per-client-IP token buckets limit query rates (UDP/TCP/DoT/DoH) with configurable RPS, burst, and ban duration. Separate NXDOMAIN flood detection bans IPs that generate a high ratio of non-existent domain responses, protecting against cache-buster and random-subdomain attacks.
 
 ## Getting Started
 
@@ -201,7 +202,7 @@ If both are present, `X-API-Key` is validated first.
 - `POST /api/blocklist/check`: Checks whether provided domains are blocked against any of the enabled blocklists. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.
 - `GET /api/version-info`: Returns the application version (`app_version`), Go runtime version (`go_version`), and server uptime in seconds (`uptime`).
-- `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
+- `GET /api/banned-ips`: Returns a JSON list of currently rate-limited IPs, including the IP, ban expiry time (RFC 3339), and remaining ban duration in seconds.
 - `GET /api/events`: Streams live DNS requests via Server-Sent Events (SSE). Each event is a JSON object containing the queried domain, client IP, source (UDP/TCP/DoT/DoH), whether it was blocked, and GeoIP data (ASN and Country ISO code).
 
     Optional query parameters can be used to filter the streamed events:
@@ -321,6 +322,18 @@ server:
     "key2": "API key for user 2"
     # API keys are used to authenticate admin API requests on the admin host.
     # Requests may also authenticate with proxy auth headers (X-Auth-Request-User / X-Auth-Request-Email).
+
+  rate_limit:                        # Rate limiting configuration for client IPs
+    enabled: true                    # Whether to enable rate limiting
+    requests_per_second: 50          # Maximum allowed requests per second per client IP
+    burst: 100                       # Maximum burst size for rate limiting
+    ban_duration: 1h                 # Duration to ban an IP after exceeding limits
+    nxdomain_window: 1m              # Rolling window duration to evaluate NXDOMAIN ratio
+    nxdomain_min_queries: 20         # Minimum number of queries before evaluating NXDOMAIN ratio
+    nxdomain_threshold: 0.8          # Threshold ratio of NXDOMAIN responses to trigger a ban
+    max_tracked_ips: 100000          # Maximum number of client IPs to track for rate limiting
+    reap_interval: 1m                # Interval for reaping stale entries from the rate limiter
+    idle_ttl: 10m                    # Time-to-live for idle entries before eviction
 
 dns:
   upstreams:                         # Upstream DNS resolvers

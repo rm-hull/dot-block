@@ -14,17 +14,22 @@ import (
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/http/web"
+	"github.com/rm-hull/dot-block/internal/limiter"
 	cachecontrol "go.eigsys.de/gin-cachecontrol/v2"
 )
 
-func NewPublicGroup(r *gin.Engine, publicHost string, mobileConfigHandler gin.HandlerFunc, dohHandler gin.HandlerFunc) *gin.RouterGroup {
+func NewPublicGroup(r *gin.Engine, publicHost string, rateLimiter *limiter.Limiter, mobileConfigHandler gin.HandlerFunc, dohHandler gin.HandlerFunc) *gin.RouterGroup {
 	public := r.Group("/")
 	public.Use(middlewares.RequireHost(publicHost))
 	{
 		public.GET("/.mobileconfig", mobileConfigHandler)
 		public.GET("/robots.txt", handlers.RobotsTxtHandler)
-		public.GET("/dns-query", dohHandler)
-		public.POST("/dns-query", dohHandler)
+		doh := public.Group("/dns-query")
+		doh.Use(middlewares.RateLimit(rateLimiter))
+		{
+			doh.GET("", dohHandler)
+			doh.POST("", dohHandler)
+		}
 	}
 	return public
 }
@@ -38,6 +43,7 @@ func NewAdminGroup(
 	broadcaster *sse.Broadcaster,
 	geoIp geoblock.GeoIpLookup,
 	versionInfoHandler *handlers.VersionInfoHandler,
+	rateLimiter *limiter.Limiter,
 ) *gin.RouterGroup {
 
 	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
@@ -65,6 +71,7 @@ func NewAdminGroup(
 			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster))
 			api.GET("/whoami", whoAmIHandler)
 			api.GET("/version-info", versionInfoHandler.Info)
+			api.GET("/banned-ips", bannedIPsHandler(rateLimiter))
 			api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
 		}
 
@@ -104,6 +111,26 @@ func NewAdminGroup(
 
 func corsPreflightHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
+}
+
+func bannedIPsHandler(rateLimiter *limiter.Limiter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		banned := rateLimiter.BannedIPs()
+		ips := make([]map[string]any, 0, len(banned))
+		for ip, until := range banned {
+			remaining := time.Until(until)
+			secs := int(remaining.Seconds())
+			if secs < 0 {
+				secs = 0
+			}
+			ips = append(ips, map[string]any{
+				"ip":                ip,
+				"banned_until":      until.Format(time.RFC3339),
+				"remaining_seconds": secs,
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{"banned_ips": ips})
+	}
 }
 
 func whoAmIHandler(c *gin.Context) {

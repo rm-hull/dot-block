@@ -33,6 +33,18 @@ func DefaultConfig() *Config {
 				CloudflareApiToken: "",
 				AllowedHosts:       []string{},
 			},
+			RateLimit: &RateLimitConfig{
+				Enabled:            true,
+				RequestsPerSecond:  50,
+				Burst:              100,
+				BanDuration:        1 * time.Hour,
+				NXDOMAINWindow:     1 * time.Minute,
+				NXDOMAINMinQueries: 20,
+				NXDOMAINThreshold:  0.8,
+				MaxTrackedIPs:      100_000,
+				ReapInterval:       1 * time.Minute,
+				IdleTTL:            10 * time.Minute,
+			},
 		},
 		DNS: &DNSConfig{
 			Upstreams: []string{

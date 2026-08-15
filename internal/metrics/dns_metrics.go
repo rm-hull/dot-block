@@ -10,6 +10,7 @@ import (
 	"github.com/earthboundkid/versioninfo/v2"
 	cache "github.com/go-pkgz/expirable-cache/v3"
 	"github.com/rm-hull/dot-block/internal/geoblock"
+	"github.com/rm-hull/dot-block/internal/limiter"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -65,6 +66,8 @@ type DnsMetrics struct {
 	DroppedCacheUpdates prometheus.Counter
 	DroppedTelemetry    prometheus.Counter
 	DroppedSSEEvents    prometheus.Counter
+	RateLimited         *prometheus.CounterVec
+	TrackedIPs          prometheus.Gauge
 	PoolEvictions       *prometheus.CounterVec
 	UpstreamFailures    *prometheus.CounterVec
 	PooledConnDeaths    *prometheus.CounterVec
@@ -221,6 +224,16 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup, topK TopKConfi
 		Help: "Total number of pooled connections found to be dead during acquisition, broken down by upstream server",
 	}, []string{"ip_addr"})
 
+	rateLimited := prometheus.NewCounterVec(prometheus.CounterOpts{
+		Name: "dns_rate_limited_total",
+		Help: "Total number of DNS queries rejected by the rate limiter, broken down by reason",
+	}, []string{"reason"})
+
+	trackedIPs := prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "dns_rate_limited_tracked_ips",
+		Help: "Number of client IPs currently being tracked by the rate limiter",
+	})
+
 	dnsInfo := prometheus.NewGauge(prometheus.GaugeOpts{
 		Name:        "dns_info",
 		Help:        "Information about the dot-block application.",
@@ -250,6 +263,8 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup, topK TopKConfi
 		poolEvictions,
 		upstreamFailures,
 		pooledConnDeaths,
+		rateLimited,
+		trackedIPs,
 		dnsInfo,
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to register DNS metrics")
@@ -276,6 +291,8 @@ func NewDNSMetrics(cache Cache, geoIpLookup geoblock.GeoIpLookup, topK TopKConfi
 		DroppedCacheUpdates: droppedCacheUpdates,
 		DroppedTelemetry:    droppedTelemetry,
 		DroppedSSEEvents:    droppedSSEEvents,
+		RateLimited:         rateLimited,
+		TrackedIPs:          trackedIPs,
 		PoolEvictions:       poolEvictions,
 		UpstreamFailures:    upstreamFailures,
 		PooledConnDeaths:    pooledConnDeaths,
@@ -291,4 +308,16 @@ func newSpaceSaverStatsCallback(ss *SpaceSaver, topK int) func() map[string]int 
 		}
 		return results
 	}
+}
+
+// IncRateLimited implements limiter.Metrics, incrementing the rate-limited
+// counter for the given reason.
+func (m *DnsMetrics) IncRateLimited(reason limiter.Reason) {
+	m.RateLimited.WithLabelValues(string(reason)).Inc()
+}
+
+// SetTrackedIPs implements limiter.Metrics, setting the gauge of currently
+// tracked client IPs.
+func (m *DnsMetrics) SetTrackedIPs(n int) {
+	m.TrackedIPs.Set(float64(n))
 }
