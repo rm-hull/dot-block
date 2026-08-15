@@ -65,8 +65,14 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 		Burst:              10000000,
 		MaxTrackedIPs:      10,
 		BanDuration:        time.Hour,
-		NXDOMAINWindow:     time.Minute,
-		NXDOMAINMinQueries: 1000,
+		// Disable NXDOMAIN-flood detection in benchmarks.
+		// The benchResponseWriter does not set a client IP, so all
+		// iterations share the same IP (""). NXDOMAIN-returning benchmarks
+		// (DNSSD, ReservedTLD) would trigger the flood detector and get
+		// banned after 1000 queries, causing the rate limiter to short-
+		// circuit the query path and produce artificially fast results.
+		NXDOMAINWindow:     0,
+		NXDOMAINMinQueries: 0,
 		NXDOMAINThreshold:  0.8,
 		ReapInterval:       time.Minute,
 		IdleTTL:            10 * time.Minute,
