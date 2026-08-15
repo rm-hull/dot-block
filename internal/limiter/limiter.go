@@ -16,10 +16,16 @@
 //   - Bans are checked before the token bucket, so an already-banned IP is
 //     rejected in a single map lookup rather than repeatedly failing (and
 //     paying the cost of) a rate check.
+//   - NXDOMAIN result recording is asynchronous: results are sent over a
+//     buffered channel to a dedicated goroutine that owns the NX window
+//     LRU. This keeps the per-request hot path (Allow → token bucket check)
+//     free of mutex contention with flood-detection bookkeeping, mirroring
+//     the async snapshot-worker pattern in the DNS dispatcher.
 package limiter
 
 import (
 	"sync"
+	"sync/atomic"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
@@ -62,17 +68,35 @@ type nxEntry struct {
 	nxdomain    int
 }
 
+// nxResult is sent over nxResultCh to the background goroutine for
+// asynchronous NXDOMAIN-flood detection. A non-zero flush field turns the
+// entry into a flush sentinel (used by Flush for testing).
+type nxResult struct {
+	ip         string
+	isNXDOMAIN bool
+	flush      chan struct{} // non-nil → flush sentinel
+}
+
 // Limiter is safe for concurrent use.
 type Limiter struct {
 	cfg     *config.RateLimitConfig
 	metrics Metrics
 
-	mu      sync.Mutex // guards buckets/nx maps only; bans has its own lock
-	buckets *lru.Cache[string, *bucketEntry]
-	nx      *lru.Cache[string, *nxEntry]
+	bucketsMu sync.Mutex
+	buckets   *lru.Cache[string, *bucketEntry]
+
+	// nxResultCh is a buffered channel for asynchronous NXDOMAIN result
+	// processing. The processNxResults goroutine is the sole owner of the
+	// nx LRU, so no mutex is needed for it.
+	nxResultCh chan nxResult
+	reapCh     chan struct{}
 
 	bansMu sync.RWMutex
 	bans   map[string]time.Time // ip -> ban expiry
+
+	// closed is set to true once Close has been called.
+	closed atomic.Bool
+	done   chan struct{} // closed when the background goroutine exits
 }
 
 func New(cfg *config.RateLimitConfig, metrics Metrics) (*Limiter, error) {
@@ -84,17 +108,21 @@ func New(cfg *config.RateLimitConfig, metrics Metrics) (*Limiter, error) {
 	if err != nil {
 		return nil, err
 	}
-	nx, err := lru.New[string, *nxEntry](maxTrackedIPs)
-	if err != nil {
-		return nil, err
-	}
 
 	l := &Limiter{
-		cfg:     cfg,
-		metrics: metrics,
-		buckets: buckets,
-		nx:      nx,
-		bans:    make(map[string]time.Time),
+		cfg:        cfg,
+		metrics:    metrics,
+		buckets:    buckets,
+		bans:       make(map[string]time.Time),
+		done:       make(chan struct{}),
+	}
+
+	// Start the NX result processing goroutine only when NXDOMAIN flood
+	// detection is enabled. The goroutine owns the nx LRU.
+	if cfg.Enabled && cfg.NXDOMAINWindow > 0 {
+		l.nxResultCh = make(chan nxResult, 4096)
+		l.reapCh = make(chan struct{}, 1)
+		go l.processNxResults(maxTrackedIPs)
 	}
 
 	return l, nil
@@ -154,33 +182,85 @@ func (l *Limiter) RetryAfter(ip string) time.Duration {
 	return wait
 }
 
-// RecordResult should be called once the resolver/cache has produced a
-// response, so NXDOMAIN-flood detection can be evaluated independently of
-// the RPS gate above. rcode is the DNS response code (use dns.RcodeNameError
-// from miekg/dns for NXDOMAIN).
-//
-// If this call causes the IP to trip the NXDOMAIN threshold, it is banned
-// for cfg.BanDuration and the caller does not need to do anything further —
-// subsequent Allow() calls will reject it.
+// RecordResult sends an NXDOMAIN result for asynchronous processing by the
+// background goroutine. Non-blocking — if the channel is full the result is
+// dropped, making flood detection slightly less precise under extreme load
+// (acceptable: flood detection is defense-in-depth, not the primary rate
+// gate). Skip this for DoH — the Gin middleware calls RecordResult
+// directly after the resolver has produced the response.
 func (l *Limiter) RecordResult(ip string, isNXDOMAIN bool) {
-	if !l.cfg.Enabled || l.cfg.NXDOMAINWindow <= 0 {
+	if !l.cfg.Enabled || l.cfg.NXDOMAINWindow <= 0 || l.closed.Load() {
 		return
 	}
 
+	select {
+	case l.nxResultCh <- nxResult{ip: ip, isNXDOMAIN: isNXDOMAIN}:
+	default:
+		// Channel full — drop result. Under extreme flooding this only
+		// makes NXDOMAIN flood detection slightly less precise.
+	}
+}
+
+// Flush waits for all pending NXDOMAIN results to be processed.
+// Intended for testing.
+func (l *Limiter) Flush() {
+	if l.nxResultCh == nil || l.closed.Load() {
+		return
+	}
+
+	done := make(chan struct{})
+	select {
+	case l.nxResultCh <- nxResult{flush: done}:
+	default:
+		return
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+	}
+}
+
+// processNxResults is the sole owner of the nx LRU. It reads NXDOMAIN
+// results from the channel and updates the flood-detection state.
+func (l *Limiter) processNxResults(maxTrackedIPs int) {
+	nx, err := lru.New[string, *nxEntry](maxTrackedIPs)
+	if err != nil {
+		close(l.done)
+		return
+	}
+
+	for {
+		select {
+		case result, ok := <-l.nxResultCh:
+			if !ok {
+				close(l.done)
+				return
+			}
+			if result.flush != nil {
+				close(result.flush)
+				continue
+			}
+			l.recordNxResult(nx, result.ip, result.isNXDOMAIN)
+		case <-l.reapCh:
+			l.reapNx(nx)
+		}
+	}
+}
+
+// recordNxResult is called by the background goroutine only.
+func (l *Limiter) recordNxResult(nx *lru.Cache[string, *nxEntry], ip string, isNXDOMAIN bool) {
 	now := time.Now()
 
-	l.mu.Lock()
-	entry, ok := l.nx.Get(ip)
+	entry, ok := nx.Get(ip)
 	if !ok || now.Sub(entry.windowStart) > l.cfg.NXDOMAINWindow {
 		entry = &nxEntry{windowStart: now}
-		l.nx.Add(ip, entry)
+		nx.Add(ip, entry)
 	}
 	entry.total++
 	if isNXDOMAIN {
 		entry.nxdomain++
 	}
 	total, nxdomain := entry.total, entry.nxdomain
-	l.mu.Unlock()
 
 	if total < l.cfg.NXDOMAINMinQueries {
 		return
@@ -192,9 +272,20 @@ func (l *Limiter) RecordResult(ip string, isNXDOMAIN bool) {
 	}
 }
 
+// reapNx is called by the background goroutine only (via reapCh).
+func (l *Limiter) reapNx(nx *lru.Cache[string, *nxEntry]) {
+	now := time.Now()
+	for _, ip := range nx.Keys() {
+		entry, ok := nx.Peek(ip)
+		if ok && now.Sub(entry.windowStart) > l.cfg.NXDOMAINWindow {
+			nx.Remove(ip)
+		}
+	}
+}
+
 func (l *Limiter) tokenBucketFor(ip string, now time.Time) *rate.Limiter {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	l.bucketsMu.Lock()
+	defer l.bucketsMu.Unlock()
 
 	entry, ok := l.buckets.Get(ip)
 	if !ok {
@@ -234,28 +325,23 @@ func (l *Limiter) ban(ip string, now time.Time) {
 // Reap evicts token-bucket, NXDOMAIN-window, and ban entries that have been
 // idle longer than the configured thresholds. Call this periodically — in
 // dot-block it is wired to the existing cron scheduler rather than running
-// on its own goroutine, so there is no background goroutine to manage or
-// shut down.
+// on its own goroutine.
 func (l *Limiter) Reap() {
 	now := time.Now()
 
-	l.mu.Lock()
+	// Reap token buckets (directly — owns its own mutex).
+	l.bucketsMu.Lock()
 	for _, ip := range l.buckets.Keys() {
 		entry, ok := l.buckets.Peek(ip)
 		if ok && now.Sub(entry.lastSeen) > l.cfg.IdleTTL {
 			l.buckets.Remove(ip)
 		}
 	}
-	for _, ip := range l.nx.Keys() {
-		entry, ok := l.nx.Peek(ip)
-		if ok && now.Sub(entry.windowStart) > l.cfg.NXDOMAINWindow {
-			l.nx.Remove(ip)
-		}
-	}
 	trackedIPs := l.buckets.Len()
-	l.mu.Unlock()
+	l.bucketsMu.Unlock()
 	l.metrics.SetTrackedIPs(trackedIPs)
 
+	// Reap bans (directly — owns its own RWMutex).
 	l.bansMu.Lock()
 	for ip, until := range l.bans {
 		if now.After(until) {
@@ -263,6 +349,26 @@ func (l *Limiter) Reap() {
 		}
 	}
 	l.bansMu.Unlock()
+
+	// Signal the background goroutine to reap NX window entries.
+	// Non-blocking: if a reap is already pending, skip.
+	if l.reapCh != nil && !l.closed.Load() {
+		select {
+		case l.reapCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// Close stops the background goroutine and releases resources.
+func (l *Limiter) Close() {
+	if !l.closed.CompareAndSwap(false, true) {
+		return // already closed
+	}
+	if l.nxResultCh != nil {
+		close(l.nxResultCh)
+		<-l.done
+	}
 }
 
 // BannedIPs returns a snapshot of currently-banned IPs and the time their

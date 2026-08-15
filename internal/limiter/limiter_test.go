@@ -35,6 +35,7 @@ func TestLimiter_Disabled(t *testing.T) {
 	}
 	l, err := New(cfg, metrics)
 	require.NoError(t, err)
+	defer l.Close()
 
 	ok, reason := l.Allow("1.2.3.4")
 	assert.True(t, ok)
@@ -52,6 +53,7 @@ func TestLimiter_TokenBucket_RPS(t *testing.T) {
 	}
 	l, err := New(cfg, metrics)
 	require.NoError(t, err)
+	defer l.Close()
 
 	ip := "192.168.1.10"
 
@@ -83,6 +85,7 @@ func TestLimiter_NXDOMAIN_Flood_And_Ban(t *testing.T) {
 	}
 	l, err := New(cfg, metrics)
 	require.NoError(t, err)
+	defer l.Close()
 
 	ip := "10.0.0.5"
 
@@ -92,6 +95,7 @@ func TestLimiter_NXDOMAIN_Flood_And_Ban(t *testing.T) {
 		assert.True(t, ok)
 		l.RecordResult(ip, true)
 	}
+	l.Flush()
 
 	// Should not be banned yet
 	bannedMap := l.BannedIPs()
@@ -101,6 +105,7 @@ func TestLimiter_NXDOMAIN_Flood_And_Ban(t *testing.T) {
 	ok, _ := l.Allow(ip)
 	assert.True(t, ok)
 	l.RecordResult(ip, true)
+	l.Flush()
 
 	// Now the IP should be banned
 	bannedMap = l.BannedIPs()
@@ -127,6 +132,7 @@ func TestLimiter_RetryAfter_RPS(t *testing.T) {
 	}
 	l, err := New(cfg, metrics)
 	require.NoError(t, err)
+	defer l.Close()
 
 	ip := "172.16.0.1"
 
@@ -155,11 +161,13 @@ func TestLimiter_Reap(t *testing.T) {
 	}
 	l, err := New(cfg, metrics)
 	require.NoError(t, err)
+	defer l.Close()
 
 	ip := "10.1.1.1"
 	ok, _ := l.Allow(ip)
 	assert.True(t, ok)
 	l.RecordResult(ip, true)
+	l.Flush()
 	l.ban(ip, time.Now().Add(-1*time.Hour)) // Force ban expiry in the past
 
 	assert.Equal(t, 1, metrics.trackedIPs)

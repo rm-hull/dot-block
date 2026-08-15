@@ -110,6 +110,9 @@ func NewDNSDispatcher(
 
 func (d *DNSDispatcher) Close() {
 	d.cache.Close()
+	if d.limiter != nil {
+		d.limiter.Close()
+	}
 	close(d.done)
 }
 
