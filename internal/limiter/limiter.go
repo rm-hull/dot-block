@@ -101,11 +101,15 @@ func WithMetrics(m Metrics) Option { return func(l *Limiter) { l.metrics = m } }
 func WithClock(c Clock) Option     { return func(l *Limiter) { l.clock = c } }
 
 func New(cfg *config.RateLimitConfig, opts ...Option) (*Limiter, error) {
-	buckets, err := lru.New[string, *bucketEntry](cfg.MaxTrackedIPs)
+	maxTrackedIPs := cfg.MaxTrackedIPs
+	if maxTrackedIPs <= 0 {
+		maxTrackedIPs = 10000
+	}
+	buckets, err := lru.New[string, *bucketEntry](maxTrackedIPs)
 	if err != nil {
 		return nil, err
 	}
-	nx, err := lru.New[string, *nxEntry](cfg.MaxTrackedIPs)
+	nx, err := lru.New[string, *nxEntry](maxTrackedIPs)
 	if err != nil {
 		return nil, err
 	}
@@ -164,6 +168,32 @@ func (l *Limiter) Allow(ip string) (bool, Reason) {
 	}
 
 	return true, ReasonNone
+}
+
+// RetryAfter returns the suggested duration a client should wait before
+// retrying after being rejected by Allow. For banned IPs, this is the
+// remaining ban duration. For RPS exhaustion (token bucket empty), it is
+// approximately 1/RequestsPerSecond, rounded up to at least 1 second.
+func (l *Limiter) RetryAfter(ip string) time.Duration {
+	if !l.cfg.Enabled {
+		return 0
+	}
+
+	now := l.clock.Now()
+
+	if until, ok := l.isBanned(ip, now); ok {
+		return time.Until(until)
+	}
+
+	// Token bucket exhausted — estimate the time until the next token.
+	wait := time.Second
+	if l.cfg.RequestsPerSecond > 0 {
+		wait = time.Duration(float64(time.Second) / l.cfg.RequestsPerSecond)
+	}
+	if wait < time.Second {
+		wait = time.Second
+	}
+	return wait
 }
 
 // RecordResult should be called once the resolver/cache has produced a

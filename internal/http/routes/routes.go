@@ -14,17 +14,22 @@ import (
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/http/web"
+	"github.com/rm-hull/dot-block/internal/limiter"
 	cachecontrol "go.eigsys.de/gin-cachecontrol/v2"
 )
 
-func NewPublicGroup(r *gin.Engine, publicHost string, mobileConfigHandler gin.HandlerFunc, dohHandler gin.HandlerFunc) *gin.RouterGroup {
+func NewPublicGroup(r *gin.Engine, publicHost string, rateLimiter *limiter.Limiter, mobileConfigHandler gin.HandlerFunc, dohHandler gin.HandlerFunc) *gin.RouterGroup {
 	public := r.Group("/")
 	public.Use(middlewares.RequireHost(publicHost))
 	{
 		public.GET("/.mobileconfig", mobileConfigHandler)
 		public.GET("/robots.txt", handlers.RobotsTxtHandler)
-		public.GET("/dns-query", dohHandler)
-		public.POST("/dns-query", dohHandler)
+		doh := public.Group("/dns-query")
+		doh.Use(middlewares.RateLimit(rateLimiter))
+		{
+			doh.GET("", dohHandler)
+			doh.POST("", dohHandler)
+		}
 	}
 	return public
 }

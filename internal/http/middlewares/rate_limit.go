@@ -7,6 +7,7 @@ package middlewares
 import (
 	"net"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
@@ -25,7 +26,11 @@ func RateLimit(l *limiter.Limiter) gin.HandlerFunc {
 		ip := c.ClientIP()
 
 		if ok, reason := l.Allow(ip); !ok {
-			c.Header("Retry-After", "1")
+			seconds := int(l.RetryAfter(ip).Seconds())
+			if seconds < 1 {
+				seconds = 1
+			}
+			c.Header("Retry-After", strconv.Itoa(seconds))
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error":  "rate limited",
 				"reason": reason,

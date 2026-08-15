@@ -13,6 +13,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/config"
 	"github.com/rm-hull/dot-block/internal/geoblock"
 	"github.com/rm-hull/dot-block/internal/http/sse"
+	"github.com/rm-hull/dot-block/internal/limiter"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
 	"github.com/stretchr/testify/mock"
@@ -58,12 +59,16 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 	dnsClient, err := NewRoundRobinClient(dnsMetrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(b, err)
 
+	rateLimiter, err := limiter.New(&config.RateLimitConfig{Enabled: false})
+	require.NoError(b, err)
+	b.Cleanup(rateLimiter.Close)
+
 	dispatcher, err := NewDNSDispatcher(
 		cache, dnsMetrics, dnsClient,
 		[]*blocklist.BlockList{blockList},
 		noisefilter.NewNoiseFilter(),
 		sse.NewBroadcaster(logger, dnsMetrics.DroppedSSEEvents),
-		1*time.Minute, logger, enableECS,
+		1*time.Minute, logger, enableECS, rateLimiter,
 	)
 	require.NoError(b, err)
 	b.Cleanup(dispatcher.Close)

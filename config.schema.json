@@ -311,6 +311,51 @@
                 }
               },
               "type": "object"
+            },
+            "rate_limit": {
+              "additionalProperties": true,
+              "description": "Rate limiting configuration for client IPs.",
+              "properties": {
+                "ban_duration": {
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "burst": {
+                  "type": "integer"
+                },
+                "enabled": {
+                  "type": "boolean"
+                },
+                "idle_ttl": {
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "max_tracked_ips": {
+                  "type": "integer"
+                },
+                "nxdomain_min_queries": {
+                  "type": "integer"
+                },
+                "nxdomain_threshold": {
+                  "type": "number"
+                },
+                "nxdomain_window": {
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "reap_interval": {
+                  "format": "duration",
+                  "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+                  "type": "string"
+                },
+                "requests_per_second": {
+                  "type": "number"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -548,6 +593,51 @@
       },
       "type": "object"
     },
+    "RateLimitConfig": {
+      "additionalProperties": true,
+      "description": "Rate limiting configuration for client IPs.",
+      "properties": {
+        "ban_duration": {
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "burst": {
+          "type": "integer"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "idle_ttl": {
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "max_tracked_ips": {
+          "type": "integer"
+        },
+        "nxdomain_min_queries": {
+          "type": "integer"
+        },
+        "nxdomain_threshold": {
+          "type": "number"
+        },
+        "nxdomain_window": {
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "reap_interval": {
+          "format": "duration",
+          "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+          "type": "string"
+        },
+        "requests_per_second": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
     "ServerConfig": {
       "additionalProperties": true,
       "properties": {
@@ -628,6 +718,51 @@
                 "type": "string"
               },
               "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "rate_limit": {
+          "additionalProperties": true,
+          "description": "Rate limiting configuration for client IPs.",
+          "properties": {
+            "ban_duration": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "burst": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "idle_ttl": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "max_tracked_ips": {
+              "type": "integer"
+            },
+            "nxdomain_min_queries": {
+              "type": "integer"
+            },
+            "nxdomain_threshold": {
+              "type": "number"
+            },
+            "nxdomain_window": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "reap_interval": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "requests_per_second": {
+              "type": "number"
             }
           },
           "type": "object"
@@ -942,6 +1077,51 @@
                 "type": "string"
               },
               "type": "array"
+            }
+          },
+          "type": "object"
+        },
+        "rate_limit": {
+          "additionalProperties": true,
+          "description": "Rate limiting configuration for client IPs.",
+          "properties": {
+            "ban_duration": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "burst": {
+              "type": "integer"
+            },
+            "enabled": {
+              "type": "boolean"
+            },
+            "idle_ttl": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "max_tracked_ips": {
+              "type": "integer"
+            },
+            "nxdomain_min_queries": {
+              "type": "integer"
+            },
+            "nxdomain_threshold": {
+              "type": "number"
+            },
+            "nxdomain_window": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "reap_interval": {
+              "format": "duration",
+              "pattern": "^([0-9]+(?:\\.[0-9]+)?(?:ns|us|µs|ms|s|m|h))+$",
+              "type": "string"
+            },
+            "requests_per_second": {
+              "type": "number"
             }
           },
           "type": "object"
