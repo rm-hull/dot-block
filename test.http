@@ -90,6 +90,12 @@ GET http://admin.localhost:8080/api/version-info
 Accept: application/json
 
 
+### Banned IPs
+GET http://admin.localhost:8080/api/banned-ips
+X-API-Key: test-key
+Accept: application/json
+
+
 ### CORS preflight
 OPTIONS http://admin.localhost:8080/api/whoami
 Origin: http://example.com
