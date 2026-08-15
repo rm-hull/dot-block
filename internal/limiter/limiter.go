@@ -90,8 +90,6 @@ type Limiter struct {
 
 	bansMu sync.RWMutex
 	bans   map[string]time.Time // ip -> ban expiry
-
-	stopReaper chan struct{}
 }
 
 // Option configures optional dependencies (metrics, clock) at construction.
@@ -121,26 +119,18 @@ func New(cfg *config.RateLimitConfig, opts ...Option) (*Limiter, error) {
 		buckets:    buckets,
 		nx:         nx,
 		bans:       make(map[string]time.Time),
-		stopReaper: make(chan struct{}),
 	}
 	for _, opt := range opts {
 		opt(l)
 	}
 
-	if cfg.Enabled && cfg.ReapInterval > 0 {
-		go l.reapLoop()
-	}
 	return l, nil
 }
 
-func (l *Limiter) Close() {
-	select {
-	case <-l.stopReaper:
-		// already closed
-	default:
-		close(l.stopReaper)
-	}
-}
+// Close is a no-op; the reaper is now driven externally via Reap() on the
+// existing cron scheduler (see app.go's startHttpServer / RunServer).
+// Retained for API compatibility.
+func (l *Limiter) Close() {}
 
 // Allow reports whether a query from ip should proceed. Call this as early
 // as possible in the request path — right after extracting the client IP,
@@ -273,26 +263,14 @@ func (l *Limiter) ban(ip string, now time.Time) {
 	l.bansMu.Unlock()
 }
 
-// reapLoop periodically evicts token-bucket and ban entries that have been
-// idle longer than cfg.IdleTTL. This runs alongside dot-block's existing
-// cron-based cache reaper rather than introducing a second scheduling
-// mechanism — wire ReapInterval to the same `--cron-schedule` pattern if
-// you'd rather drive it from the existing cron dispatcher instead of this
-// goroutine.
-func (l *Limiter) reapLoop() {
-	ticker := time.NewTicker(l.cfg.ReapInterval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-l.stopReaper:
-			return
-		case <-ticker.C:
-			l.reapOnce(l.clock.Now())
-		}
-	}
-}
+// Reap evicts token-bucket, NXDOMAIN-window, and ban entries that have been
+// idle longer than the configured thresholds. Call this periodically — in
+// dot-block it is wired to the existing cron scheduler rather than running
+// on its own goroutine, so there is no background goroutine to manage or
+// shut down.
+func (l *Limiter) Reap() {
+	now := l.clock.Now()
 
-func (l *Limiter) reapOnce(now time.Time) {
 	l.mu.Lock()
 	for _, ip := range l.buckets.Keys() {
 		entry, ok := l.buckets.Peek(ip)

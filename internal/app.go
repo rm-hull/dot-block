@@ -192,6 +192,15 @@ func (app *App) RunServer(ctx context.Context) error {
 	if _, err = crontab.AddJob(app.Config.DNS.Cache.CronSchedule, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
 	}
+
+	// Rate limiter reaper — reuses the existing cron scheduler instead of a
+	// dedicated goroutine, so there's no extra background goroutine to manage.
+	if app.Config.Server.RateLimit.Enabled && app.Config.Server.RateLimit.ReapInterval > 0 {
+		interval := app.Config.Server.RateLimit.ReapInterval
+		app.Logger.Info("Creating rate limiter reaper cron job", "interval", interval)
+		entryID := crontab.Schedule(cron.Every(interval), rateLimiterJob{rateLimiter})
+		app.Logger.Debug("Scheduled rate limiter reaper", "entry_id", entryID)
+	}
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		app.Logger.Info("Starting HTTP server for mobileconfig, metrics & healthcheck", "port", app.Config.Server.HttpPort)
@@ -442,3 +451,9 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error
 
 	return blockLists, nil
 }
+
+// rateLimiterJob adapts limiter.Reap into a cron.Job so it can share the
+// application's existing cron scheduler instead of running its own goroutine.
+type rateLimiterJob struct{ limiter *limiter.Limiter }
+
+func (j rateLimiterJob) Run() { j.limiter.Reap() }
