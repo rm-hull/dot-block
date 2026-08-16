@@ -52,13 +52,13 @@ export function EventAggregates({
       </Collapsible.Trigger>
       <Collapsible.Content>
         <HStack pb={3} alignItems="start">
-          <VStack alignItems="normal">
-            <Card.Root>
+          <VStack alignItems="normal" alignSelf="stretch">
+            <Card.Root flex="1 1 auto">
               <Card.Body>
                 <PercentageStat title="Cache" value={cached} total={total} helpText="Hit rate" />
               </Card.Body>
             </Card.Root>
-            <Card.Root>
+            <Card.Root flex="1 1 auto">
               <Card.Body>
                 <PercentageStat
                   title="Blocklist"
