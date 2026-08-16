@@ -95,7 +95,7 @@ func DefaultConfig() *Config {
 					Title:        "AdAway default blocklist",
 					Description:  "Blocking mobile ad providers and some analytics providers",
 					URL:          "https://adaway.org/hosts.txt",
-					CronSchedule: "@every 2w",
+					CronSchedule: "@every 336h",
 				},
 				{
 					Name:         "firebog",
