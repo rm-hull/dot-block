@@ -4,6 +4,7 @@ import TimeAgo from "react-time-ago";
 import { ActiveAction } from "@/actions/ActiveAction";
 import { ReloadAction } from "@/actions/ReloadAction";
 import { ErrorSuffix } from "@/components/ErrorSuffix";
+import { GlobalKillSwitch } from "@/components/GlobalKillSwitch";
 import { Loading } from "@/components/Loading";
 import { toaster } from "@/components/ui/toaster";
 import { useBlocklists } from "@/hooks/useBlocklists";
@@ -46,6 +47,11 @@ function BlocklistsPage() {
 
   return (
     <Container>
+      <GlobalKillSwitch
+        active={
+          data?.blocklists?.every((blocklist) => blocklist.disabled_until === undefined) ?? false
+        }
+      />
       <Table.Root size="sm" stickyHeader interactive>
         <Table.Header>
           <Table.Row>

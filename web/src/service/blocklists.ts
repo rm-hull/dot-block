@@ -31,7 +31,7 @@ export async function fetchBlocklists(): Promise<BlocklistStatus> {
 
 export async function blocklistAction(
   action: Action,
-  name: string,
+  name?: string,
   payload?: Record<string, unknown>
 ): Promise<BlocklistStatus> {
   const response = await fetch(`/api/blocklist/${action}`, {

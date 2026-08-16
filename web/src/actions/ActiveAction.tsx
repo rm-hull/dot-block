@@ -4,7 +4,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { useBlocklistAction } from "@/hooks/useBlocklistAction";
 
 interface ActiveActionProps {
-  name: string;
+  name?: string;
   active: boolean;
 }
 
@@ -31,7 +31,7 @@ export function ActiveAction({ name, active }: ActiveActionProps) {
     >
       <Switch.Root
         colorPalette="green"
-        size="lg"
+        size="md"
         checked={active}
         disabled={isDisablePending || isReenablePending}
         onCheckedChange={(e) => handleActiveChange(e.checked)}
