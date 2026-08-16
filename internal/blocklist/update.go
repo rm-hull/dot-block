@@ -6,11 +6,11 @@ import (
 )
 
 type Updater struct {
-	Blocklist *BlockList
+	Blocklist *StaticBlocklist
 	Timeout   time.Duration
 }
 
-func NewUpdater(blocklist *BlockList, timeout time.Duration) *Updater {
+func NewUpdater(blocklist *StaticBlocklist, timeout time.Duration) *Updater {
 	return &Updater{Blocklist: blocklist, Timeout: timeout}
 }
 

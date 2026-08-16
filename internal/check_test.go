@@ -27,10 +27,10 @@ func TestCheckHandler(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	source := &config.BlocklistSource{Name: "test", URL: "http://dummy.url"}
-	blockList := blocklist.NewBlockList(source, 0.0001, logger)
+	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
 
-	handler := handlers.NewBlocklistHandler([]*blocklist.BlockList{blockList}, logger)
+	handler := handlers.NewBlocklistHandler([]blocklist.Blocklist{blockList}, logger)
 
 	tests := []struct {
 		name           string

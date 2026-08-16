@@ -110,11 +110,11 @@ func New(cfg *config.RateLimitConfig, metrics Metrics) (*Limiter, error) {
 	}
 
 	l := &Limiter{
-		cfg:        cfg,
-		metrics:    metrics,
-		buckets:    buckets,
-		bans:       make(map[string]time.Time),
-		done:       make(chan struct{}),
+		cfg:     cfg,
+		metrics: metrics,
+		buckets: buckets,
+		bans:    make(map[string]time.Time),
+		done:    make(chan struct{}),
 	}
 
 	// Start the NX result processing goroutine only when NXDOMAIN flood

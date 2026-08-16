@@ -119,6 +119,22 @@ func DefaultConfig() *Config {
 					CronSchedule: "@every 7h",
 				},
 			},
+			Entropy: &EntropyConfig{
+				Enabled:        true,
+				MinLabelLength: 8,
+				HexThreshold:   3.8,
+				AlnumThreshold: 4.2,
+				Suffixes: []string{
+					".cloudfront.net",
+					".herokuapp.com",
+					".azureedge.net",
+					".github.io",
+					".s3.amazonaws.com",
+					".storage.googleapis.com",
+					".googleusercontent.com",
+					".blob.core.windows.net",
+				},
+			},
 		},
 		Geoblock: &GeoblockConfig{
 			Ipinfo: &IpinfoConfig{
