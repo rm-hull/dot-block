@@ -35,7 +35,8 @@ type ServerConfig struct {
 	DotPort       int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty" descr:"The port to run DNS-over-TLS server on."`
 	ProxyProtocol *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
 	LetsEncrypt   *LetsEncryptConfig   `yaml:"lets_encrypt,omitempty" json:"lets_encrypt,omitempty"`
-	ApiKeys       map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" descr:"Map of API keys to user descriptions for admin API access."`
+	ApiKeys       map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" log:"redacted" descr:"Map of API keys to user descriptions for admin API access."`
+	RateLimit     *RateLimitConfig     `yaml:"rate_limit,omitempty" json:"rate_limit,omitempty" descr:"Rate limiting configuration for client IPs."`
 }
 
 type ProxyProtocolConfig struct {
@@ -56,6 +57,23 @@ type DNSConfig struct {
 	Cache       *CacheConfig    `yaml:"cache,omitempty" json:"cache,omitempty"`
 	NoiseFilter *NoiseFilter    `yaml:"noise_filter,omitempty" json:"noise_filter,omitempty"`
 	Timeouts    *TimeoutsConfig `yaml:"timeouts,omitempty" json:"timeouts,omitempty"`
+}
+
+type RateLimitConfig struct {
+	Enabled           bool          `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Whether to enable rate limiting."`
+	RequestsPerSecond float64       `yaml:"requests_per_second,omitempty" json:"requests_per_second,omitempty" descr:"Maximum allowed requests per second per client IP."`
+	Burst             int           `yaml:"burst,omitempty" json:"burst,omitempty" descr:"Maximum burst size for rate limiting."`
+	BanDuration       time.Duration `yaml:"ban_duration,omitempty" json:"ban_duration,omitempty" descr:"Duration to ban an IP after exceeding limits."`
+
+	// NXDOMAIN flood detection.
+	NXDOMAINWindow     time.Duration `yaml:"nxdomain_window,omitempty" json:"nxdomain_window,omitempty" descr:"Rolling window duration to evaluate NXDOMAIN ratio."`
+	NXDOMAINMinQueries int           `yaml:"nxdomain_min_queries,omitempty" json:"nxdomain_min_queries,omitempty" descr:"Minimum number of queries before evaluating NXDOMAIN ratio."`
+	NXDOMAINThreshold  float64       `yaml:"nxdomain_threshold,omitempty" json:"nxdomain_threshold,omitempty" descr:"Threshold ratio of NXDOMAIN responses to trigger a ban."`
+
+	// Bookkeeping.
+	MaxTrackedIPs int           `yaml:"max_tracked_ips,omitempty" json:"max_tracked_ips,omitempty" descr:"Maximum number of client IPs to track for rate limiting."`
+	ReapInterval  time.Duration `yaml:"reap_interval,omitempty" json:"reap_interval,omitempty" descr:"Interval for reaping stale entries from the rate limiter."`
+	IdleTTL       time.Duration `yaml:"idle_ttl,omitempty" json:"idle_ttl,omitempty" descr:"Time-to-live for idle entries before eviction."`
 }
 
 type ECSConfig struct {

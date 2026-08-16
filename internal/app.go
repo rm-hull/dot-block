@@ -31,6 +31,7 @@ import (
 	"github.com/rm-hull/dot-block/internal/http/middlewares"
 	"github.com/rm-hull/dot-block/internal/http/routes"
 	"github.com/rm-hull/dot-block/internal/http/sse"
+	"github.com/rm-hull/dot-block/internal/limiter"
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/rm-hull/dot-block/internal/metrics"
 	"github.com/rm-hull/dot-block/internal/noisefilter"
@@ -147,6 +148,7 @@ func (app *App) RunServer(ctx context.Context) error {
 		}
 	}
 	cache := forwarder.NewDNSCache(app.Config.DNS.Cache.MaxSize, app.Logger)
+
 	metrics, err := metrics.NewDNSMetrics(cache, geoIpLookup, metrics.TopKConfig{
 		NumDomains: app.Config.Telemetry.TopK.NumDomains,
 		NumBlocked: app.Config.Telemetry.TopK.NumBlocked,
@@ -155,19 +157,29 @@ func (app *App) RunServer(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize metrics")
 	}
+
+	// Rate limiter — shared across all four listeners (UDP, TCP, DoT, DoH).
+	// DoH is gated by the Gin middleware; UDP/TCP/DoT by the dispatcher.
+	// Metrics are wired in via WithMetrics so Prometheus counters are populated.
+	rateLimiter, err := limiter.New(app.Config.Server.RateLimit, metrics)
+	if err != nil {
+		return errors.Wrap(err, "failed to initialize rate limiter")
+	}
+	app.Logger.Info("Rate limiter initialized", "enabled", app.Config.Server.RateLimit.Enabled)
+
 	dnsClient, err := forwarder.NewRoundRobinClient(metrics, app.Config.DNS.Timeouts.Read, app.Config.DNS.Timeouts.Write, app.Config.DNS.Timeouts.Dial, app.Logger, app.Config.DNS.Upstreams...)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize upstream DNS client")
 	}
 
 	broadcaster := sse.NewBroadcaster(app.Logger, metrics.DroppedSSEEvents)
-	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.Config.DNS.Cache.TtlFloor, app.Logger, app.Config.DNS.ECS.Enabled)
+	dispatcher, err := forwarder.NewDNSDispatcher(cache, metrics, dnsClient, blockLists, noiseFilter, broadcaster, app.Config.DNS.Cache.TtlFloor, app.Logger, app.Config.DNS.ECS.Enabled, rateLimiter)
 	if err != nil {
 		return errors.Wrap(err, "failed to create dispatcher")
 	}
 	defer dispatcher.Close()
 
-	r, err := app.startHttpServer(dnsClient, blockLists, dispatcher, geoIpLookup, handlers.NewVersionInfoHandler(app.StartTime))
+	r, err := app.startHttpServer(dnsClient, blockLists, dispatcher, geoIpLookup, handlers.NewVersionInfoHandler(app.StartTime), rateLimiter)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize HTTP server")
 	}
@@ -175,6 +187,15 @@ func (app *App) RunServer(ctx context.Context) error {
 	app.Logger.Info("Creating cache reaper cron job", "schedule", app.Config.DNS.Cache.CronSchedule)
 	if _, err = crontab.AddJob(app.Config.DNS.Cache.CronSchedule, forwarder.NewCacheReaperCronJob(dispatcher)); err != nil {
 		return errors.Wrap(err, "failed to create cache reaper cron job")
+	}
+
+	// Rate limiter reaper — reuses the existing cron scheduler instead of a
+	// dedicated goroutine, so there's no extra background goroutine to manage.
+	if app.Config.Server.RateLimit.Enabled && app.Config.Server.RateLimit.ReapInterval > 0 {
+		interval := app.Config.Server.RateLimit.ReapInterval
+		app.Logger.Info("Creating rate limiter reaper cron job", "interval", interval)
+		entryID := crontab.Schedule(cron.Every(interval), rateLimiterJob{rateLimiter})
+		app.Logger.Debug("Scheduled rate limiter reaper", "entry_id", entryID)
 	}
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -309,6 +330,7 @@ func (app *App) startHttpServer(
 	dispatcher *forwarder.DNSDispatcher,
 	geoIpLookup geoblock.GeoIpLookup,
 	versionInfoHandler *handlers.VersionInfoHandler,
+	rateLimiter *limiter.Limiter,
 ) (*gin.Engine, error) {
 
 	if !app.Config.Server.DevMode {
@@ -351,7 +373,7 @@ func (app *App) startHttpServer(
 
 	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
 
-	routes.NewPublicGroup(r, serverName,
+	routes.NewPublicGroup(r, serverName, rateLimiter,
 		handlers.NewMobileconfigHandler(serverName),
 		handlers.NewDoHHandler(requestHandler))
 
@@ -363,6 +385,7 @@ func (app *App) startHttpServer(
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
 		versionInfoHandler,
+		rateLimiter,
 	)
 
 	return r, nil
@@ -425,3 +448,9 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error
 
 	return blockLists, nil
 }
+
+// rateLimiterJob adapts limiter.Reap into a cron.Job so it can share the
+// application's existing cron scheduler instead of running its own goroutine.
+type rateLimiterJob struct{ limiter *limiter.Limiter }
+
+func (j rateLimiterJob) Run() { j.limiter.Reap() }

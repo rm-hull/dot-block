@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -10,8 +11,9 @@ import (
 )
 
 type SSEQueryParams struct {
-	Blocked *bool    `form:"blocked"`
-	Domain  []string `form:"domain"`
+	Blocked  *bool    `form:"blocked"`
+	Domain   []string `form:"domain"`
+	ClientIP []string `form:"client_ip"`
 }
 
 func (q *SSEQueryParams) Matches(event sse.Event) bool {
@@ -33,6 +35,13 @@ func (q *SSEQueryParams) Matches(event sse.Event) bool {
 				break
 			}
 		}
+		if !matched {
+			return false
+		}
+	}
+
+	if len(q.ClientIP) > 0 {
+		matched := slices.Contains(q.ClientIP, event.ClientIP)
 		if !matched {
 			return false
 		}

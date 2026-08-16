@@ -49,6 +49,11 @@ func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 		}
 		handler.ServeDNS(responseWriter, msg)
 
+		// Stash the parsed DNS response on the context so the rate-limit
+		// middleware (which wraps this handler) can record NXDOMAIN results
+		// for flood detection.
+		c.Set("dns_response", responseWriter.msg)
+
 		packed, err := responseWriter.msg.Pack()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -79,7 +84,9 @@ func NewDoHResponseWriter(clientIP string) (*doHResponseWriter, error) {
 }
 
 func (w *doHResponseWriter) Write(b []byte) (int, error) {
-	return len(b), w.msg.Unpack(b)
+	// doHResponseWriter only supports WriteMsg; Write is unused by miekg/dns server ServeDNS
+	// when responses are sent via WriteMsg. We return len(b) to satisfy io.Writer without unpacking.
+	return len(b), nil
 }
 
 func (w *doHResponseWriter) LocalAddr() net.Addr {
