@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   code-review:
-    if: ${{ github.event.issue.pull_request && startsWith(github.event.comment.body, '/review') }}
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.issue.pull_request && startsWith(github.event.comment.body, '/review')) }}
     runs-on: ubuntu-latest
     steps:
       - name: Fetch PR Details
@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: "25"
 
-      - uses: rm-hull/pi-coding-agent-action@feat/issue-290
+      - uses: rm-hull/pi-coding-agent-action@0d624036b4affb4ee0b58379a9279eb590659b66
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           provider: google
