@@ -23,7 +23,7 @@ jobs:
           HEAD_REF=$(echo "$PR_JSON" | jq -r '.head.ref')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: ${{ steps.pr_data.outputs.head_ref }}
           fetch-depth: 0
