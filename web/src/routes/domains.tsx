@@ -1,12 +1,23 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Badge, Container, For, HStack, SegmentGroup, Table, Text } from "@chakra-ui/react";
+import {
+  Badge,
+  Container,
+  For,
+  HStack,
+  Highlight,
+  SegmentGroup,
+  Table,
+  Text,
+} from "@chakra-ui/react";
+import { DomainsPortalToolbar } from "@/components/DomainsPortalToolbar";
 import { Loading } from "@/components/Loading";
 import { toaster } from "@/components/ui/toaster";
 import { useMetrics } from "@/hooks/useMetrics";
 
 // eslint-disable-next-line react-refresh/only-export-components
 function DomainsPage() {
+  const [filterText, setFilterText] = useState<string>("");
   const [value, setValue] = useState<string | null>("Allowed");
   const { data, isLoading, error } = useMetrics();
 
@@ -24,9 +35,10 @@ function DomainsPage() {
     return null;
   }
   const domains = value === "Allowed" ? data?.dns_top_domains : data?.dns_top_blocked_domains;
-
+  const trimmedFilterText = filterText.trim().toLowerCase();
   return (
     <Container>
+      <DomainsPortalToolbar filterText={filterText} onFilterTextChange={setFilterText} />
       <HStack py={2}>
         <SegmentGroup.Root size="xs" value={value} onValueChange={(e) => setValue(e.value)}>
           <SegmentGroup.Indicator />
@@ -47,11 +59,24 @@ function DomainsPage() {
             </Table.Row>
           </Table.Header>
           <Table.Body>
-            <For each={domains?.metrics?.toSorted((a, b) => b.value - a.value)}>
+            <For
+              each={domains?.metrics
+                ?.filter((item) =>
+                  item.labels?.["hostname"].toLowerCase().includes(trimmedFilterText)
+                )
+                .toSorted((a, b) => b.value - a.value)}
+            >
               {(item, index) => (
                 <Table.Row key={index}>
                   <Table.Cell>{index + 1}</Table.Cell>
-                  <Table.Cell>{item.labels?.["hostname"]}</Table.Cell>
+                  <Table.Cell>
+                    <Highlight
+                      query={trimmedFilterText}
+                      styles={{ bg: "yellow.subtle", color: "yellow.fg" }}
+                    >
+                      {item.labels?.["hostname"] ?? ""}
+                    </Highlight>
+                  </Table.Cell>
                   <Table.Cell>
                     {item.labels?.["blocklist"] && <Badge>{item.labels?.["blocklist"]}</Badge>}
                   </Table.Cell>
