@@ -34,6 +34,9 @@ export function Navbar() {
             <RouterLink to="/events" activeProps={{ fontWeight: "semibold", color: "blue.500" }}>
               Events
             </RouterLink>
+            <RouterLink to="/domains" activeProps={{ fontWeight: "semibold", color: "blue.500" }}>
+              Domains
+            </RouterLink>
             <RouterLink
               to="/blocklists"
               activeProps={{ fontWeight: "semibold", color: "blue.500" }}
