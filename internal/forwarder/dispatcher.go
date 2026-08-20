@@ -264,6 +264,7 @@ func (d *DNSDispatcher) newReply(req *dns.Msg) *dns.Msg {
 	resp := new(dns.Msg)
 	resp.SetReply(req)
 	resp.Question = req.Question
+	resp.RecursionAvailable = true
 	return resp
 }
 
