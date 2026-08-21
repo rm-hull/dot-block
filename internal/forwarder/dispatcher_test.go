@@ -249,6 +249,28 @@ func TestDNSDispatcher_HandleDNSRequest_Allowed(t *testing.T) {
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 }
 
+func TestDNSDispatcher_RecursionAvailable(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
+	defer func() {
+		err := server.Shutdown()
+		assert.NoError(t, err)
+	}()
+
+	dispatcher, _, _, _ := setupDispatcherTest(t, upstream, nil, false)
+
+	// Good domain response (served via cached upstream answer)
+	req := new(dns.Msg)
+	req.SetQuestion("google.com.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.True(t, writer.WrittenMsg.RecursionAvailable, "responses should advertise Recursion Available")
+}
+
 func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
 		// shouldn't call upstream
@@ -273,6 +295,7 @@ func TestDNSDispatcher_HandleDNSRequest_Blocked(t *testing.T) {
 
 	// Assert that the response has an RcodeSuccess Rcode
 	assert.NotNil(t, writer.WrittenMsg)
+	assert.True(t, writer.WrittenMsg.RecursionAvailable, "responses should advertise Recursion Available")
 	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
 	assert.Len(t, writer.WrittenMsg.Answer, 0, "should have no answers")
 	assert.Len(t, writer.WrittenMsg.Ns, 1, "should have one authority record")

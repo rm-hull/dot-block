@@ -19,7 +19,7 @@ function BlocklistsPage() {
 
   if (error) {
     toaster.create({
-      id: "event-stream-status",
+      id: "blocklists",
       title: "Error loading blocklists",
       description: error.message,
       type: "error",
