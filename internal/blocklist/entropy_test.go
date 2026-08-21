@@ -273,3 +273,41 @@ func TestShannonEntropy_DefaultsApplied(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, blocked)
 }
+
+// TestShannonEntropy_KnownCloudFrontDomainsNotMatchedByEntropy documents that
+// specific malicious CloudFront distribution domains — which are already
+// covered by the static blocklist — do NOT trigger the entropy engine.
+//
+// These labels (~13-14 alphanumeric chars, ~10 distinct chars) have Shannon
+// entropy of only ~3.2-3.5 bits, well below both the HexThreshold (3.8) and
+// AlnumThreshold (4.2). They are NOT hexadecimal (they contain letters such
+// as 'g', 'o', 's', 'u', 'v', 'y', 'x'), so the higher alnum threshold
+// applies.
+//
+// This is intentional: legitimate CloudFront distribution IDs share the exact
+// same entropy profile, because CloudFront generates ALL distribution
+// domain names with the same random-alphanumeric algorithm. Lowering the
+// alnum threshold below ~3.6 to catch these would blanket-block virtually
+// every legitimate CloudFront distribution (false positives). These specific
+// known-bad domains are instead handled by the curated static blocklist,
+// which is always evaluated first (last-resort ordering).
+func TestShannonEntropy_KnownCloudFrontDomainsNotMatchedByEntropy(t *testing.T) {
+	b := newTestEntropyBlocklist(t, &config.EntropyConfig{Enabled: true})
+
+	// These are known malicious CloudFront domains that live in
+	// data/blocklist.txt and are blocked by the static blocklist.
+	cloudfrontDomains := []string{
+		"dmqixuaqncbvu.cloudfront.net",
+		"d3p0gayswgyxdw.cloudfront.net",
+		"d3s92ui89fue0a.cloudfront.net",
+		"dogvgb9ujhybx.cloudfront.net",
+	}
+
+	for _, d := range cloudfrontDomains {
+		blocked, err := b.IsBlocked(d)
+		assert.NoError(t, err)
+		assert.False(t, blocked,
+			"domain %s has entropy too low to exceed the conservative threshold "+
+				"(this is expected — it is caught by the static blocklist instead)", d)
+	}
+}
