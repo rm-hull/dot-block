@@ -307,7 +307,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 		// If no trusted proxies specified but requirement is on, use REQUIRE policy
 		proxyListener = &proxyproto.Listener{
 			Listener: base,
-			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+			ConnPolicy: func(options proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
 				return proxyproto.REQUIRE, nil
 			},
 		}
@@ -316,7 +316,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 		app.Logger.Warn("Running with PROXY protocol optional; client IPs may be spoofed if not behind a trusted proxy")
 		proxyListener = &proxyproto.Listener{
 			Listener: base,
-			Policy: func(upstream net.Addr) (proxyproto.Policy, error) {
+			ConnPolicy: func(options proxyproto.ConnPolicyOptions) (proxyproto.Policy, error) {
 				return proxyproto.USE, nil
 			},
 		}
