@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: "25"
 
-      - uses: rm-hull/pi-coding-agent-action@481c17aed6222627bad29248b0167642cf495fa5
+      - uses: rm-hull/pi-coding-agent-action@30350aad102331b0cb896ff7b227b5a66a7d99ad
         with:
           github_token: ${{ steps.generate_token.outputs.token }}
           provider: google
