@@ -9,7 +9,15 @@ import (
 )
 
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
-var prefixes = [][]byte{[]byte("0.0.0.0 "), []byte("127.0.0.1 "), []byte("*."), []byte("www.")}
+var prefixes = fromString("0.0.0.0 ", "127.0.0.1", "255.255.255.255", "::1", "fe00::0", "ff00::0", "ff02::1", "ff02::2", "ff02::3", "#fe80::1%lo0", "*.", "www.")
+
+func fromString(list ...string) [][]byte {
+	res := make([][]byte, 0, len(list))
+	for _, element := range list {
+		res = append(res, []byte(element))
+	}
+	return res
+}
 
 type ScannerFunc func([]byte) bool
 

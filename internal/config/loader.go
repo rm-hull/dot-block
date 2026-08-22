@@ -118,6 +118,27 @@ func DefaultConfig() *Config {
 					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
 					CronSchedule: "@every 7h",
 				},
+				{
+					Name:         "steven-black",
+					Title:        "Steven Black's ad-hoc list",
+					Description:  "Consolidates several reputable hosts files, and merges them into a unified hosts file with duplicates removed.",
+					URL:          "https://raw.githubusercontent.com/StevenBlack/hosts/master/data/StevenBlack/hosts",
+					CronSchedule: "@every 6h",
+				},
+				{
+					Name:         "dan-pollock",
+					Title:        "Dan Pollock – someonewhocares",
+					Description:  "how to make the internet not suck (as much)",
+					URL:          "https://someonewhocares.org/hosts/zero/hosts",
+					CronSchedule: "@every 8h",
+				},
+				{
+					Name:         "url-haus",
+					Title:        "URLHaus",
+					Description:  "A project from abuse.ch with the goal of sharing malicious URLs.",
+					URL:          "https://urlhaus.abuse.ch/downloads/hostfile/",
+					CronSchedule: "@every 10h",
+				},
 			},
 		},
 		Geoblock: &GeoblockConfig{
