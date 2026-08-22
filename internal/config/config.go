@@ -99,6 +99,14 @@ type TimeoutsConfig struct {
 
 type BlocklistConfig struct {
 	Sources []BlocklistSource `yaml:"sources,omitempty" json:"sources,omitempty" descr:"Array of blocklist sources, each with its own name, URL and cron schedule."`
+
+	// Entropy configures the optional Shannon-entropy analysis engine, which
+	// dynamically blocks high-entropy/random-looking subdomains on high-risk
+	// shared-hosting and CDN suffixes (e.g. cloudfront.net) as a last-resort
+	// heuristic complementing the static blocklists. Static blocklists are
+	// always evaluated first; entropy analysis is only consulted when no
+	// static blocklist matches a domain.
+	Entropy *EntropyConfig `yaml:"entropy,omitempty" json:"entropy,omitempty" descr:"Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted."`
 }
 
 type BlocklistSource struct {
@@ -107,6 +115,37 @@ type BlocklistSource struct {
 	Description  string `yaml:"description,omitempty" json:"description,omitempty" descr:"Optional description for the blocklist."`
 	URL          string `yaml:"url,omitempty" json:"url,omitempty" descr:"URL of the blocklist source."`
 	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty" descr:"Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates."`
+}
+
+// EntropyConfig configures the optional Shannon-entropy DGA / malware
+// subdomain detection engine. When enabled, domains whose registrable suffix
+// matches one of the configured (high-risk) CDN / shared-hosting suffixes are
+// analysed: the subdomain portion preceding the suffix is assessed using
+// Shannon entropy, and labels that look randomly generated are blocked.
+//
+// This is always applied as a last resort — every static blocklist source is
+// checked first, and only when none of them match does the entropy analysis
+// run. Blocked requests are attributed the cause "shannon-entropy-dga".
+type EntropyConfig struct {
+	Enabled  bool     `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Whether to enable Shannon-entropy DGA / malware subdomain detection as a last resort."`
+	Suffixes []string `yaml:"suffixes,omitempty" json:"suffixes,omitempty" descr:"List of high-risk shared-hosting / CDN suffixes to subject to entropy analysis (e.g. '.cloudfront.net'). Only the subdomain portion preceding a matching suffix is analysed."`
+
+	// MinLabelLength is the minimum number of characters the subdomain portion
+	// must have before entropy analysis is attempted. Short labels such as
+	// 'img1' are ignored.
+	MinLabelLength int `yaml:"min_label_length,omitempty" json:"min_label_length,omitempty" descr:"Minimum length of the subdomain label to evaluate. Shorter labels are ignored (e.g. 'img1')."`
+
+	// HexThreshold is the entropy (in bits) above which a purely-hexadecimal
+	// subdomain label is considered random. Hexadecimal labels have a 16-char
+	// alphabet and a natural entropy ceiling of 4.0, so a conservative
+	// threshold (e.g. 3.8) is used.
+	HexThreshold float64 `yaml:"hex_threshold,omitempty" json:"hex_threshold,omitempty" descr:"Entropy threshold (in bits) above which a purely-hexadecimal subdomain label is considered random (default 3.8, since hex has an entropy ceiling of 4.0)."`
+
+	// AlnumThreshold is the entropy (in bits) above which an alphanumeric
+	// (non-hex) subdomain label is considered random. The alphanumeric
+	// alphabet has 36 characters with a ceiling of ~5.17, so a higher
+	// threshold (e.g. 4.2) is used to avoid false positives.
+	AlnumThreshold float64 `yaml:"alnum_threshold,omitempty" json:"alnum_threshold,omitempty" descr:"Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2)."`
 }
 
 type GeoblockConfig struct {

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -107,13 +108,13 @@ func newTestLimiter(t *testing.T, metrics *metrics.DnsMetrics) *limiter.Limiter 
 	return l
 }
 
-func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, enableECS bool) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.BlockList, *slog.Logger) {
+func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, enableECS bool) (*DNSDispatcher, *MockGeoIpLookup, *blocklist.StaticBlocklist, *slog.Logger) {
 	t.Helper()
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
 	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
-	blockList := blocklist.NewBlockList(source, 0.0001, logger)
+	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -126,11 +127,37 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 	require.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, enableECS, newTestLimiter(t, metrics))
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []blocklist.Blocklist{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, enableECS, newTestLimiter(t, metrics))
 	require.NoError(t, err)
 	t.Cleanup(dispatcher.Close)
 
 	return dispatcher, mockGeo, blockList, logger
+}
+
+// setupDispatcherWithBlocklists is like setupDispatcherTest but accepts a
+// caller-supplied slice of blocklists, allowing tests to compose a custom
+// pipeline (e.g. static lists followed by the entropy blocklist).
+func setupDispatcherWithBlocklists(t *testing.T, upstream string, logger *slog.Logger, enableECS bool, lists []blocklist.Blocklist) (*DNSDispatcher, *MockGeoIpLookup, []blocklist.Blocklist, *slog.Logger) {
+	t.Helper()
+	if logger == nil {
+		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	}
+
+	cache := NewDNSCache(100, logger)
+	mockGeo := new(MockGeoIpLookup)
+	mockGeo.On("GetAll", mock.Anything).Return(geoblock.GeoData{}, nil)
+
+	metrics, err := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
+	require.NoError(t, err)
+
+	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
+	require.NoError(t, err)
+
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, lists, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, enableECS, newTestLimiter(t, metrics))
+	require.NoError(t, err)
+	t.Cleanup(dispatcher.Close)
+
+	return dispatcher, mockGeo, lists, logger
 }
 
 func TestDNSDispatcher_HandleDNSRequest_MixedBlockedAndUpstream(t *testing.T) {
@@ -314,6 +341,138 @@ func TestDNSDispatcher_HandleDNSRequest_BlockedIncludesEDE(t *testing.T) {
 	assert.Contains(t, ede.ExtraText, "Blocked by: dispatcher_test")
 }
 
+// TestDNSDispatcher_EntropyBlocklist_Blocked verifies that a high-entropy
+// subdomain on a high-risk CDN suffix is blocked by the entropy engine (which
+// acts as a last resort) and attributed the "shannon-entropy-dga" cause.
+func TestDNSDispatcher_EntropyBlocklist_Blocked(t *testing.T) {
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		// Upstream must not be contacted for a blocked domain.
+		t.Fail()
+	})
+	defer func() { _ = server.Shutdown() }()
+
+	staticBL := blocklist.NewStaticBlockList(
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	staticBL.Load([]string{"ads.0xbt.net"})
+
+	entropyBL := blocklist.NewShannonEntropyBlocklist(
+		&config.EntropyConfig{Enabled: true},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	// Static blocklists are ordered first; the entropy blocklist is appended
+	// last so it is only consulted as a last resort.
+	dispatcher, _, _, _ := setupDispatcherWithBlocklists(t, upstream, nil, false, []blocklist.Blocklist{staticBL, entropyBL})
+
+	req := new(dns.Msg)
+	req.SetQuestion("d1234567890abcdef.cloudfront.net.", dns.TypeA)
+	req.SetEdns0(1232, false)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	assert.Len(t, writer.WrittenMsg.Answer, 0, "should have no answers for a blocked domain")
+	require.Len(t, writer.WrittenMsg.Ns, 1, "should have one authority (SOA) record")
+	_, soaOK := writer.WrittenMsg.Ns[0].(*dns.SOA)
+	assert.True(t, soaOK, "authority record should be a SOA")
+
+	// The EDE extra text must attribute the block to the entropy engine.
+	require.Len(t, writer.WrittenMsg.Extra, 1)
+	opt, ok := writer.WrittenMsg.Extra[0].(*dns.OPT)
+	require.True(t, ok, "expected an OPT record to carry EDE")
+	require.Len(t, opt.Option, 1)
+	ede, ok := opt.Option[0].(*dns.EDNS0_EDE)
+	require.True(t, ok, "expected EDE option")
+	assert.Equal(t, dns.ExtendedErrorCodeBlocked, ede.InfoCode)
+	assert.Contains(t, ede.ExtraText, "Blocked by: shannon-entropy-dga")
+}
+
+// TestDNSDispatcher_EntropyBlocklist_Allowed verifies that a low-entropy
+// subdomain on a high-risk suffix is forwarded to the upstream resolver
+// rather than being blocked.
+func TestDNSDispatcher_EntropyBlocklist_Allowed(t *testing.T) {
+	server, upstream := startLocalDNS(t, dnsRecord("api.cloudfront.net.", dns.TypeA, []byte{142, 251, 29, 101}))
+	defer func() { _ = server.Shutdown() }()
+
+	staticBL := blocklist.NewStaticBlockList(
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	entropyBL := blocklist.NewShannonEntropyBlocklist(
+		&config.EntropyConfig{Enabled: true},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	dispatcher, _, _, _ := setupDispatcherWithBlocklists(t, upstream, nil, false, []blocklist.Blocklist{staticBL, entropyBL})
+
+	req := new(dns.Msg)
+	req.SetQuestion("api.cloudfront.net.", dns.TypeA)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	// The query was forwarded and answered from upstream.
+	assert.Len(t, writer.WrittenMsg.Answer, 1, "should have an upstream answer")
+}
+
+// TestDNSDispatcher_EntropyBlocklist_StaticTakesPrecedence verifies that
+// when a domain is both statically blocked *and* matches the entropy suffix,
+// the static blocklist is consulted first and its cause is reported.
+func TestDNSDispatcher_EntropyBlocklist_StaticTakesPrecedence(t *testing.T) {
+	server, upstream := startLocalDNS(t, func(w dns.ResponseWriter, m *dns.Msg) {
+		t.Fail()
+	})
+	defer func() { _ = server.Shutdown() }()
+
+	entropyDomain := "d1234567890abcdef.cloudfront.net."
+	staticBL := blocklist.NewStaticBlockList(
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+	// Loaded without a trailing dot to match the convention used by
+	// StaticBlocklist.IsBlocked (which strips the trailing dot before
+	// bloom-filter lookup).
+	staticBL.Load([]string{strings.TrimSuffix(entropyDomain, ".")})
+
+	entropyBL := blocklist.NewShannonEntropyBlocklist(
+		&config.EntropyConfig{Enabled: true},
+		slog.New(slog.NewTextHandler(io.Discard, nil)),
+	)
+
+	dispatcher, _, _, _ := setupDispatcherWithBlocklists(t, upstream, nil, false, []blocklist.Blocklist{staticBL, entropyBL})
+
+	req := new(dns.Msg)
+	req.SetQuestion(entropyDomain, dns.TypeA)
+	req.SetEdns0(1232, false)
+
+	writer := new(MockResponseWriter)
+	writer.On("WriteMsg", mock.Anything).Return(nil)
+
+	dispatcher.HandleDNSRequest("test")(writer, req)
+
+	assert.NotNil(t, writer.WrittenMsg)
+	assert.Equal(t, dns.RcodeSuccess, writer.WrittenMsg.Rcode)
+	require.Len(t, writer.WrittenMsg.Extra, 1)
+	opt, ok := writer.WrittenMsg.Extra[0].(*dns.OPT)
+	require.True(t, ok, "expected an OPT record to carry EDE")
+	require.Len(t, opt.Option, 1)
+	ede, ok := opt.Option[0].(*dns.EDNS0_EDE)
+	require.True(t, ok, "expected EDE option")
+	assert.Contains(t, ede.ExtraText, "Blocked by: static_test")
+	assert.NotContains(t, ede.ExtraText, "shannon-entropy-dga",
+		"static blocklist should take precedence over the entropy engine")
+}
+
 func TestDNSDispatcher_HandleDNSRequest_MultipleQuestions(t *testing.T) {
 	server, upstream := startLocalDNS(t, dnsRecord("google.com.", dns.TypeA, []byte{142, 251, 29, 101}))
 
@@ -471,7 +630,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
-	blockList := blocklist.NewBlockList(source, 0.0001, logger)
+	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
 	cache := NewDNSCache(100, logger)
@@ -484,7 +643,7 @@ func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	dnsClient, err := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, "8.8.8.8:53")
 	assert.NoError(t, err)
 
-	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), -1*time.Second, logger, false, newTestLimiter(t, metrics))
+	dispatcher, err := NewDNSDispatcher(cache, metrics, dnsClient, []blocklist.Blocklist{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), -1*time.Second, logger, false, newTestLimiter(t, metrics))
 	assert.Error(t, err)
 	assert.Nil(t, dispatcher)
 	assert.Contains(t, err.Error(), "TTL floor cannot be negative")
@@ -804,7 +963,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 			source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
-			blockList := blocklist.NewBlockList(source, 0.0001, logger)
+			blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 			blockList.Load([]string{"ads.com"})
 
 			cache := NewDNSCache(100, logger)
@@ -813,7 +972,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 			metrics, _ := metrics.NewDNSMetrics(cache, mockGeo, metrics.DefaultTopKConfig())
 			dnsClient, _ := NewRoundRobinClient(metrics, 2*time.Second, 2*time.Second, 2*time.Second, logger, upstream)
 
-			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []*blocklist.BlockList{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, tt.enableECS, newTestLimiter(t, metrics))
+			dispatcher, _ := NewDNSDispatcher(cache, metrics, dnsClient, []blocklist.Blocklist{blockList}, noisefilter.NewNoiseFilter(), sse.NewBroadcaster(logger, metrics.DroppedSSEEvents), 1*time.Minute, logger, tt.enableECS, newTestLimiter(t, metrics))
 			defer dispatcher.Close()
 
 			// Mock ResponseWriter with the specific client IP

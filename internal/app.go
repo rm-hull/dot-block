@@ -326,7 +326,7 @@ func (app *App) newProxyListener(base net.Listener) (*proxyproto.Listener, error
 
 func (app *App) startHttpServer(
 	dnsClient *forwarder.RoundRobinClient,
-	blocklists []*blocklist.BlockList,
+	blocklists []blocklist.Blocklist,
 	dispatcher *forwarder.DNSDispatcher,
 	geoIpLookup geoblock.GeoIpLookup,
 	versionInfoHandler *handlers.VersionInfoHandler,
@@ -427,10 +427,13 @@ func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
 	return geoIpLookup, nil
 }
 
-func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error) {
-	blockLists := make([]*blocklist.BlockList, 0, len(app.Config.Blocklist.Sources))
-	for idx, source := range app.Config.Blocklist.Sources {
-		blockList := blocklist.NewBlockList(&source, 0.0001, app.Logger)
+func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.Blocklist, error) {
+	// Capacity accounts for one slot for the optional entropy blocklist, which
+	// is appended after every static source so that static blocklists are
+	// always evaluated first and entropy analysis runs only as a last resort.
+	blockLists := make([]blocklist.Blocklist, 0, len(app.Config.Blocklist.Sources)+1)
+	for _, source := range app.Config.Blocklist.Sources {
+		blockList := blocklist.NewStaticBlockList(&source, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
 
 		if source.CronSchedule == "" {
@@ -438,12 +441,28 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]*blocklist.BlockList, error
 		}
 		app.Logger.Info("Creating blocklist downloader cron job", "name", source.Name, "schedule", source.CronSchedule)
 		// Create a per-source updater that only updates this one blocklist
-		singleUpdater := blocklist.NewUpdater(blockLists[idx], 1*time.Minute)
+		singleUpdater := blocklist.NewUpdater(blockList, 1*time.Minute)
 		if _, err := crontab.AddJob(source.CronSchedule, singleUpdater); err != nil {
 			return nil, errors.Wrapf(err, "failed to create blocklist downloader cron job for %s", source.Name)
 		}
 
 		go singleUpdater.Run()
+	}
+
+	// The Shannon-entropy DGA / malware subdomain detector is appended last so
+	// that every static blocklist is consulted first; it is only evaluated
+	// when no static blocklist matches. It has no downloadable source, so it
+	// is not scheduled for periodic fetching (its Fetch is a no-op).
+	if app.Config.Blocklist.Entropy.Enabled {
+		app.Logger.Info("Shannon-entropy DGA detection enabled",
+			"suffixes", app.Config.Blocklist.Entropy.Suffixes,
+			"min_label_length", app.Config.Blocklist.Entropy.MinLabelLength,
+			"hex_threshold", app.Config.Blocklist.Entropy.HexThreshold,
+			"alnum_threshold", app.Config.Blocklist.Entropy.AlnumThreshold,
+		)
+		blockLists = append(blockLists, blocklist.NewShannonEntropyBlocklist(app.Config.Blocklist.Entropy, app.Logger))
+	} else {
+		app.Logger.Info("Shannon-entropy DGA detection disabled")
 	}
 
 	return blockLists, nil

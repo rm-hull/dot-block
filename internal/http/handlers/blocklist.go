@@ -16,11 +16,11 @@ import (
 )
 
 type BlocklistHandler struct {
-	blocklists []*blocklist.BlockList
+	blocklists []blocklist.Blocklist
 	logger     *slog.Logger
 }
 
-func NewBlocklistHandler(blocklists []*blocklist.BlockList, logger *slog.Logger) *BlocklistHandler {
+func NewBlocklistHandler(blocklists []blocklist.Blocklist, logger *slog.Logger) *BlocklistHandler {
 	return &BlocklistHandler{blocklists: blocklists, logger: logger}
 }
 
@@ -40,7 +40,7 @@ func (h *BlocklistHandler) Reload(c *gin.Context) {
 	for _, bl := range h.blocklists {
 		if payload.Name == bl.Name() || payload.Name == "" {
 			wg.Add(1)
-			go func(bl *blocklist.BlockList) {
+			go func(bl blocklist.Blocklist) {
 				defer wg.Done()
 				err := bl.Fetch(ctx)
 				if err != nil {
@@ -183,7 +183,7 @@ func (h *BlocklistHandler) Check(c *gin.Context) {
 	})
 }
 
-func (h *BlocklistHandler) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
+func (h *BlocklistHandler) isBlocked(fqdn string) (bool, blocklist.Blocklist, error) {
 	for _, blockList := range h.blocklists {
 		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
 			return isBlocked, blockList, err

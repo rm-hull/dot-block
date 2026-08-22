@@ -8,9 +8,9 @@ export interface Blocklist {
   name: string;
   title?: string;
   description?: string;
-  url: string;
-  schedule: string;
-  size: number;
+  url?: string;
+  schedule?: string;
+  size?: number;
   last_fetched?: Date;
   last_updated?: Date;
   error?: string;
