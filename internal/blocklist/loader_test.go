@@ -60,3 +60,29 @@ func TestLoader_Stream(t *testing.T) {
 	assert.Contains(t, hosts, "example.com")
 	assert.Contains(t, hosts, "malicious.net")
 }
+
+func TestHostnameFromURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+		wantErr  bool
+	}{
+		{name: "hostname with port", input: "https://example.com:8443/path", expected: "example.com"},
+		{name: "hostname without port", input: "http://sub.example.com", expected: "sub.example.com"},
+		{name: "missing hostname", input: "https:///path", wantErr: true},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			hostname, err := hostnameFromURL(test.input)
+			if test.wantErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.Equal(t, test.expected, hostname)
+		})
+	}
+}
