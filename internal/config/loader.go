@@ -139,6 +139,13 @@ func DefaultConfig() *Config {
 					URL:          "https://urlhaus.abuse.ch/downloads/hostfile/",
 					CronSchedule: "@every 10h",
 				},
+				{
+					Name:         "open-phish",
+					Title:        "Open Phish",
+					Description:  "Community Phishing Feed.",
+					URL:          "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt",
+					CronSchedule: "@every 10h",
+				},
 			},
 		},
 		Geoblock: &GeoblockConfig{

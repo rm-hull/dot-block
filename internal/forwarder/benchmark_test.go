@@ -60,11 +60,11 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 	require.NoError(b, err)
 
 	rateLimiter, err := limiter.New(&config.RateLimitConfig{
-		Enabled:            true,
-		RequestsPerSecond:  1000000,
-		Burst:              10000000,
-		MaxTrackedIPs:      10,
-		BanDuration:        time.Hour,
+		Enabled:           true,
+		RequestsPerSecond: 1000000,
+		Burst:             10000000,
+		MaxTrackedIPs:     10,
+		BanDuration:       time.Hour,
 		// Disable NXDOMAIN-flood detection in benchmarks.
 		// The benchResponseWriter does not set a client IP, so all
 		// iterations share the same IP (""). NXDOMAIN-returning benchmarks

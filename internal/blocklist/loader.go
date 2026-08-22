@@ -3,21 +3,15 @@ package blocklist
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
+	"net/url"
 	"regexp"
 	"strings"
 )
 
 var nonAlphanumeric = regexp.MustCompile(`[^a-z0-9]+`)
 var prefixes = fromString("0.0.0.0 ", "127.0.0.1", "255.255.255.255", "::1", "fe00::0", "ff00::0", "ff02::1", "ff02::2", "ff02::3", "#fe80::1%lo0", "*.", "www.")
-
-func fromString(list ...string) [][]byte {
-	res := make([][]byte, 0, len(list))
-	for _, element := range list {
-		res = append(res, []byte(element))
-	}
-	return res
-}
 
 type ScannerFunc func([]byte) bool
 
@@ -69,6 +63,10 @@ func stream(r io.Reader, handler ScannerFunc) (map[string]string, error) {
 				line = after
 			}
 		}
+
+		if host, err := hostnameFromURL(string(line)); err == nil {
+			line = []byte(host)
+		}
 		if handler(line) {
 			break
 		}
@@ -81,4 +79,26 @@ func snakeCase(s string) string {
 	s = strings.ToLower(s)
 	s = nonAlphanumeric.ReplaceAllString(s, "_")
 	return strings.Trim(s, "_")
+}
+
+func fromString(list ...string) [][]byte {
+	res := make([][]byte, 0, len(list))
+	for _, element := range list {
+		res = append(res, []byte(element))
+	}
+	return res
+}
+
+func hostnameFromURL(rawURL string) (string, error) {
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		return "", err
+	}
+
+	hostname := parsedURL.Hostname()
+	if hostname == "" {
+		return "", fmt.Errorf("URL has no hostname: %q", rawURL)
+	}
+
+	return hostname, nil
 }
