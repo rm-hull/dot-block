@@ -51,6 +51,6 @@
     "prettier": "^3.9.6",
     "typescript": "~7.0.2",
     "typescript-eslint": "^8.67.0",
-    "vite": "^8.2.1"
+    "vite": "^8.2.2"
   }
 }
