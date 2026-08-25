@@ -337,6 +337,9 @@ func (app *App) startHttpServer(
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
+	if err := r.SetTrustedProxies(app.Config.Server.TrustedProxies); err != nil {
+		return nil, errors.Wrap(err, "failed to set trusted proxies")
+	}
 	if app.Config.Server.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
