@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Badge,
-  Container,
-  For,
-  HStack,
-  Highlight,
-  SegmentGroup,
-  Table,
-  Text,
-} from "@chakra-ui/react";
+import { Badge, Container, For, HStack, SegmentGroup, Table, Text } from "@chakra-ui/react";
+import { DomainLink } from "@/components/DomainLink";
 import { DomainsPortalToolbar } from "@/components/DomainsPortalToolbar";
 import { Loading } from "@/components/Loading";
 import { toaster } from "@/components/ui/toaster";
@@ -70,12 +62,10 @@ function DomainsPage() {
                 <Table.Row key={index}>
                   <Table.Cell>{index + 1}</Table.Cell>
                   <Table.Cell>
-                    <Highlight
-                      query={trimmedFilterText}
-                      styles={{ bg: "yellow.subtle", color: "yellow.fg" }}
-                    >
-                      {item.labels?.["hostname"] ?? ""}
-                    </Highlight>
+                    <DomainLink
+                      fqdn={item.labels?.["hostname"] ?? ""}
+                      highlight={trimmedFilterText}
+                    />
                   </Table.Cell>
                   <Table.Cell>
                     {item.labels?.["blocklist"] && <Badge>{item.labels?.["blocklist"]}</Badge>}
