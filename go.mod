@@ -1,6 +1,6 @@
 module github.com/rm-hull/dot-block
 
-go 1.26
+go 1.27
 
 require (
 	github.com/adrg/xdg v0.5.3
