@@ -116,3 +116,5 @@ amidstdeploy.com
 dns-tunnel-check.googlezip.net
 expertminus.com
 v.fwmrm.net
+amp-endpoint3.com
+gb.rdx2.lgtvsdp.com
