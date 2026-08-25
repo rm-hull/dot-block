@@ -17,12 +17,13 @@ import (
 func DefaultConfig() *Config {
 	return &Config{
 		Server: &ServerConfig{
-			DevMode:  false,
-			LogLevel: "INFO",
-			DataDir:  "./data",
-			HttpPort: 80,
-			DnsPort:  0,
-			DotPort:  853,
+			DevMode:        false,
+			LogLevel:       "INFO",
+			DataDir:        "./data",
+			HttpPort:       80,
+			TrustedProxies: []string{},
+			DnsPort:        0,
+			DotPort:        853,
 			ProxyProtocol: &ProxyProtocolConfig{
 				Enabled:        false,
 				TrustedProxies: []string{},

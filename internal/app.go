@@ -337,6 +337,9 @@ func (app *App) startHttpServer(
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
+	if err := r.SetTrustedProxies(app.Config.Server.TrustedProxies); err != nil {
+		return nil, errors.Wrap(err, "failed to set trusted proxies")
+	}
 	if app.Config.Server.DevMode {
 		app.Logger.Warn("pprof endpoints are enabled and exposed. Do not run with this flag in production.")
 		pprof.Register(r)
@@ -352,7 +355,7 @@ func (app *App) startHttpServer(
 			Timeout:         5 * time.Second,
 		}),
 		gin.Recovery(),
-		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
+		sloggin.NewWithConfig(app.Logger, *logging.NewStructuredLoggingConfig("/healthz", "/metrics", "/dns-query")),
 		prometheus.Instrument(),
 		middlewares.SentryErrorHandler(app.Logger),
 	)
@@ -396,14 +399,6 @@ func (app *App) environment() string {
 		return "DEVELOPMENT"
 	}
 	return "PRODUCTION"
-}
-
-func newStructuredLoggingConfig() *sloggin.Config {
-	config := sloggin.DefaultConfig()
-	config.WithUserAgent = true
-	config.WithClientIP = true
-	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics", "/dns-query"))
-	return &config
 }
 
 func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {

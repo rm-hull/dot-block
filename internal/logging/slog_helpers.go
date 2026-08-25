@@ -6,6 +6,8 @@ import (
 	"path"
 	"strings"
 	"time"
+
+	sloggin "github.com/samber/slog-gin"
 )
 
 // ReplaceAttr is a slog.HandlerOptions.ReplaceAttr function that
@@ -58,4 +60,27 @@ func processValue(v any, depth int) any {
 	default:
 		return v
 	}
+}
+
+func ParseLogLevel(level string) slog.Level {
+	switch strings.ToUpper(level) {
+	case "DEBUG":
+		return slog.LevelDebug
+	case "INFO":
+		return slog.LevelInfo
+	case "WARN":
+		return slog.LevelWarn
+	case "ERROR":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+func NewStructuredLoggingConfig(ignorePaths ...string) *sloggin.Config {
+	config := sloggin.DefaultConfig()
+	config.WithUserAgent = true
+	config.WithClientIP = true
+	config.Filters = append(config.Filters, sloggin.IgnorePath(ignorePaths...))
+	return &config
 }

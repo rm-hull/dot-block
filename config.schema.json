@@ -363,7 +363,7 @@
                   "type": "boolean"
                 },
                 "trusted_proxies": {
-                  "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+                  "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for DoT requests).",
                   "items": {
                     "type": "string"
                   },
@@ -426,6 +426,13 @@
                 }
               },
               "type": "object"
+            },
+            "trusted_proxies": {
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for HTTP requests).",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             }
           },
           "type": "object"
@@ -684,7 +691,7 @@
           "type": "boolean"
         },
         "trusted_proxies": {
-          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for DoT requests).",
           "items": {
             "type": "string"
           },
@@ -823,7 +830,7 @@
               "type": "boolean"
             },
             "trusted_proxies": {
-              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for DoT requests).",
               "items": {
                 "type": "string"
               },
@@ -886,6 +893,13 @@
             }
           },
           "type": "object"
+        },
+        "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for HTTP requests).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "type": "object"
@@ -1222,7 +1236,7 @@
               "type": "boolean"
             },
             "trusted_proxies": {
-              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges.",
+              "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for DoT requests).",
               "items": {
                 "type": "string"
               },
@@ -1285,6 +1299,13 @@
             }
           },
           "type": "object"
+        },
+        "trusted_proxies": {
+          "description": "Comma-separated list of trusted proxy IP addresses or CIDR ranges (for HTTP requests).",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
         }
       },
       "type": "object"

@@ -1,6 +1,6 @@
 # Title: dot-block custom blocklist
 # Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
-# Last modified: 22 Aug 2026 00:42 UTC
+# Last modified: 23 Aug 2026 21:35 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -26,6 +26,7 @@ d3p0gayswgyxdw.cloudfront.net
 dmqixuaqncbvu.cloudfront.net
 d3s92ui89fue0a.cloudfront.net
 dogvgb9ujhybx.cloudfront.net
+dqpnq362acqdi.cloudfront.net
 ex.co
 comcluster.cxense.com
 doubleclick.net
@@ -114,3 +115,6 @@ neutral.ttwstatic.com
 amidstdeploy.com
 dns-tunnel-check.googlezip.net
 expertminus.com
+v.fwmrm.net
+amp-endpoint3.com
+gb.rdx2.lgtvsdp.com

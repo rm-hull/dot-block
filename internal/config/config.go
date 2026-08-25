@@ -27,21 +27,22 @@ func (LogLevel) JSONSchema() *jsonschema.Type {
 }
 
 type ServerConfig struct {
-	DevMode       bool                 `yaml:"dev_mode,omitempty" json:"dev_mode,omitempty" descr:"Run server in dev mode (no TLS, plain TCP)."`
-	LogLevel      LogLevel             `yaml:"log_level,omitempty" json:"log_level,omitempty" descr:"The logging level (DEBUG, INFO, WARN, ERROR)."`
-	DataDir       string               `yaml:"data_dir,omitempty" json:"data_dir,omitempty" descr:"Directory for storing persistent data (e.g., TLS certificate cache)."`
-	HttpPort      int                  `yaml:"http_port,omitempty" json:"http_port,omitempty" descr:"The port to run HTTP server on."`
-	DnsPort       int                  `yaml:"dns_port,omitempty" json:"dns_port,omitempty" descr:"The port to run regular DNS (UDP/TCP) server on."`
-	DotPort       int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty" descr:"The port to run DNS-over-TLS server on."`
-	ProxyProtocol *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
-	LetsEncrypt   *LetsEncryptConfig   `yaml:"lets_encrypt,omitempty" json:"lets_encrypt,omitempty"`
-	ApiKeys       map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" log:"redacted" descr:"Map of API keys to user descriptions for admin API access."`
-	RateLimit     *RateLimitConfig     `yaml:"rate_limit,omitempty" json:"rate_limit,omitempty" descr:"Rate limiting configuration for client IPs."`
+	DevMode        bool                 `yaml:"dev_mode,omitempty" json:"dev_mode,omitempty" descr:"Run server in dev mode (no TLS, plain TCP)."`
+	LogLevel       LogLevel             `yaml:"log_level,omitempty" json:"log_level,omitempty" descr:"The logging level (DEBUG, INFO, WARN, ERROR)."`
+	DataDir        string               `yaml:"data_dir,omitempty" json:"data_dir,omitempty" descr:"Directory for storing persistent data (e.g., TLS certificate cache)."`
+	HttpPort       int                  `yaml:"http_port,omitempty" json:"http_port,omitempty" descr:"The port to run HTTP server on."`
+	TrustedProxies []string             `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty" descr:"Comma-separated list of trusted proxy IP addresses or CIDR ranges (for HTTP requests)."`
+	DnsPort        int                  `yaml:"dns_port,omitempty" json:"dns_port,omitempty" descr:"The port to run regular DNS (UDP/TCP) server on."`
+	DotPort        int                  `yaml:"dot_port,omitempty" json:"dot_port,omitempty" descr:"The port to run DNS-over-TLS server on."`
+	ProxyProtocol  *ProxyProtocolConfig `yaml:"proxy_protocol,omitempty" json:"proxy_protocol,omitempty"`
+	LetsEncrypt    *LetsEncryptConfig   `yaml:"lets_encrypt,omitempty" json:"lets_encrypt,omitempty"`
+	ApiKeys        map[string]string    `yaml:"api_keys,omitempty" json:"api_keys,omitempty" log:"redacted" descr:"Map of API keys to user descriptions for admin API access."`
+	RateLimit      *RateLimitConfig     `yaml:"rate_limit,omitempty" json:"rate_limit,omitempty" descr:"Rate limiting configuration for client IPs."`
 }
 
 type ProxyProtocolConfig struct {
 	Enabled        bool     `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Require PROXY protocol header for DoT connections."`
-	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty" descr:"Comma-separated list of trusted proxy IP addresses or CIDR ranges."`
+	TrustedProxies []string `yaml:"trusted_proxies,omitempty" json:"trusted_proxies,omitempty" descr:"Comma-separated list of trusted proxy IP addresses or CIDR ranges (for DoT requests)."`
 }
 
 type LetsEncryptConfig struct {
