@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/earthboundkid/versioninfo/v2"
@@ -15,21 +14,6 @@ import (
 	"github.com/rm-hull/dot-block/internal/logging"
 	"github.com/spf13/cobra"
 )
-
-func parseLogLevel(level string) slog.Level {
-	switch strings.ToUpper(level) {
-	case "DEBUG":
-		return slog.LevelDebug
-	case "INFO":
-		return slog.LevelInfo
-	case "WARN":
-		return slog.LevelWarn
-	case "ERROR":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
 
 func main() {
 	var logLevelVar slog.LevelVar
@@ -70,7 +54,7 @@ func main() {
 			config.ApplyEnvOverrides(cfg)
 			app.Config = cfg
 
-			logLevelVar.Set(parseLogLevel(string(cfg.Server.LogLevel)))
+			logLevelVar.Set(logging.ParseLogLevel(string(cfg.Server.LogLevel)))
 
 			if cfg.Server.DevMode {
 				if cfg.Server.DnsPort == 0 {

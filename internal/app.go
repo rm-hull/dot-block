@@ -352,7 +352,7 @@ func (app *App) startHttpServer(
 			Timeout:         5 * time.Second,
 		}),
 		gin.Recovery(),
-		sloggin.NewWithConfig(app.Logger, *newStructuredLoggingConfig()),
+		sloggin.NewWithConfig(app.Logger, *logging.NewStructuredLoggingConfig("/healthz", "/metrics", "/dns-query")),
 		prometheus.Instrument(),
 		middlewares.SentryErrorHandler(app.Logger),
 	)
@@ -396,14 +396,6 @@ func (app *App) environment() string {
 		return "DEVELOPMENT"
 	}
 	return "PRODUCTION"
-}
-
-func newStructuredLoggingConfig() *sloggin.Config {
-	config := sloggin.DefaultConfig()
-	config.WithUserAgent = true
-	config.WithClientIP = true
-	config.Filters = append(config.Filters, sloggin.IgnorePath("/healthz", "/metrics", "/dns-query"))
-	return &config
 }
 
 func (app *App) initMaxmind(crontab *cron.Cron) (geoblock.GeoIpLookup, error) {
