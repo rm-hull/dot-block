@@ -1,12 +1,4 @@
-import {
-  Badge,
-  Box,
-  Field,
-  For,
-  Text,
-  VStack,
-  Wrap,
-} from "@chakra-ui/react";
+import { Badge, Box, Field, For, Text, VStack, Wrap } from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 import { useDomainAnalysis } from "@/hooks/useDomainAnalysis";
 import { Loading } from "./Loading";
@@ -37,23 +29,17 @@ export function DomainAnalysis({ fqdn }: DomainAnalysisProps) {
         <Text>{data?.summary.verdict_reasoning}</Text>
 
         <Field.Root orientation="horizontal" alignItems="start">
-          <Field.Label width={10}>
-            Ad-tech
-          </Field.Label>
+          <Field.Label width={10}>Ad-tech</Field.Label>
           {data?.evidence_assessment.adtech.details}
         </Field.Root>
 
         <Field.Root orientation="horizontal" alignItems="start">
-          <Field.Label width={10}>
-            Personal Data Mining
-          </Field.Label>
+          <Field.Label width={10}>Personal Data Mining</Field.Label>
           {data?.evidence_assessment.personal_data_mining.details}
         </Field.Root>
 
         <Field.Root orientation="horizontal" alignItems="start">
-          <Field.Label width={10}>
-            Malware Distribution
-          </Field.Label>
+          <Field.Label width={10}>Malware Distribution</Field.Label>
           {data?.evidence_assessment.malware_distribution.details}
         </Field.Root>
       </VStack>
