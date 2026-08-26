@@ -18,3 +18,28 @@ updates:
       default-days: 3
     schedule:
       interval: daily
+    versioning-strategy: increase
+    groups:
+      tanstack:
+        patterns:
+          - "@tanstack/*"
+      eslint:
+        patterns:
+          - "*eslint*"
+      vite:
+        patterns:
+          - "*vite*"
+      chakra:
+        patterns:
+          - "@chakra-ui/*"
+      react:
+        patterns:
+          - "react"
+          - "react-dom"
+          - "@types/react"
+          - "@types/react-dom"
+      testing-library:
+        patterns:
+          - "@testing-library/*"
+          - "*jsdom*"
+
