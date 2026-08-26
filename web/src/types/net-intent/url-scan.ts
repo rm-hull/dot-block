@@ -70,3 +70,16 @@ export interface UrlScanPage {
   tlsIssuer: string;
   status: string;
 }
+
+export interface ErrorResponse {
+  error: string;
+}
+
+export function isError(maybeError: unknown): maybeError is ErrorResponse {
+  return (
+    typeof maybeError === "object" &&
+    maybeError !== null &&
+    "error" in maybeError &&
+    typeof maybeError.error === "string"
+  );
+}

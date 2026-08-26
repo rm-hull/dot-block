@@ -1,5 +1,5 @@
 import type { DomainAssessment } from "@/types/net-intent/domain-analysis";
-import type { UrlScanResult } from "@/types/net-intent/url-scan";
+import type { ErrorResponse, UrlScanResult } from "@/types/net-intent/url-scan";
 
 const BASE_URL = "https://api.hz-nbg1.destructuring-bind.org/v1/net-intent";
 
@@ -11,9 +11,9 @@ export async function fetchDomainAnalysis(fqdn: string): Promise<DomainAssessmen
   return await response.json();
 }
 
-export async function fetchUrlScan(fqdn: string): Promise<UrlScanResult> {
+export async function fetchUrlScan(fqdn: string): Promise<UrlScanResult | ErrorResponse> {
   const response = await fetch(`${BASE_URL}/urlscan?domain=${fqdn}`);
-  if (!response.ok) {
+  if (!response.ok && response.status != 404) {
     throw new Error("Failed to fetch url scan");
   }
   return await response.json();

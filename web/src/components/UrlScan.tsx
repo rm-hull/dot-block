@@ -2,6 +2,7 @@ import { Field, Image, Link, VStack } from "@chakra-ui/react";
 import ReactTimeAgo from "react-time-ago";
 import { toaster } from "@/components/ui/toaster";
 import { useUrlScan } from "@/hooks/useUrlScan";
+import { isError } from "@/types/net-intent/url-scan";
 import { ASN } from "./ASN";
 import { Loading } from "./Loading";
 
@@ -25,6 +26,11 @@ export function UrlScan({ fqdn }: UrlScanProps) {
     });
     return null;
   }
+
+  if (isError(data)) {
+    return <VStack>{data.error}</VStack>;
+  }
+
   return (
     <VStack gap={1}>
       {data?.page.ip && (
