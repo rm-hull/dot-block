@@ -1,4 +1,12 @@
-import { Badge, Box, Code, For, HStack, Heading, Text } from "@chakra-ui/react";
+import {
+  Badge,
+  Box,
+  Field,
+  For,
+  Text,
+  VStack,
+  Wrap,
+} from "@chakra-ui/react";
 import { toaster } from "@/components/ui/toaster";
 import { useDomainAnalysis } from "@/hooks/useDomainAnalysis";
 import { Loading } from "./Loading";
@@ -25,25 +33,36 @@ export function DomainAnalysis({ fqdn }: DomainAnalysisProps) {
   }
   return (
     <Box>
-      <HStack>
+      <VStack gap={2}>
+        <Text>{data?.summary.verdict_reasoning}</Text>
+
+        <Field.Root orientation="horizontal">
+          <Field.Label width={10} alignItems="start">
+            Ad-tech
+          </Field.Label>
+          {data?.evidence_assessment.adtech.details}
+        </Field.Root>
+
+        <Field.Root orientation="horizontal">
+          <Field.Label width={10} alignItems="start">
+            Personal Data Mining
+          </Field.Label>
+          {data?.evidence_assessment.personal_data_mining.details}
+        </Field.Root>
+
+        <Field.Root orientation="horizontal">
+          <Field.Label width={10} alignItems="start">
+            Malware Distribution
+          </Field.Label>
+          {data?.evidence_assessment.malware_distribution.details}
+        </Field.Root>
+      </VStack>
+
+      <Wrap pt={2}>
         <For each={data?.threat_categorization}>
           {(elem) => <Badge colorPalette="orange">{elem}</Badge>}
         </For>
-      </HStack>
-      <Text>{data?.summary.verdict_reasoning}</Text>
-
-      <Heading size="sm">Ad-tech</Heading>
-      <Text>{data?.evidence_assessment.adtech.details}</Text>
-
-      <Heading size="sm">Personal Data Mining</Heading>
-      <Text>{data?.evidence_assessment.personal_data_mining.details}</Text>
-
-      <Heading size="sm">Malware Distribution</Heading>
-      <Text>{data?.evidence_assessment.malware_distribution.details}</Text>
-
-      <Code>
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-      </Code>
+      </Wrap>
     </Box>
   );
 }
