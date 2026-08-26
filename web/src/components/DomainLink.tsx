@@ -10,7 +10,7 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
   return (
     <Drawer.Root size="md">
       <Drawer.Trigger asChild>
-        <Link>
+        <Link gap={0}>
           <Highlight query={highlight ?? ""} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
             {fqdn}
           </Highlight>
