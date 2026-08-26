@@ -36,22 +36,22 @@ export function DomainAnalysis({ fqdn }: DomainAnalysisProps) {
       <VStack gap={2}>
         <Text>{data?.summary.verdict_reasoning}</Text>
 
-        <Field.Root orientation="horizontal">
-          <Field.Label width={10} alignItems="start">
+        <Field.Root orientation="horizontal" alignItems="start">
+          <Field.Label width={10}>
             Ad-tech
           </Field.Label>
           {data?.evidence_assessment.adtech.details}
         </Field.Root>
 
-        <Field.Root orientation="horizontal">
-          <Field.Label width={10} alignItems="start">
+        <Field.Root orientation="horizontal" alignItems="start">
+          <Field.Label width={10}>
             Personal Data Mining
           </Field.Label>
           {data?.evidence_assessment.personal_data_mining.details}
         </Field.Root>
 
-        <Field.Root orientation="horizontal">
-          <Field.Label width={10} alignItems="start">
+        <Field.Root orientation="horizontal" alignItems="start">
+          <Field.Label width={10}>
             Malware Distribution
           </Field.Label>
           {data?.evidence_assessment.malware_distribution.details}
