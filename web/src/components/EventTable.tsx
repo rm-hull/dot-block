@@ -7,6 +7,7 @@ import { Result } from "@/components/Result";
 import { Timestamp } from "@/components/Timestamp";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DnsEvent } from "@/hooks/useEvents";
+import { DomainLink } from "./DomainLink";
 
 interface EventTableProps {
   events: DnsEvent[];
@@ -55,9 +56,7 @@ function EventRow({ event, index, filterText }: EventRowProps) {
         <QueryType rrtype={event.queryType} />
       </Table.Cell>
       <Table.Cell truncate maxWidth={200}>
-        <Highlight query={filterText} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>
-          {event.domain}
-        </Highlight>
+        <DomainLink fqdn={event.domain} highlight={filterText} />
       </Table.Cell>
       <Table.Cell textAlign="right">{event.answers}</Table.Cell>
       <Table.Cell>
