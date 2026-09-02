@@ -106,6 +106,42 @@ func TestToJSONResponse(t *testing.T) {
 	assert.Equal(t, uint16(dns.TypeA), jsonResp.Answer[0].Type)
 	assert.Equal(t, 300, jsonResp.Answer[0].TTL)
 	assert.Equal(t, "93.184.216.34", jsonResp.Answer[0].Data[0])
+	assert.Empty(t, jsonResp.Comment)
+}
+
+// TestToJSONResponseWithEDE verifies that EDNS0 Extended DNS Error (EDE)
+// options with "Blocked by:" comments are properly extracted into the JSON
+// response Comment field.
+func TestToJSONResponseWithEDE(t *testing.T) {
+	resp := new(dns.Msg)
+	resp.SetReply(new(dns.Msg))
+
+	resp.Question = []dns.Question{
+		{
+			Name:   "blocked.example.com.",
+			Qtype:  dns.TypeA,
+			Qclass: dns.ClassINET,
+		},
+	}
+
+	// Create a mock EDE OPT record with "Blocked by:" comment
+	ede := &dns.EDNS0_EDE{
+		InfoCode:  dns.ExtendedErrorCodeBlocked,
+		ExtraText: "Blocked by: test-blocklist",
+	}
+
+	opt := new(dns.OPT)
+	opt.Hdr.Name = "."
+	opt.Hdr.Rrtype = dns.TypeOPT
+	opt.Option = append(opt.Option, ede)
+
+	resp.Extra = []dns.RR{opt}
+
+	jsonResp := toJsonResponse(resp)
+
+	assert.Equal(t, "Blocked by: test-blocklist", jsonResp.Comment)
+	// OPT record should not appear in Additional
+	assert.Empty(t, jsonResp.Additional)
 }
 
 func TestDoHHandler_JSONRequest(t *testing.T) {

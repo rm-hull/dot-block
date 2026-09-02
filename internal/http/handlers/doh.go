@@ -224,6 +224,25 @@ func buildJSONQuery(name, typeStr string) ([]byte, error) {
 	return msg.Pack()
 }
 
+// extractCommentFromEDE extracts the "Blocked by:" comment from EDNS0 Extended
+// DNS Error (EDE) options in the response message's OPT record.
+func extractCommentFromEDE(msg *dns.Msg) string {
+	for _, rr := range msg.Extra {
+		opt, ok := rr.(*dns.OPT)
+		if !ok {
+			continue
+		}
+		for _, edeOption := range opt.Option {
+			if ede, ok := edeOption.(*dns.EDNS0_EDE); ok {
+				if strings.HasPrefix(ede.ExtraText, "Blocked by:") {
+					return ede.ExtraText
+				}
+			}
+		}
+	}
+	return ""
+}
+
 // toJsonResponse converts a dns.Msg into a JSON-serializable structure
 // following the application/dns-json convention.
 func toJsonResponse(msg *dns.Msg) *dnsJSONResponse {
@@ -253,7 +272,17 @@ func toJsonResponse(msg *dns.Msg) *dnsJSONResponse {
 		resp.Authority = append(resp.Authority, packRR(rr))
 	}
 
+	// Extract "Blocked by:" comment from EDNS0 EDE options and include in Additional
+	// section as a meaningful JSON comment field
+	if comment := extractCommentFromEDE(msg); comment != "" {
+		resp.Comment = comment
+	}
+
+	// Add non-OPT records to Additional section
 	for _, rr := range msg.Extra {
+		if _, ok := rr.(*dns.OPT); ok {
+			continue // Skip OPT records
+		}
 		resp.Additional = append(resp.Additional, packRR(rr))
 	}
 

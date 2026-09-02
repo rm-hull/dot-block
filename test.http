@@ -76,7 +76,7 @@ Accept: application/dns-message
 
 
 ### DoH GET (DNS JSON)
-GET http://localhost:8080/dns-query?name=example.com&type=A
+GET http://localhost:8080/dns-query?name=html-load.com&type=A
 Accept: application/dns-json
 
 
