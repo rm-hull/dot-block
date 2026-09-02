@@ -75,10 +75,11 @@ export function UrlScan({ fqdn }: UrlScanProps) {
         </Field.Root>
       )}
 
-      <Field.Root orientation="horizontal">
-        <Field.Label flex={1}>Umbrella rank</Field.Label>
-        {data?.page.umbrellaRank}
-      </Field.Root>
+      {(data?.page.umbrellaRank ?? 0) > 0 && (
+        <Field.Root orientation="horizontal">
+          <Field.Label flex={1}>Umbrella rank</Field.Label>
+          {data?.page.umbrellaRank}
+        </Field.Root>)}
 
       <Image
         border={0.5}
