@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { CloseButton, Drawer, Highlight, Link, Portal, Tabs } from "@chakra-ui/react";
+import { DnsResult } from "./DnsResult";
 import { DomainAnalysis } from "./DomainAnalysis";
 import { UrlScan } from "./UrlScan";
 
@@ -43,12 +44,16 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
                 <Tabs.List position="sticky" top={0} bg="bg" zIndex={1}>
                   <Tabs.Trigger value="analysis">Threat Analysis</Tabs.Trigger>
                   <Tabs.Trigger value="urlscan">URL Scan</Tabs.Trigger>
+                  <Tabs.Trigger value="dns">DNS Results</Tabs.Trigger>
                 </Tabs.List>
                 <Tabs.Content value="analysis">
                   <DomainAnalysis fqdn={selectedFqdn} />
                 </Tabs.Content>
                 <Tabs.Content value="urlscan">
                   <UrlScan fqdn={selectedFqdn} />
+                </Tabs.Content>
+                <Tabs.Content value="dns">
+                  <DnsResult fqdn={selectedFqdn} />
                 </Tabs.Content>
               </Tabs.Root>
             </Drawer.Body>

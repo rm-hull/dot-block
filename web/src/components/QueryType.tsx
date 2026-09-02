@@ -2,31 +2,38 @@ import { Badge } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { RRType } from "@/hooks/useEvents";
 
-interface QueryTypeProps {
-  rrtype: RRType;
-}
+type QueryTypeProps = { rrtype: RRType; type?: never } | { type: number; rrtype?: never };
 
 // RRType mappings
-const mapping: Record<RRType, { descr: string }> = {
-  A: { descr: "IPv4 host address" },
-  AAAA: { descr: "IPv6 host address" },
-  CERT: { descr: "Certificate record" },
-  CNAME: { descr: "Canonical name alias" },
-  HTTPS: { descr: "HTTPS service record" },
-  NS: { descr: "Authoritative name server" },
-  PTR: { descr: "Pointer to canonical name" },
-  MX: { descr: "Mail exchange server" },
-  TXT: { descr: "Text record" },
-  SOA: { descr: "Start of authority" },
-  SRV: { descr: "Server selection" },
+const mapping: Record<RRType, { type: number; descr: string }> = {
+  A: { type: 1, descr: "IPv4 host address" },
+  AAAA: { type: 28, descr: "IPv6 host address" },
+  CERT: { type: 37, descr: "Certificate record" },
+  CNAME: { type: 5, descr: "Canonical name alias" },
+  HTTPS: { type: 65, descr: "HTTPS service record" },
+  NS: { type: 2, descr: "Authoritative name server" },
+  PTR: { type: 12, descr: "Pointer to canonical name" },
+  MX: { type: 15, descr: "Mail exchange server" },
+  TXT: { type: 16, descr: "Text record" },
+  SOA: { type: 6, descr: "Start of authority" },
+  SRV: { type: 33, descr: "Server selection" },
 };
 
-export function QueryType({ rrtype }: QueryTypeProps) {
-  const descr = mapping[rrtype]?.descr ?? `Unknown record type: ${rrtype}`;
+export const mappingByType: Record<number, { rrtype: RRType; descr: string }> = Object.fromEntries(
+  Object.entries(mapping).map(([rrtype, { type, descr }]) => [
+    type,
+    { rrtype: rrtype as RRType, descr },
+  ])
+);
+
+export function QueryType(props: QueryTypeProps) {
+  const entry = props.rrtype !== undefined ? mapping[props.rrtype] : mappingByType[props.type];
+  const displayType = props.rrtype ?? (entry && "rrtype" in entry ? entry.rrtype : props.type);
+  const descr = entry?.descr ?? `Unknown record type: ${displayType}`;
 
   return (
     <Tooltip content={descr}>
-      <Badge colorPalette={"gray"}>{rrtype}</Badge>
+      <Badge colorPalette={"gray"}>{displayType}</Badge>
     </Tooltip>
   );
 }
