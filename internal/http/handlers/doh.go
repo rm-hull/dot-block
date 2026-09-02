@@ -200,6 +200,8 @@ func NewDoHHandler(handler dns.Handler) gin.HandlerFunc {
 
 // buildJSONQuery creates a serialized DNS wire-format query from name / type
 // query arguments. It returns the packed bytes ready for Unpack.
+// It includes EDNS0 support to ensure upstream servers return Extended DNS
+// Error (EDE) information in blocked responses.
 func buildJSONQuery(name, typeStr string) ([]byte, error) {
 	if name == "" {
 		return nil, errors.New("missing 'name' parameter")
@@ -221,6 +223,11 @@ func buildJSONQuery(name, typeStr string) ([]byte, error) {
 
 	msg := new(dns.Msg)
 	msg.SetQuestion(name, qtype)
+
+	// Include EDNS0 to request extended error information (EDE)
+	// This ensures we get "Blocked by:" info from upstream
+	msg.SetEdns0(4096, true)
+
 	return msg.Pack()
 }
 
