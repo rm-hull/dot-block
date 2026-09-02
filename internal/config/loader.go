@@ -112,13 +112,14 @@ func DefaultConfig() *Config {
 					URL:          "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
 					CronSchedule: "@every 5h",
 				},
-				// {
-				// 	Name:         "phishing-army",
-				// 	Title:        "Phishing Army blocklist",
-				// 	Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
-				// 	URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
-				// 	CronSchedule: "@every 7h",
-				// },
+				{
+					Name:         "phishing-army",
+					Title:        "Phishing Army blocklist",
+					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
+					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
+					CronSchedule: "@every 7h",
+					Disable:      true,
+				},
 				{
 					Name:         "steven-black",
 					Title:        "Steven Black's ad-hoc list",

@@ -108,6 +108,7 @@ type BlocklistSource struct {
 	Description  string `yaml:"description,omitempty" json:"description,omitempty" descr:"Optional description for the blocklist."`
 	URL          string `yaml:"url,omitempty" json:"url,omitempty" descr:"URL of the blocklist source."`
 	CronSchedule string `yaml:"cron_schedule,omitempty" json:"cron_schedule,omitempty" descr:"Cron spec for reloading this specific blocklist. If omitted, the blocklist is not scheduled for automatic updates."`
+	Disable      bool   `yaml:"disable,omitempty" json:"disable,omitempty" descr:"Whether to disable this blocklist source."`
 }
 
 type GeoblockConfig struct {
