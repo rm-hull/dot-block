@@ -255,7 +255,7 @@ func extractCommentFromEDE(msg *dns.Msg) string {
 func toJsonResponse(msg *dns.Msg) *dnsJSONResponse {
 	resp := &dnsJSONResponse{
 		Status:   int(msg.Rcode),
-		TC:       msg.MsgHdr.Truncated,
+		TC:       msg.Truncated,
 		RD:       msg.RecursionDesired,
 		RA:       msg.RecursionAvailable,
 		AD:       msg.AuthenticatedData,

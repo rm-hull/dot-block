@@ -26,9 +26,17 @@ func NewPublicGroup(r *gin.Engine, publicHost string, rateLimiter *limiter.Limit
 		public.GET("/robots.txt", handlers.RobotsTxtHandler)
 		doh := public.Group("/dns-query")
 		doh.Use(middlewares.RateLimit(rateLimiter))
+		doh.Use(cors.New(cors.Config{
+			AllowOrigins:  []string{"*"},
+			AllowMethods:  []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+			AllowHeaders:  []string{"Accept", "Content-Type"},
+			ExposeHeaders: []string{"Content-Length"},
+			MaxAge:        12 * time.Hour,
+		}))
 		{
 			doh.GET("", dohHandler)
 			doh.POST("", dohHandler)
+			doh.OPTIONS("", corsPreflightHandler)
 		}
 	}
 	return public
@@ -44,6 +52,7 @@ func NewAdminGroup(
 	geoIp geoblock.GeoIpLookup,
 	versionInfoHandler *handlers.VersionInfoHandler,
 	rateLimiter *limiter.Limiter,
+	dohHandler gin.HandlerFunc,
 ) *gin.RouterGroup {
 
 	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
@@ -73,6 +82,7 @@ func NewAdminGroup(
 			api.GET("/version-info", versionInfoHandler.Info)
 			api.GET("/banned-ips", bannedIPsHandler(rateLimiter))
 			api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
+			api.GET("/dns-query", dohHandler)
 		}
 
 		distFS := web.DistFS()

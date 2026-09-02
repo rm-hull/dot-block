@@ -80,6 +80,19 @@ GET http://localhost:8080/dns-query?name=html-load.com&type=A
 Accept: application/dns-json
 
 
+### DoH CORS preflight
+OPTIONS http://localhost:8080/dns-query
+Origin: https://my-domain.com
+Access-Control-Request-Method: GET
+Access-Control-Request-Headers: Accept
+
+
+### DoH GET (DNS JSON) with CORS
+GET http://localhost:8080/dns-query?name=example.com&type=A
+Accept: application/dns-json
+Origin: https://my-domain.com
+
+
 ### Admin UI
 GET http://admin.localhost:8080/
 Accept: text/html
