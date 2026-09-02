@@ -75,6 +75,11 @@ GET http://localhost:8080/dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAA
 Accept: application/dns-message
 
 
+### DoH GET (DNS JSON)
+GET http://localhost:8080/dns-query?name=example.com&type=A
+Accept: application/dns-json
+
+
 ### Admin UI
 GET http://admin.localhost:8080/
 Accept: text/html
