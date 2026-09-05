@@ -10,6 +10,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/gin-gonic/gin"
 	"github.com/miekg/dns"
+	"github.com/rm-hull/dot-block/internal/dnsutil"
 )
 
 // jsonQuestion represents a single entry in the "Question" array of dns-json.
@@ -82,7 +83,7 @@ func packRR(rr dns.RR) jsonResource {
 	}
 
 	return jsonResource{
-		Name:  hdr.Name,
+		Name:  dnsutil.DecodeDNSName(hdr.Name),
 		Type:  hdr.Rrtype,
 		TTL:   int(hdr.Ttl),
 		Class: dns.ClassToString[hdr.Class],
@@ -266,7 +267,7 @@ func toJsonResponse(msg *dns.Msg) *dnsJSONResponse {
 
 	for _, q := range msg.Question {
 		resp.Question = append(resp.Question, jsonQuestion{
-			Name: q.Name,
+			Name: dnsutil.DecodeDNSName(q.Name),
 			Type: q.Qtype,
 		})
 	}

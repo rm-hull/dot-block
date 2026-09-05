@@ -11,6 +11,7 @@ import (
 	"github.com/cockroachdb/errors"
 	"github.com/miekg/dns"
 	"github.com/rm-hull/dot-block/internal/blocklist"
+	"github.com/rm-hull/dot-block/internal/dnsutil"
 	"github.com/rm-hull/dot-block/internal/http/sse"
 	"github.com/rm-hull/dot-block/internal/limiter"
 	"github.com/rm-hull/dot-block/internal/metrics"
@@ -178,7 +179,7 @@ func (d *DNSDispatcher) HandleDNSRequest(source DNSSource) DispatcherFunc {
 			subnet:   d.computeSubnet(ipAddr),
 		}
 		if len(req.Question) > 0 {
-			requestCtx.snapshot.SetPrimaryDomain(req.Question[0].Name)
+			requestCtx.snapshot.SetPrimaryDomain(dnsutil.DecodeDNSName(req.Question[0].Name))
 			requestCtx.snapshot.SetQueryType(getQueryType(&req.Question[0]))
 		}
 
@@ -382,7 +383,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 
 func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string, cause blocklist.Blocklist) QuestionResolution {
 	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name, "cause", cause.Name())
-	requestCtx.snapshot.AddBlockedDomain(q.Name, cause.Name())
+	requestCtx.snapshot.AddBlockedDomain(dnsutil.DecodeDNSName(q.Name), cause.Name())
 	requestCtx.snapshot.AddQueryCount(queryType, true)
 
 	soa := &dns.SOA{
@@ -798,3 +799,4 @@ func (d *DNSDispatcher) isBlocked(fqdn string) (bool, blocklist.Blocklist, error
 	}
 	return false, nil, nil
 }
+
