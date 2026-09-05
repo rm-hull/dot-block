@@ -1,10 +1,12 @@
-import { Field, Image, Link, VStack } from "@chakra-ui/react";
+import { useState } from "react";
+import { Box, Field, Image, Link, VStack } from "@chakra-ui/react";
 import ReactTimeAgo from "react-time-ago";
 import { toaster } from "@/components/ui/toaster";
 import { useUrlScan } from "@/hooks/useUrlScan";
 import { isError } from "@/types/net-intent/url-scan";
 import { ASN } from "./ASN";
 import { Loading } from "./Loading";
+import { Magnifier } from "./Magnifier";
 
 interface UrlScanProps {
   fqdn: string;
@@ -82,15 +84,7 @@ export function UrlScan({ fqdn }: UrlScanProps) {
         </Field.Root>
       )}
 
-      <Image
-        border={0.5}
-        borderRadius={5}
-        borderColor="fg.subtle"
-        borderStyle="solid"
-        src={data?.screenshot}
-        alt="screenshot"
-        objectFit="cover"
-      />
+      <Magnifier src={data?.screenshot} />
     </VStack>
   );
 }
