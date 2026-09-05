@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CloseButton, Drawer, Highlight, Link, Portal, Tabs } from "@chakra-ui/react";
 import { DnsResult } from "./DnsResult";
 import { DomainAnalysis } from "./DomainAnalysis";
@@ -13,14 +13,17 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
   const [open, setOpen] = useState(false);
   const [selectedFqdn, setSelectedFqdn] = useState(fqdn);
 
+  useEffect(() => {
+    if (open) {
+      setSelectedFqdn(fqdn);
+    }
+  }, [fqdn, open]);
+
   return (
     <Drawer.Root
       size="md"
       open={open}
-      onOpenChange={(details) => {
-        setOpen(details.open);
-        if (details.open) setSelectedFqdn(fqdn);
-      }}
+      onOpenChange={(details) => setOpen(details.open)}
     >
       <Drawer.Trigger asChild>
         <Link gap={0}>

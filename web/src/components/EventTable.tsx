@@ -39,13 +39,12 @@ function GapRow({ previousSeq, currentSeq, gapSize }: GapRowProps) {
 
 interface EventRowProps {
   event: DnsEvent;
-  index: number;
   filterText: string;
 }
 
-function EventRow({ event, index, filterText }: EventRowProps) {
+function EventRow({ event, filterText }: EventRowProps) {
   return (
-    <Table.Row key={`${event.seq}-${index}`}>
+    <Table.Row>
       <Table.Cell fontFamily="mono" letterSpacing={-1.2}>
         {event.seq}
       </Table.Cell>
@@ -138,9 +137,8 @@ export function EventTable({ events, filterText }: EventTableProps) {
 
             rows.push(
               <EventRow
-                key={`${event.seq}-${index}`}
+                key={`event-${event.domain}-${event.seq}`}
                 event={event}
-                index={index}
                 filterText={filterText}
               />
             );
