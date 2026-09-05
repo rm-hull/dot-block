@@ -75,11 +75,6 @@ func DefaultConfig() *Config {
 		Blocklist: &BlocklistConfig{
 			Sources: []BlocklistSource{
 				{
-					Name:         "hagezi-pro.plus",
-					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
-					CronSchedule: "@every 19h",
-				},
-				{
 					Name:         "cebeerre-nrd",
 					URL:          "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
 					CronSchedule: "@every 23h",
@@ -118,7 +113,6 @@ func DefaultConfig() *Config {
 					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
 					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
 					CronSchedule: "@every 7h",
-					Disable:      true,
 				},
 				{
 					Name:         "steven-black",
@@ -147,6 +141,11 @@ func DefaultConfig() *Config {
 					Description:  "Community Phishing Feed.",
 					URL:          "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt",
 					CronSchedule: "@every 10h",
+				},
+				{
+					Name:         "hagezi-pro.plus",
+					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
+					CronSchedule: "@every 19h",
 				},
 			},
 			Entropy: &EntropyConfig{
