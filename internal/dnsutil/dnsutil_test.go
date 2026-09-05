@@ -51,19 +51,3 @@ func TestDecodeDNSName(t *testing.T) {
 		})
 	}
 }
-
-func BenchmarkDecodeDNSName_Plain(b *testing.B) {
-	domain := "example.com."
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = DecodeDNSName(domain)
-	}
-}
-
-func BenchmarkDecodeDNSName_Escaped(b *testing.B) {
-	domain := "\\230\\181\\139\\232\\175\\149.com."
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = DecodeDNSName(domain)
-	}
-}
