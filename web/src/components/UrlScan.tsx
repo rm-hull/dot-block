@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Box, Field, Image, Link, VStack } from "@chakra-ui/react";
+import { Field, Link, VStack } from "@chakra-ui/react";
 import ReactTimeAgo from "react-time-ago";
 import { toaster } from "@/components/ui/toaster";
 import { useUrlScan } from "@/hooks/useUrlScan";
