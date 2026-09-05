@@ -20,11 +20,7 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
   }, [fqdn, open]);
 
   return (
-    <Drawer.Root
-      size="md"
-      open={open}
-      onOpenChange={(details) => setOpen(details.open)}
-    >
+    <Drawer.Root size="md" open={open} onOpenChange={(details) => setOpen(details.open)}>
       <Drawer.Trigger asChild>
         <Link gap={0}>
           <Highlight query={highlight ?? ""} styles={{ bg: "yellow.subtle", color: "yellow.fg" }}>

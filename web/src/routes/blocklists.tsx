@@ -84,7 +84,8 @@ function BlocklistsPage() {
                       wordBreak="break-all"
                       display="ruby"
                     >
-                      {blocklist.url} {blocklist.url !== undefined && <ErrorSuffix error={blocklist.error} />}
+                      {blocklist.url}{" "}
+                      {blocklist.url !== undefined && <ErrorSuffix error={blocklist.error} />}
                     </Link>
                   </VStack>
                 </Table.Cell>
@@ -101,9 +102,13 @@ function BlocklistsPage() {
                 <Table.Cell>
                   {modified === undefined ? "—" : <TimeAgo date={modified} />}
                 </Table.Cell>
-                <Table.Cell textAlign="right">{blocklist.size === undefined ? "—" : blocklist.size}</Table.Cell>
+                <Table.Cell textAlign="right">
+                  {blocklist.size === undefined ? "—" : blocklist.size}
+                </Table.Cell>
                 <Table.Cell>
-                  {blocklist.schedule !== undefined && <Badge colorPalette="orange">{blocklist.schedule}</Badge>}
+                  {blocklist.schedule !== undefined && (
+                    <Badge colorPalette="orange">{blocklist.schedule}</Badge>
+                  )}
                 </Table.Cell>
                 <Table.Cell width={150}>
                   <HStack gap={1}>

@@ -79,7 +79,8 @@ export function UrlScan({ fqdn }: UrlScanProps) {
         <Field.Root orientation="horizontal">
           <Field.Label flex={1}>Umbrella rank</Field.Label>
           {data?.page.umbrellaRank}
-        </Field.Root>)}
+        </Field.Root>
+      )}
 
       <Image
         border={0.5}
