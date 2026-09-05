@@ -56,7 +56,7 @@ type DNSDispatcher struct {
 	defaultTTL  float64
 	ttlFloor    time.Duration
 	cache       *DNSCache
-	blockLists  []*blocklist.BlockList
+	blockLists  []blocklist.Blocklist
 	metrics     *metrics.DnsMetrics
 	logger      *slog.Logger
 	noiseFilter *noisefilter.NoiseFilter
@@ -71,7 +71,7 @@ func NewDNSDispatcher(
 	cache *DNSCache,
 	dnsMetrics *metrics.DnsMetrics,
 	dnsClient *RoundRobinClient,
-	blockLists []*blocklist.BlockList,
+	blockLists []blocklist.Blocklist,
 	noiseFilter *noisefilter.NoiseFilter,
 	broadcaster *sse.Broadcaster,
 	ttlFloor time.Duration,
@@ -380,7 +380,7 @@ func (d *DNSDispatcher) processQuestion(requestCtx *RequestContext, q *dns.Quest
 	return QuestionResolution{rcode: dns.RcodeSuccess}, nil
 }
 
-func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string, cause *blocklist.BlockList) QuestionResolution {
+func (d *DNSDispatcher) constructBlockedResponse(requestCtx *RequestContext, q *dns.Question, queryType string, cause blocklist.Blocklist) QuestionResolution {
 	requestCtx.logger.DebugContext(requestCtx.ctx, "Domain blocked", "name", q.Name, "cause", cause.Name())
 	requestCtx.snapshot.AddBlockedDomain(q.Name, cause.Name())
 	requestCtx.snapshot.AddQueryCount(queryType, true)
@@ -790,7 +790,7 @@ func isReservedLocalhost(name string) bool {
 	return strings.ToLower(name) == "localhost."
 }
 
-func (d *DNSDispatcher) isBlocked(fqdn string) (bool, *blocklist.BlockList, error) {
+func (d *DNSDispatcher) isBlocked(fqdn string) (bool, blocklist.Blocklist, error) {
 	for _, blockList := range d.blockLists {
 		if isBlocked, err := blockList.IsBlocked(fqdn); isBlocked || err != nil {
 			return isBlocked, blockList, err

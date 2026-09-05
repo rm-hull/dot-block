@@ -46,7 +46,7 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 	b.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	source := &config.BlocklistSource{Name: "bench", URL: "http://dummy.url"}
-	blockList := blocklist.NewBlockList(source, 0.0001, logger)
+	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net", "tracker.example.com"})
 
 	cache := NewDNSCache(10000, logger)
@@ -81,7 +81,7 @@ func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDis
 
 	dispatcher, err := NewDNSDispatcher(
 		cache, dnsMetrics, dnsClient,
-		[]*blocklist.BlockList{blockList},
+		[]blocklist.Blocklist{blockList},
 		noisefilter.NewNoiseFilter(),
 		sse.NewBroadcaster(logger, dnsMetrics.DroppedSSEEvents),
 		1*time.Minute, logger, enableECS, rateLimiter,

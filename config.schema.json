@@ -5,6 +5,36 @@
     "BlocklistConfig": {
       "additionalProperties": true,
       "properties": {
+        "entropy": {
+          "additionalProperties": true,
+          "description": "Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted.",
+          "properties": {
+            "alnum_threshold": {
+              "description": "Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2).",
+              "type": "number"
+            },
+            "enabled": {
+              "description": "Whether to enable Shannon-entropy DGA / malware subdomain detection as a last resort.",
+              "type": "boolean"
+            },
+            "hex_threshold": {
+              "description": "Entropy threshold (in bits) above which a purely-hexadecimal subdomain label is considered random (default 3.8, since hex has an entropy ceiling of 4.0).",
+              "type": "number"
+            },
+            "min_label_length": {
+              "description": "Minimum length of the subdomain label to evaluate. Shorter labels are ignored (e.g. 'img1').",
+              "type": "integer"
+            },
+            "suffixes": {
+              "description": "List of high-risk shared-hosting / CDN suffixes to subject to entropy analysis (e.g. '.cloudfront.net'). Only the subdomain portion preceding a matching suffix is analysed.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
         "sources": {
           "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
           "items": {
@@ -98,6 +128,36 @@
         "blocklist": {
           "additionalProperties": true,
           "properties": {
+            "entropy": {
+              "additionalProperties": true,
+              "description": "Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted.",
+              "properties": {
+                "alnum_threshold": {
+                  "description": "Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2).",
+                  "type": "number"
+                },
+                "enabled": {
+                  "description": "Whether to enable Shannon-entropy DGA / malware subdomain detection as a last resort.",
+                  "type": "boolean"
+                },
+                "hex_threshold": {
+                  "description": "Entropy threshold (in bits) above which a purely-hexadecimal subdomain label is considered random (default 3.8, since hex has an entropy ceiling of 4.0).",
+                  "type": "number"
+                },
+                "min_label_length": {
+                  "description": "Minimum length of the subdomain label to evaluate. Shorter labels are ignored (e.g. 'img1').",
+                  "type": "integer"
+                },
+                "suffixes": {
+                  "description": "List of high-risk shared-hosting / CDN suffixes to subject to entropy analysis (e.g. '.cloudfront.net'). Only the subdomain portion preceding a matching suffix is analysed.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object"
+            },
             "sources": {
               "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
               "items": {
@@ -524,6 +584,36 @@
       },
       "type": "object"
     },
+    "EntropyConfig": {
+      "additionalProperties": true,
+      "description": "Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted.",
+      "properties": {
+        "alnum_threshold": {
+          "description": "Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2).",
+          "type": "number"
+        },
+        "enabled": {
+          "description": "Whether to enable Shannon-entropy DGA / malware subdomain detection as a last resort.",
+          "type": "boolean"
+        },
+        "hex_threshold": {
+          "description": "Entropy threshold (in bits) above which a purely-hexadecimal subdomain label is considered random (default 3.8, since hex has an entropy ceiling of 4.0).",
+          "type": "number"
+        },
+        "min_label_length": {
+          "description": "Minimum length of the subdomain label to evaluate. Shorter labels are ignored (e.g. 'img1').",
+          "type": "integer"
+        },
+        "suffixes": {
+          "description": "List of high-risk shared-hosting / CDN suffixes to subject to entropy analysis (e.g. '.cloudfront.net'). Only the subdomain portion preceding a matching suffix is analysed.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
     "GeoblockConfig": {
       "additionalProperties": true,
       "properties": {
@@ -915,6 +1005,36 @@
     "blocklist": {
       "additionalProperties": true,
       "properties": {
+        "entropy": {
+          "additionalProperties": true,
+          "description": "Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted.",
+          "properties": {
+            "alnum_threshold": {
+              "description": "Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2).",
+              "type": "number"
+            },
+            "enabled": {
+              "description": "Whether to enable Shannon-entropy DGA / malware subdomain detection as a last resort.",
+              "type": "boolean"
+            },
+            "hex_threshold": {
+              "description": "Entropy threshold (in bits) above which a purely-hexadecimal subdomain label is considered random (default 3.8, since hex has an entropy ceiling of 4.0).",
+              "type": "number"
+            },
+            "min_label_length": {
+              "description": "Minimum length of the subdomain label to evaluate. Shorter labels are ignored (e.g. 'img1').",
+              "type": "integer"
+            },
+            "suffixes": {
+              "description": "List of high-risk shared-hosting / CDN suffixes to subject to entropy analysis (e.g. '.cloudfront.net'). Only the subdomain portion preceding a matching suffix is analysed.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
+          },
+          "type": "object"
+        },
         "sources": {
           "description": "Array of blocklist sources, each with its own name, URL and cron schedule.",
           "items": {

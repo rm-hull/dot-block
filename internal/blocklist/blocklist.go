@@ -2,291 +2,74 @@ package blocklist
 
 import (
 	"context"
-	"io"
-	"log/slog"
-	"os"
-	"strings"
-	"sync"
 	"time"
-
-	"github.com/bits-and-blooms/bloom/v3"
-	"github.com/cockroachdb/errors"
-	"github.com/rm-hull/dot-block/internal/config"
-	"github.com/rm-hull/dot-block/internal/downloader"
-	"github.com/rm-hull/dot-block/internal/metrics"
-	"golang.org/x/net/publicsuffix"
 )
 
-type BlockList struct {
-	source          *config.BlocklistSource
-	metadata        map[string]string
-	lastFetched     *time.Time
-	lastUpdated     *time.Time
-	lastError       error
-	minFpRate       float64
-	estimatedFpRate float64
-	bloomFilter     *bloom.BloomFilter
-	size            uint
-	metrics         *metrics.BlockListMetrics
-	logger          *slog.Logger
-	mutex           *sync.RWMutex
-	disabledUntil   *time.Time
+// Blocklist is the interface satisfied by all blocklist implementations.
+//
+// A blocklist is responsible for answering whether a given fully-qualified
+// domain name should be blocked. Implementations are ordered by importance:
+// static (downloaded) blocklists are always evaluated first, and any
+// heuristic/dynamic blocklist is only consulted as a last resort when no
+// static blocklist matches.
+//
+// Some operations (e.g. Fetch, Load) are only meaningful for static,
+// downloadable blocklists; dynamic implementations may make these no-ops.
+type Blocklist interface {
+	// Name returns the unique identifier of the blocklist. This is used as
+	// the "cause" reported in blocked responses, telemetry and the SSE event
+	// stream.
+	Name() string
+
+	// Title returns a human-readable title for the blocklist, falling back to
+	// the source name when not explicitly set.
+	Title() string
+
+	// Description returns the description of the blocklist.
+	Description() string
+
+	// URL returns the source URL of the blocklist (may be empty for
+	// heuristic blocklists that have no downloadable source).
+	URL() string
+
+	// IsBlocked reports whether the given fully-qualified domain name should
+	// be blocked. It returns (true, nil) when the domain is blocked, (false,
+	// nil) when it is allowed, and (false, err) when an error occurred while
+	// evaluating the domain.
+	IsBlocked(fqdn string) (bool, error)
+
+	// Load populates the blocklist with the given items. It is primarily used
+	// for in-memory seeding/testing of static blocklists; heuristic
+	// implementations may treat this as a no-op.
+	Load(items []string)
+
+	// Fetch downloads (or otherwise refreshes) the blocklist contents.
+	// Heuristic implementations that do not fetch from a URL may make this a
+	// no-op.
+	Fetch(ctx context.Context) error
+
+	// Disable temporarily disables the blocklist for the given duration.
+	Disable(duration time.Duration) time.Time
+
+	// Reenable re-enables a previously disabled blocklist. It returns true if
+	// the blocklist was disabled and has now been re-enabled.
+	Reenable() bool
+
+	// Status returns a snapshot of the blocklist status for reporting.
+	Status() *BlocklistStatus
 }
 
 type BlocklistStatus struct {
 	Name              string            `json:"name"`
 	Title             string            `json:"title,omitempty"`
 	Description       string            `json:"description,omitempty"`
-	URL               string            `json:"url"`
-	Size              uint              `json:"size"`
-	Schedule          string            `json:"schedule"`
+	URL               string            `json:"url,omitempty"`
+	Size              *uint             `json:"size,omitempty"`
+	Schedule          string            `json:"schedule,omitempty"`
 	MetaData          map[string]string `json:"metadata,omitempty"`
 	LastFetched       *time.Time        `json:"last_fetched,omitempty"`
 	LastUpdated       *time.Time        `json:"last_updated,omitempty"`
 	LastError         string            `json:"error,omitempty"`
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
-	FalsePositiveRate float64           `json:"estimated_false_positive_rate"`
-}
-
-func NewBlockList(source *config.BlocklistSource, fpRate float64, logger *slog.Logger) *BlockList {
-	metrics, _ := metrics.NewBlockListMetrics(source.Name)
-
-	blocklist := &BlockList{
-		source:    source,
-		metadata:  make(map[string]string),
-		minFpRate: fpRate,
-		metrics:   metrics,
-		logger:    logger.With("name", source.Name),
-		mutex:     &sync.RWMutex{},
-	}
-
-	if source.Disable {
-		blocklist.disabledUntil = new(time.Now().Add(100 * 365 * 24 * time.Hour)) // effectively disabled indefinitely
-		blocklist.logger.Warn("Blocklist disabled in configuration", "name", blocklist.Name())
-	}
-	return blocklist
-}
-
-func (blockList *BlockList) Name() string {
-	return blockList.source.Name
-}
-
-func (blockList *BlockList) Title() string {
-	if title, ok := blockList.metadata["title"]; ok {
-		return title
-	}
-	return blockList.source.Title
-}
-
-func (blockList *BlockList) Description() string {
-	if description, ok := blockList.metadata["description"]; ok {
-		return description
-	}
-	return blockList.source.Description
-}
-
-func (blockList *BlockList) URL() string {
-	return blockList.source.URL
-}
-
-// Returns whether the URL (or part of the URL) is on a block list.
-// If true, might be a false positive, but if false (i.e. allowed) is definitely not blocked
-func (blockList *BlockList) IsBlocked(fqdn string) (bool, error) {
-	domain, _ := strings.CutSuffix(fqdn, ".")
-
-	blockList.mutex.RLock()
-	defer blockList.mutex.RUnlock()
-
-	// Check whether blocklist was initializaed first
-	if blockList.bloomFilter == nil {
-		return false, nil
-	}
-
-	// 1. Check exact domain first (e.g., "8.lox.legalendowmad.com")
-	current := domain
-	if blockList.bloomFilter.TestString(current) {
-		return blockList.checkDisabled()
-	}
-
-	// 2. Iteratively check parent subdomains up to the apex domain (EffectiveTLDPlusOne)
-	apexDomain, err := publicsuffix.EffectiveTLDPlusOne(domain)
-	if err == nil {
-		for {
-			idx := strings.Index(current, ".")
-			if idx == -1 {
-				break
-			}
-			current = current[idx+1:]
-
-			if blockList.bloomFilter.TestString(current) {
-				return blockList.checkDisabled()
-			}
-
-			if current == apexDomain {
-				break
-			}
-		}
-	}
-
-	return false, nil
-}
-
-func (blockList *BlockList) checkDisabled() (bool, error) {
-	if blockList.disabledUntil != nil && time.Now().Before(*blockList.disabledUntil) {
-		return false, nil
-	}
-	return true, nil
-}
-
-func (blocklist *BlockList) Load(items []string) {
-	n := uint(len(items))
-	bf := bloom.NewWithEstimates(n, blocklist.minFpRate)
-	for _, item := range items {
-		bf.AddString(item)
-	}
-
-	blocklist.applyBloomFilter(bf, n, nil)
-}
-
-func (blocklist *BlockList) Disable(duration time.Duration) time.Time {
-	blocklist.mutex.Lock()
-	defer blocklist.mutex.Unlock()
-
-	blocklist.disabledUntil = new(time.Now().Add(duration))
-	blocklist.logger.Warn("Blocklist temporarily disabled",
-		"name", blocklist.Name(),
-		"until", blocklist.disabledUntil)
-
-	return *blocklist.disabledUntil
-}
-
-func (blocklist *BlockList) Reenable() bool {
-	blocklist.mutex.Lock()
-	defer blocklist.mutex.Unlock()
-
-	if blocklist.disabledUntil == nil || time.Now().After(*blocklist.disabledUntil) {
-		return false
-	}
-
-	blocklist.disabledUntil = nil
-	blocklist.logger.Info("Blocklist re-enabled", "name", blocklist.Name())
-	return true
-}
-
-func (blocklist *BlockList) Status() *BlocklistStatus {
-	blocklist.mutex.RLock()
-	defer blocklist.mutex.RUnlock()
-
-	var disabledUntil *time.Time
-	if blocklist.disabledUntil != nil && time.Now().Before(*blocklist.disabledUntil) {
-		disabledUntil = blocklist.disabledUntil
-	}
-	errorMessage := ""
-	if blocklist.lastError != nil {
-		errorMessage = blocklist.lastError.Error()
-	}
-	status := BlocklistStatus{
-		Name:              blocklist.Name(),
-		Title:             blocklist.Title(),
-		Description:       blocklist.Description(),
-		Schedule:          blocklist.source.CronSchedule,
-		URL:               blocklist.URL(),
-		Size:              blocklist.size,
-		MetaData:          blocklist.metadata,
-		LastFetched:       blocklist.lastFetched,
-		LastUpdated:       blocklist.lastUpdated,
-		LastError:         errorMessage,
-		DisabledUntil:     disabledUntil,
-		FalsePositiveRate: blocklist.estimatedFpRate,
-	}
-
-	return &status
-}
-
-func (blocklist *BlockList) applyBloomFilter(bf *bloom.BloomFilter, n uint, metadata map[string]string) {
-	m, k := bloom.EstimateParameters(n, blocklist.minFpRate)
-	estimatedFpRate := bloom.EstimateFalsePositiveRate(m, k, n)
-
-	blocklist.mutex.Lock()
-	blocklist.bloomFilter = bf
-	blocklist.size = n
-	blocklist.metadata = metadata
-	blocklist.lastFetched = new(time.Now())
-	blocklist.estimatedFpRate = estimatedFpRate
-	blocklist.mutex.Unlock()
-
-	blocklist.logger.Info("Bloom filter created",
-		"name", blocklist.Name(),
-		"actual_size", n,
-		"estimated_size", bf.ApproximatedSize(),
-		"estimated_fp_rate", estimatedFpRate)
-
-	blocklist.metrics.Update(n)
-}
-
-func (blockList *BlockList) Fetch(ctx context.Context) error {
-	path, header, isTemp, err := downloader.Download(ctx, blockList.logger, "", "blocklist", blockList.URL(), "")
-	if err != nil {
-		blockList.lastError = err
-		return errors.Wrap(err, "failed to download blocklist")
-	}
-
-	defer func() {
-		if isTemp {
-			_ = os.Remove(path)
-		}
-	}()
-
-	blockList.lastError = nil
-	if lastUpdatedStr := header.Get("Last-Modified"); lastUpdatedStr != "" {
-		if t, err := time.Parse(time.RFC1123, lastUpdatedStr); err == nil {
-			blockList.lastUpdated = &t
-		}
-	}
-
-	return blockList.processFile(path)
-}
-
-// processFile reads a blocklist file from disk, counts entries, builds a bloom
-// filter, and applies it. It is the core processing logic shared by Fetch
-// (which first downloads the file) and is also used directly by benchmarks.
-func (blockList *BlockList) processFile(path string) error {
-	file, err := os.Open(path)
-	// count, err := countLines(path)
-	if err != nil {
-		return errors.Wrapf(err, "failed to open blocklist file %s (url: %s)", path, blockList.URL())
-	}
-	defer func() { _ = file.Close() }()
-
-	estimate, err := countNewlines(file)
-	if err != nil {
-		return errors.Wrapf(err, "failed to count lines in file %s (url: %s)", path, blockList.URL())
-	}
-
-	// Seek back to the beginning for streaming
-	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return errors.Wrapf(err, "failed to seek to beginning of file %s (url: %s)", path, blockList.URL())
-	}
-
-	bloomFilter := bloom.NewWithEstimates(estimate+1, blockList.minFpRate)
-
-	// Stream the file in a single pass: add hostnames directly to the bloom
-	// filter and extract metadata comments into a map. Rather than logging
-	// metadata as it is encountered, we dump it in a single log message afterwards.
-	var hostCount uint
-	metadata, err := stream(file, func(host []byte) bool {
-		bloomFilter.Add(host)
-		hostCount++
-		return false
-	})
-	if err != nil {
-		return errors.Wrapf(err, "failed to stream hosts from file %s", path)
-	}
-
-	if len(metadata) > 0 {
-		blockList.logger.Info("Loaded hosts into blocklist", "metadata", metadata)
-	}
-
-	blockList.applyBloomFilter(bloomFilter, hostCount, metadata)
-	return nil
+	FalsePositiveRate float64           `json:"estimated_false_positive_rate,omitempty"`
 }

@@ -19,7 +19,7 @@ import (
 func setupHandler(t *testing.T) (*BlocklistHandler, *slog.Logger) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	return NewBlocklistHandler([]*blocklist.BlockList{}, logger), logger
+	return NewBlocklistHandler([]blocklist.Blocklist{}, logger), logger
 }
 
 func TestBlocklistHandler_Status(t *testing.T) {
@@ -37,8 +37,8 @@ func TestBlocklistHandler_Disable_Single(t *testing.T) {
 		Name: "test",
 		URL:  "http://example.com/list.txt",
 	}
-	bl := blocklist.NewBlockList(source, 0.001, logger)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
+	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
 	w := httptest.NewRecorder()
 	payload := `{"name": "test", "duration": "1h"}`
@@ -57,8 +57,8 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
-	bl := blocklist.NewBlockList(source, 0.001, logger)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
+	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
 	w := httptest.NewRecorder()
 	payload := `{"duration": "30m"}`
@@ -75,10 +75,10 @@ func TestBlocklistHandler_Reenable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
-	bl := blocklist.NewBlockList(source, 0.001, logger)
+	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	// Pre-disable it
 	bl.Disable(time.Hour)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -97,12 +97,12 @@ func TestBlocklistHandler_Reenable_Single(t *testing.T) {
 	logger := slog.Default()
 	source1 := &config.BlocklistSource{Name: "test1", URL: "http://example.com/list1.txt"}
 	source2 := &config.BlocklistSource{Name: "test2", URL: "http://example.com/list2.txt"}
-	bl1 := blocklist.NewBlockList(source1, 0.001, logger)
-	bl2 := blocklist.NewBlockList(source2, 0.001, logger)
+	bl1 := blocklist.NewStaticBlockList(source1, 0.001, logger)
+	bl2 := blocklist.NewStaticBlockList(source2, 0.001, logger)
 	// Pre-disable both blocklists
 	bl1.Disable(time.Hour)
 	bl2.Disable(time.Hour)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl1, bl2}, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl1, bl2}, logger)
 
 	w := httptest.NewRecorder()
 	// Re-enable only the blocklist named "test1"
@@ -135,8 +135,8 @@ func TestBlocklistHandler_Reload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	source := &config.BlocklistSource{Name: "test", URL: "http://localhost:9999/does-not-exist"}
-	bl := blocklist.NewBlockList(source, 0.001, logger)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
+	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
 	w := httptest.NewRecorder()
 
@@ -159,7 +159,7 @@ func TestBlocklistHandler_Reload(t *testing.T) {
 func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	h := NewBlocklistHandler([]*blocklist.BlockList{}, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{}, logger)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -175,7 +175,7 @@ func TestBlocklistHandler_CheckInvalidJSON(t *testing.T) {
 func TestBlocklistHandler_CheckTooManyDomains(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	h := NewBlocklistHandler([]*blocklist.BlockList{}, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{}, logger)
 
 	// Create a JSON array with 101 items (limit is 100)
 	var sb strings.Builder
@@ -259,8 +259,8 @@ func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
-	bl := blocklist.NewBlockList(source, 0.001, logger)
-	h := NewBlocklistHandler([]*blocklist.BlockList{bl}, logger)
+	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
 	tests := []struct {
 		name       string
