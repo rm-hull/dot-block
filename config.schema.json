@@ -48,6 +48,10 @@
                 "description": "Optional description for the blocklist.",
                 "type": "string"
               },
+              "disable": {
+                "description": "Whether to disable this blocklist source.",
+                "type": "boolean"
+              },
               "name": {
                 "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
                 "type": "string"
@@ -78,6 +82,10 @@
         "description": {
           "description": "Optional description for the blocklist.",
           "type": "string"
+        },
+        "disable": {
+          "description": "Whether to disable this blocklist source.",
+          "type": "boolean"
         },
         "name": {
           "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
@@ -162,6 +170,10 @@
                   "description": {
                     "description": "Optional description for the blocklist.",
                     "type": "string"
+                  },
+                  "disable": {
+                    "description": "Whether to disable this blocklist source.",
+                    "type": "boolean"
                   },
                   "name": {
                     "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",
@@ -1035,6 +1047,10 @@
               "description": {
                 "description": "Optional description for the blocklist.",
                 "type": "string"
+              },
+              "disable": {
+                "description": "Whether to disable this blocklist source.",
+                "type": "boolean"
               },
               "name": {
                 "description": "Human-readable name for the blocklist (replaces the auto-generated 'Blocklist #N').",

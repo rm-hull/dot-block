@@ -80,6 +80,7 @@ function BlocklistsPage() {
                       href={blocklist.url}
                       fontSize="xs"
                       colorPalette="blue"
+                      target="_blank"
                       wordBreak="break-all"
                       display="ruby"
                     >

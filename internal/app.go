@@ -374,11 +374,11 @@ func (app *App) startHttpServer(
 	}
 	serverName := app.Config.Server.LetsEncrypt.AllowedHosts[0]
 
-	requestHandler := dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH))
+	dohHandler := handlers.NewDoHHandler(dns.HandlerFunc(dispatcher.HandleDNSRequest(forwarder.SourceDoH)))
 
 	routes.NewPublicGroup(r, serverName, rateLimiter,
 		handlers.NewMobileconfigHandler(serverName),
-		handlers.NewDoHHandler(requestHandler))
+		dohHandler)
 
 	routes.NewAdminGroup(r,
 		"admin."+serverName,
@@ -389,6 +389,7 @@ func (app *App) startHttpServer(
 		geoIpLookup,
 		versionInfoHandler,
 		rateLimiter,
+		dohHandler,
 	)
 
 	return r, nil

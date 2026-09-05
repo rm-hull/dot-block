@@ -28,7 +28,7 @@ require (
 	github.com/oschwald/maxminddb-golang/v2 v2.5.0
 	github.com/pires/go-proxyproto v0.15.0
 	github.com/prometheus/client_golang v1.24.1
-	github.com/prometheus/client_model v0.6.2
+	github.com/prometheus/client_model v0.6.3
 	github.com/rm-hull/godx v0.2.5
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/samber/slog-gin v1.21.1

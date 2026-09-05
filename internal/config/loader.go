@@ -118,6 +118,7 @@ func DefaultConfig() *Config {
 					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
 					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
 					CronSchedule: "@every 7h",
+					Disable:      true,
 				},
 				{
 					Name:         "steven-black",

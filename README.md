@@ -5,7 +5,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 ## Features
 
 - **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
-- **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
+- **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body (RFC 8484). Supports `Accept: application/dns-message` and `Accept: application/dns-json` for a simplified JSON API using `name`/`type` query parameters.
 - **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
 - **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
 - **High Performance:** Built with Go for speed and efficiency.
@@ -153,6 +153,12 @@ dig @dot.your-domain.com -p 443 +https example.com A
 
 Note that the bundled `dig` binary in MacOS doesn't support the `+tls` options, so use an alternative like [kdig](https://www.knot-dns.cz/docs/2.6/html/man_kdig.html) instead.
 
+**DoH via curl (JSON API):**
+
+```bash
+curl "https://dot.your-domain.com/dns-query?name=example.com&type=A" -H "Accept: application/dns-json"
+```
+
 **Local Development:**
 
 ```bash
@@ -180,7 +186,9 @@ The server provides several HTTP endpoints for monitoring and management on the 
 
 - `GET /metrics`: Exports Prometheus metrics.
 - `GET /healthz`: Simple heathcheck.
-- `GET /dns-query` and `POST /dns-query`: DNS-over-HTTPS (DoH) endpoint. `GET /dns-query` expects a `dns` query parameter containing the base64url-encoded DNS wire message. `POST /dns-query` expects the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
+- `GET /dns-query` and `POST /dns-query`: DNS-over-HTTPS (DoH) endpoint. `GET /dns-query` expects a `dns` query parameter containing the base64url-encoded DNS wire message (RFC 8484). `POST /dns-query` expects the raw DNS wire format in the request body. Responses are returned with content type `application/dns-message`.
+
+  Additionally, clients may send a `GET /dns-query?name=<domain>&type=<record_type>` request with an `Accept: application/dns-json` header to receive a JSON-formatted response, compatible with tools like `curl` or browser clients that expect a simpler query interface. Supported record types include `A`, `AAAA`, `NS`, `CNAME`, `PTR`, `MX`, `TXT`, `SOA`, `SRV`, and `ANY`.
 
 If `metrics_auth` is configured, the `/metrics` endpoint is protected by basic authentication.
 
