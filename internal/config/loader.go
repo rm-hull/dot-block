@@ -49,10 +49,12 @@ func DefaultConfig() *Config {
 		},
 		DNS: &DNSConfig{
 			Upstreams: []string{
-				"8.8.8.8",
+				"8.8.8.8", // Google DNS
 				"8.8.4.4",
-				"1.1.1.1",
+				"1.1.1.1", // Cloudflare DNS
 				"1.0.0.1",
+				"9.9.9.11", // Quad9 DNSSEC
+				"149.112.112.11",
 			},
 			ECS: &ECSConfig{
 				Enabled: false,
