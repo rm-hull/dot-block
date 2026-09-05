@@ -13,7 +13,7 @@ import (
 func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 	// Use a dummy handler that won't panic when passed nil
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url", Enabled: true}
 	blockList := NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"example.com"})
 
@@ -41,7 +41,7 @@ func TestBlocklist_DisableAndIsBlocked(t *testing.T) {
 
 func TestBlocklist_SubdomainHierarchy(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy_url", Enabled: true}
 	blockList := NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"lox.legalendowmad.com"})
 

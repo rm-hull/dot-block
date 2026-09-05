@@ -453,17 +453,7 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.Blocklist, error)
 	// that every static blocklist is consulted first; it is only evaluated
 	// when no static blocklist matches. It has no downloadable source, so it
 	// is not scheduled for periodic fetching (its Fetch is a no-op).
-	if app.Config.Blocklist.Entropy.Enabled {
-		app.Logger.Info("Shannon-entropy DGA detection enabled",
-			"suffixes", app.Config.Blocklist.Entropy.Suffixes,
-			"min_label_length", app.Config.Blocklist.Entropy.MinLabelLength,
-			"hex_threshold", app.Config.Blocklist.Entropy.HexThreshold,
-			"alnum_threshold", app.Config.Blocklist.Entropy.AlnumThreshold,
-		)
-		blockLists = append(blockLists, blocklist.NewShannonEntropyBlocklist(app.Config.Blocklist.Entropy, app.Logger))
-	} else {
-		app.Logger.Info("Shannon-entropy DGA detection disabled")
-	}
+	blockLists = append(blockLists, blocklist.NewShannonEntropyBlocklist(app.Config.Blocklist.Entropy, app.Logger))
 
 	return blockLists, nil
 }

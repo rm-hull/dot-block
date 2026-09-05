@@ -70,11 +70,24 @@ func NewShannonEntropyBlocklist(cfg *config.EntropyConfig, logger *slog.Logger) 
 		cfg.AlnumThreshold = 4.2
 	}
 
-	return &ShannonEntropyBlocklist{
+	blocklist := ShannonEntropyBlocklist{
 		config: cfg,
 		logger: logger.With("name", ShannonEntropyBlocklistName),
 		mutex:  &sync.RWMutex{},
 	}
+
+	if cfg.Enabled {
+		blocklist.logger.Info("Shannon-entropy DGA detection enabled",
+			"suffixes", cfg.Suffixes,
+			"min_label_length", cfg.MinLabelLength,
+			"hex_threshold", cfg.HexThreshold,
+			"alnum_threshold", cfg.AlnumThreshold,
+		)
+	} else {
+		blocklist.Disable(INDEFINITELY)
+	}
+
+	return &blocklist
 }
 
 // Name returns the blocklist identifier used as the block "cause".
@@ -119,7 +132,7 @@ func (b *ShannonEntropyBlocklist) Disable(duration time.Duration) time.Time {
 	defer b.mutex.Unlock()
 
 	b.disabledUntil = new(time.Now().Add(duration))
-	b.logger.Warn("Blocklist temporarily disabled",
+	b.logger.Warn("Blocklist disabled",
 		"name", b.Name(),
 		"until", b.disabledUntil)
 

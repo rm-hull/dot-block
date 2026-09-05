@@ -26,7 +26,7 @@ func TestCheckHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "test", URL: "http://dummy.url"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://dummy.url", Enabled: true}
 	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"blocked.com", "ads.net"})
 

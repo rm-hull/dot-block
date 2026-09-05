@@ -23,21 +23,19 @@ type UnicodeBlocklist struct {
 	disabledUntil *time.Time
 }
 
-// NewUnicodeBlocklist constructs a new UnicodeBlocklist. If disabled is
-// true, the blocklist is immediately set to a permanently disabled state
+// NewUnicodeBlocklist constructs a new UnicodeBlocklist. If enabled is
+// false, the blocklist is immediately set to a permanently disabled state
 // (disabledUntil is set to a time far in the future) so that it does not
 // block any traffic until explicitly re-enabled.
-func NewUnicodeBlocklist(config *config.UnicodeConfig, logger *slog.Logger) *UnicodeBlocklist {
-	ub := &UnicodeBlocklist{
+func NewUnicodeBlocklist(cfg *config.UnicodeConfig, logger *slog.Logger) *UnicodeBlocklist {
+	blocklist := &UnicodeBlocklist{
 		logger: logger.With("name", UnicodeBlocklistName),
 		mutex:  &sync.RWMutex{},
 	}
-	if !config.Enabled {
-		ub.logger.Info("Unicode/IDN blocklist disabled")
-		future := time.Now().Add(36500 * 24 * time.Hour)
-		ub.disabledUntil = &future
+	if !cfg.Enabled {
+		blocklist.Disable(INDEFINITELY)
 	}
-	return ub
+	return blocklist
 }
 
 // Name returns the blocklist identifier.
@@ -74,7 +72,25 @@ func (b *UnicodeBlocklist) IsBlocked(fqdn string) (bool, error) {
 		return true, nil
 	}
 
-	// Check for non-ASCII characters
+	// Check for non-ASCII characters in the domain name.
+	// DNS libraries may represent non-ASCII bytes as escaped decimal sequences
+	// (e.g. "\230\181\139.com." for "测试.com"), so we need to check both
+	// for actual Unicode characters and for escape sequences.
+	if strings.Contains(fqdn, "\\") {
+		// Check if there are any escape sequences indicating non-ASCII bytes
+		// The DNS presentation format uses \DDD where DDD is the decimal
+		// value of the byte (100-255 range for non-ASCII)
+		for i := 0; i < len(fqdn); i++ {
+			if fqdn[i] == '\\' && i+3 < len(fqdn) {
+				if num, ok := parseEscapedDecimal(fqdn[i+1:]); ok {
+					if num > 127 {
+						return true, nil
+					}
+				}
+			}
+		}
+	}
+
 	for _, r := range fqdn {
 		if r > unicode.MaxASCII {
 			return true, nil
@@ -82,6 +98,22 @@ func (b *UnicodeBlocklist) IsBlocked(fqdn string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+// parseEscapedDecimal attempts to parse a 3-digit decimal number from the string,
+// returning the byte value and true if successful.
+func parseEscapedDecimal(s string) (int, bool) {
+	if len(s) < 3 {
+		return 0, false
+	}
+	num := 0
+	for i := 0; i < 3; i++ {
+		if s[i] < '0' || s[i] > '9' {
+			return 0, false
+		}
+		num = num*10 + int(s[i]-'0')
+	}
+	return num, true
 }
 
 // Load is a no-op.
@@ -99,7 +131,7 @@ func (b *UnicodeBlocklist) Disable(duration time.Duration) time.Time {
 
 	until := time.Now().Add(duration)
 	b.disabledUntil = &until
-	b.logger.Warn("Blocklist temporarily disabled", "name", b.Name(), "until", until)
+	b.logger.Warn("Blocklist disabled", "name", b.Name(), "until", until)
 	return until
 }
 

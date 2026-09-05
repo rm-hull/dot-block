@@ -44,7 +44,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	cfg.Server.DataDir = "../data"
 	cfg.DNS.Upstreams = []string{"8.8.8.8", "1.1.1.1"}
 	cfg.Blocklist.Sources = []config.BlocklistSource{
-		{Name: "dot-block", URL: "file://../data/blocklist.txt", CronSchedule: "@every 19h"},
+		{Name: "dot-block", URL: "file://../data/blocklist.txt", CronSchedule: "@every 19h", Enabled: true},
 	}
 	cfg.DNS.NoiseFilter.URL = "file://../data/noise-filter.csv"
 	cfg.DNS.NoiseFilter.CronSchedule = "@every 19h"

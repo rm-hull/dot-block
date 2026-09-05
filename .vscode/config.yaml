@@ -12,3 +12,7 @@ server:
       - localhost
   api_keys:
     test-key: "test API key for development"
+
+blocklist:
+  unicode:
+    enabled: true

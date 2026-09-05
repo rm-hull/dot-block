@@ -73,3 +73,5 @@ type BlocklistStatus struct {
 	DisabledUntil     *time.Time        `json:"disabled_until,omitempty"`
 	FalsePositiveRate float64           `json:"estimated_false_positive_rate,omitempty"`
 }
+
+const INDEFINITELY = 100 * 365 * 24 * time.Hour

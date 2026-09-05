@@ -18,9 +18,11 @@ func TestUnicodeBlocklist_Enabled(t *testing.T) {
 	}{
 		{"example.com", false},
 		{"google.com", false},
-		{"xn--example.com", true}, // Punycode
-		{"exämple.com", true},     // Non-ASCII
-		{"测试.com", true},          // Non-ASCII
+		{"xn--example.com", true},                    // Punycode
+		{"exämple.com", true},                        // Non-ASCII
+		{"测试.com", true},                             // Non-ASCII
+		{"\\230\\181\\139\\232\\175\\149.com", true}, // Escaped Unicode bytes (DNS presentation format)
+		{"\\101xample.com", false},                   // Escaped ASCII (\101 = 'A') - should not be blocked
 	}
 
 	for _, tc := range tests {
@@ -40,9 +42,10 @@ func TestUnicodeBlocklist_Disabled(t *testing.T) {
 	}{
 		{"example.com", false},
 		{"google.com", false},
-		{"xn--example.com", false}, // Punycode - should be allowed when disabled
-		{"exämple.com", false},     // Non-ASCII - should be allowed when disabled
-		{"测试.com", false},          // Non-ASCII - should be allowed when disabled
+		{"xn--example.com", false},     // Punycode - should be allowed when disabled
+		{"exämple.com", false},         // Non-ASCII - should be allowed when disabled
+		{"测试.com", false},              // Non-ASCII - should be allowed when disabled
+		{"\\230\\181\\139.com", false}, // Escaped Unicode - should be allowed when disabled
 	}
 
 	for _, tc := range tests {

@@ -78,6 +78,7 @@ func DefaultConfig() *Config {
 					Name:         "cebeerre-nrd",
 					URL:          "https://raw.githubusercontent.com/Cebeerre/dnsblocklists/refs/heads/main/NRD/nrd7_asterisk.txt",
 					CronSchedule: "@every 23h",
+					Enabled:      true,
 				},
 				{
 					Name:         "dot-block",
@@ -85,6 +86,7 @@ func DefaultConfig() *Config {
 					Description:  "internally curated blocklist, maintained at github.com/rm-hull/dot-block",
 					URL:          "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt",
 					CronSchedule: "@every 4h",
+					Enabled:      true,
 				},
 				{
 					Name:         "adaway",
@@ -92,6 +94,7 @@ func DefaultConfig() *Config {
 					Description:  "Blocking mobile ad providers and some analytics providers",
 					URL:          "https://adaway.org/hosts.txt",
 					CronSchedule: "@every 336h",
+					Enabled:      true,
 				},
 				{
 					Name:         "firebog",
@@ -99,6 +102,7 @@ func DefaultConfig() *Config {
 					Description:  "AdguardDNS, parsed and mirrored by https://firebog.net",
 					URL:          "https://v.firebog.net/hosts/AdguardDNS.txt",
 					CronSchedule: "@every 17h",
+					Enabled:      true,
 				},
 				{
 					Name:         "yoyo",
@@ -106,6 +110,7 @@ func DefaultConfig() *Config {
 					Description:  "Blocklist for use with hosts files to block ads, trackers, and other nasty things. For more information about this list, see: https://pgl.yoyo.org/adservers/",
 					URL:          "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&showintro=0&mimetype=plaintext",
 					CronSchedule: "@every 5h",
+					Enabled:      true,
 				},
 				{
 					Name:         "phishing-army",
@@ -113,6 +118,7 @@ func DefaultConfig() *Config {
 					Description:  "Blocking known phishing domains: this is the extended version, also contains domains without subdomains.",
 					URL:          "https://phishing.army/download/phishing_army_blocklist_extended.txt",
 					CronSchedule: "@every 7h",
+					Enabled:      true,
 				},
 				{
 					Name:         "steven-black",
@@ -120,6 +126,7 @@ func DefaultConfig() *Config {
 					Description:  "Consolidates several reputable hosts files, and merges them into a unified hosts file with duplicates removed.",
 					URL:          "https://raw.githubusercontent.com/StevenBlack/hosts/master/data/StevenBlack/hosts",
 					CronSchedule: "@every 6h",
+					Enabled:      true,
 				},
 				{
 					Name:         "dan-pollock",
@@ -127,6 +134,7 @@ func DefaultConfig() *Config {
 					Description:  "how to make the internet not suck (as much)",
 					URL:          "https://someonewhocares.org/hosts/zero/hosts",
 					CronSchedule: "@every 8h",
+					Enabled:      true,
 				},
 				{
 					Name:         "url-haus",
@@ -134,6 +142,7 @@ func DefaultConfig() *Config {
 					Description:  "A project from abuse.ch with the goal of sharing malicious URLs.",
 					URL:          "https://urlhaus.abuse.ch/downloads/hostfile/",
 					CronSchedule: "@every 10h",
+					Enabled:      true,
 				},
 				{
 					Name:         "open-phish",
@@ -141,11 +150,13 @@ func DefaultConfig() *Config {
 					Description:  "Community Phishing Feed.",
 					URL:          "https://raw.githubusercontent.com/openphish/public_feed/refs/heads/main/feed.txt",
 					CronSchedule: "@every 10h",
+					Enabled:      true,
 				},
 				{
 					Name:         "hagezi-pro.plus",
 					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
 					CronSchedule: "@every 19h",
+					Enabled:      true,
 				},
 			},
 			Unicode: &UnicodeConfig{

@@ -45,7 +45,7 @@ func (w *benchResponseWriter) Hijack()                     {}
 func setupDispatcherBench(b *testing.B, upstream string, enableECS bool) *DNSDispatcher {
 	b.Helper()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "bench", URL: "http://dummy.url"}
+	source := &config.BlocklistSource{Name: "bench", URL: "http://dummy.url", Enabled: true}
 	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net", "tracker.example.com"})
 

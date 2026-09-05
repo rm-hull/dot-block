@@ -34,8 +34,9 @@ func TestBlocklistHandler_Disable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
 	source := &config.BlocklistSource{
-		Name: "test",
-		URL:  "http://example.com/list.txt",
+		Name:    "test",
+		URL:     "http://example.com/list.txt",
+		Enabled: true,
 	}
 	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
@@ -56,7 +57,7 @@ func TestBlocklistHandler_Disable_Single(t *testing.T) {
 func TestBlocklistHandler_Disable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt", Enabled: true}
 	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
@@ -74,7 +75,7 @@ func TestBlocklistHandler_Disable_All(t *testing.T) {
 func TestBlocklistHandler_Reenable_All(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt", Enabled: true}
 	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	// Pre-disable it
 	bl.Disable(time.Hour)
@@ -95,8 +96,8 @@ func TestBlocklistHandler_Reenable_All(t *testing.T) {
 func TestBlocklistHandler_Reenable_Single(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	source1 := &config.BlocklistSource{Name: "test1", URL: "http://example.com/list1.txt"}
-	source2 := &config.BlocklistSource{Name: "test2", URL: "http://example.com/list2.txt"}
+	source1 := &config.BlocklistSource{Name: "test1", URL: "http://example.com/list1.txt", Enabled: true}
+	source2 := &config.BlocklistSource{Name: "test2", URL: "http://example.com/list2.txt", Enabled: true}
 	bl1 := blocklist.NewStaticBlockList(source1, 0.001, logger)
 	bl2 := blocklist.NewStaticBlockList(source2, 0.001, logger)
 	// Pre-disable both blocklists
@@ -134,7 +135,7 @@ func TestBlocklistHandler_Reenable_Single(t *testing.T) {
 func TestBlocklistHandler_Reload(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	source := &config.BlocklistSource{Name: "test", URL: "http://localhost:9999/does-not-exist"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://localhost:9999/does-not-exist", Enabled: true}
 	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 
@@ -258,7 +259,7 @@ func TestParseDuration(t *testing.T) {
 func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	logger := slog.Default()
-	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt"}
+	source := &config.BlocklistSource{Name: "test", URL: "http://example.com/list.txt", Enabled: true}
 	bl := blocklist.NewStaticBlockList(source, 0.001, logger)
 	h := NewBlocklistHandler([]blocklist.Blocklist{bl}, logger)
 

@@ -48,8 +48,8 @@
                 "description": "Optional description for the blocklist.",
                 "type": "string"
               },
-              "disable": {
-                "description": "Whether to disable this blocklist source.",
+              "enabled": {
+                "description": "Whether this blocklist source is enabled.",
                 "type": "boolean"
               },
               "name": {
@@ -94,8 +94,8 @@
           "description": "Optional description for the blocklist.",
           "type": "string"
         },
-        "disable": {
-          "description": "Whether to disable this blocklist source.",
+        "enabled": {
+          "description": "Whether this blocklist source is enabled.",
           "type": "boolean"
         },
         "name": {
@@ -182,8 +182,8 @@
                     "description": "Optional description for the blocklist.",
                     "type": "string"
                   },
-                  "disable": {
-                    "description": "Whether to disable this blocklist source.",
+                  "enabled": {
+                    "description": "Whether this blocklist source is enabled.",
                     "type": "boolean"
                   },
                   "name": {
@@ -1081,8 +1081,8 @@
                 "description": "Optional description for the blocklist.",
                 "type": "string"
               },
-              "disable": {
-                "description": "Whether to disable this blocklist source.",
+              "enabled": {
+                "description": "Whether this blocklist source is enabled.",
                 "type": "boolean"
               },
               "name": {

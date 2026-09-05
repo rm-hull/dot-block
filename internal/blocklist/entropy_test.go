@@ -218,7 +218,7 @@ func TestIsHex(t *testing.T) {
 // first, as the dispatcher iterates the slice in order).
 func TestEntropyBlocklist_LastResortOrdering(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "static", URL: "http://dummy"}
+	source := &config.BlocklistSource{Name: "static", URL: "http://dummy", Enabled: true}
 	static := NewStaticBlockList(source, 0.0001, logger)
 	// Statically block a domain that also matches the entropy suffix.
 	static.Load([]string{"a1b2c3d4e5f6g7h8.cloudfront.net"})

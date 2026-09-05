@@ -113,7 +113,7 @@ func setupDispatcherTest(t *testing.T, upstream string, logger *slog.Logger, ena
 	if logger == nil {
 		logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	}
-	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url", Enabled: true}
 	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
@@ -352,7 +352,7 @@ func TestDNSDispatcher_EntropyBlocklist_Blocked(t *testing.T) {
 	defer func() { _ = server.Shutdown() }()
 
 	staticBL := blocklist.NewStaticBlockList(
-		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url", Enabled: true},
 		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	staticBL.Load([]string{"ads.0xbt.net"})
@@ -401,7 +401,7 @@ func TestDNSDispatcher_EntropyBlocklist_Allowed(t *testing.T) {
 	defer func() { _ = server.Shutdown() }()
 
 	staticBL := blocklist.NewStaticBlockList(
-		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url", Enabled: true},
 		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	entropyBL := blocklist.NewShannonEntropyBlocklist(
@@ -436,7 +436,7 @@ func TestDNSDispatcher_EntropyBlocklist_StaticTakesPrecedence(t *testing.T) {
 
 	entropyDomain := "d1234567890abcdef.cloudfront.net."
 	staticBL := blocklist.NewStaticBlockList(
-		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url"},
+		&config.BlocklistSource{Name: "static_test", URL: "http://dummy.url", Enabled: true},
 		0.0001, slog.New(slog.NewTextHandler(io.Discard, nil)),
 	)
 	// Loaded without a trailing dot to match the convention used by
@@ -629,7 +629,7 @@ func TestDNSDispatcher_ResolveUpstream_BadRCode(t *testing.T) {
 
 func TestDNSDispatcher_NegativeCacheTtlFloor(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+	source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url", Enabled: true}
 	blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 	blockList.Load([]string{"ads.0xbt.net"})
 
@@ -962,7 +962,7 @@ func TestDNSDispatcher_ECS_Injection(t *testing.T) {
 
 			// Setup dispatcher with the specific enableECS setting
 			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-			source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url"}
+			source := &config.BlocklistSource{Name: "dispatcher_test", URL: "http://dummy.url", Enabled: true}
 			blockList := blocklist.NewStaticBlockList(source, 0.0001, logger)
 			blockList.Load([]string{"ads.com"})
 

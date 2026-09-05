@@ -71,7 +71,7 @@ func BenchmarkBlocklist_ProcessFile(b *testing.B) {
 	b.ReportAllocs()
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	source := &config.BlocklistSource{Name: "nrd7_asterisk", URL: nrd7AsteriskURL}
+	source := &config.BlocklistSource{Name: "nrd7_asterisk", URL: nrd7AsteriskURL, Enabled: true}
 	blockList := NewStaticBlockList(source, 0.0001, logger)
 
 	b.ResetTimer()
