@@ -799,4 +799,3 @@ func (d *DNSDispatcher) isBlocked(fqdn string) (bool, blocklist.Blocklist, error
 	}
 	return false, nil, nil
 }
-
