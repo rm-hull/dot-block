@@ -445,6 +445,10 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.Blocklist, error)
 		go singleUpdater.Run()
 	}
 
+	// Append heuristic blocklists after all static ones, so that they act as
+	// last-resort detectors only evaluated when no static blocklist matches.
+	blockLists = append(blockLists, blocklist.NewUnicodeBlocklist(app.Config.Blocklist.Unicode, app.Logger))
+
 	// The Shannon-entropy DGA / malware subdomain detector is appended last so
 	// that every static blocklist is consulted first; it is only evaluated
 	// when no static blocklist matches. It has no downloadable source, so it

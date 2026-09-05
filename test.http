@@ -93,6 +93,16 @@ Accept: application/dns-json
 Origin: https://my-domain.com
 
 
+### DoH GET (DNS JSON) - Punycode IDN Domain
+GET http://localhost:8080/dns-query?name=xn--exmple-cua.com&type=A
+Accept: application/dns-json
+
+
+### DoH GET (DNS JSON) - Unicode Domain
+GET http://localhost:8080/dns-query?name=ex%C3%A4mple.com&type=A
+Accept: application/dns-json
+
+
 ### Admin UI
 GET http://admin.localhost:8080/
 Accept: text/html

@@ -52,6 +52,7 @@ func TestIntegration_DNSFunctionality(t *testing.T) {
 	cfg.DNS.Cache.MaxSize = 1000
 	cfg.DNS.Cache.CronSchedule = "0 3 * * *"
 	cfg.Geoblock.Ipinfo.CronSchedule = "5 7 4 * *"
+	cfg.Blocklist.Unicode = &config.UnicodeConfig{Enabled: false}
 
 	app := App{
 		Logger: slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug})),

@@ -363,6 +363,9 @@ dns:
     write: 100ms                     # Timeout for writing upstream DNS queries
     dial: 300ms                      # Timeout for establishing connections to upstreams
 
+# Blocklists are fetched asynchronously on startup, so the DNS server begins
+# listening immediately. Domains are not blocked until the initial fetch
+# completes. Subsequent reloads are also asynchronous (see /api/blocklist/reload).
 blocklist:
   sources:                           # Array of blocklist sources, each with its own name, URL and cron schedule (title and description are optional)
     - name: "hagezi-pro"             # Human-readable name for the blocklist
@@ -377,9 +380,13 @@ blocklist:
       url: "https://raw.githubusercontent.com/rm-hull/dot-block/refs/heads/main/data/blocklist.txt"
       cron_schedule: "@every 4h"
 
-# Blocklists are fetched asynchronously on startup, so the DNS server begins
-# listening immediately. Domains are not blocked until the initial fetch
-# completes. Subsequent reloads are also asynchronous (see /api/blocklist/reload).
+  # Heuristic blocklists are appended after all static blocklists and are only
+  # evaluated when no static blocklist matches. They can be toggled on/off below.
+  entropy: # Optional: Shannon-entropy DGA / malware subdomain detection
+    enabled: false # Whether to enable Shannon-entropy DGA / malware subdomain detection
+    suffixes: [...] # List of high-risk suffixes to subject to entropy analysis
+  unicode: # Optional: Unicode / IDN domain blocking
+    enabled: true # Whether to enable Unicode / IDN domain blocking
 
 geoblock:
   ipinfo:

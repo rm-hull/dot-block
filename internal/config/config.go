@@ -108,6 +108,10 @@ type BlocklistConfig struct {
 	// always evaluated first; entropy analysis is only consulted when no
 	// static blocklist matches a domain.
 	Entropy *EntropyConfig `yaml:"entropy,omitempty" json:"entropy,omitempty" descr:"Configuration for the optional Shannon-entropy DGA / malware subdomain detection engine, applied as a last resort after all static blocklists have been consulted."`
+	// Unicode configures the optional Unicode / IDN blocker, which rejects
+	// any domains containing non-ASCII characters or Punycode-encoded (IDN)
+	// prefixes as a last-resort heuristic.
+	Unicode *UnicodeConfig `yaml:"unicode,omitempty" json:"unicode,omitempty" descr:"Configuration for the optional Unicode / IDN domain blocker."`
 }
 
 type BlocklistSource struct {
@@ -148,6 +152,15 @@ type EntropyConfig struct {
 	// alphabet has 36 characters with a ceiling of ~5.17, so a higher
 	// threshold (e.g. 4.2) is used to avoid false positives.
 	AlnumThreshold float64 `yaml:"alnum_threshold,omitempty" json:"alnum_threshold,omitempty" descr:"Entropy threshold (in bits) above which a non-hexadecimal (alphanumeric) subdomain label is considered random (default 4.2)."`
+}
+
+// UnicodeConfig configures the optional Unicode / IDN domain blocker. When
+// enabled, any domain containing non-ASCII characters (Unicode) or a
+// Punycode-encoded IDN prefix (`xn--`) is blocked as a last-resort heuristic
+// complementing the static blocklists. Blocked requests are attributed the
+// cause "unicode-idn-blocker".
+type UnicodeConfig struct {
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled,omitempty" descr:"Whether to enable Unicode / IDN domain blocking."`
 }
 
 type GeoblockConfig struct {

@@ -148,6 +148,9 @@ func DefaultConfig() *Config {
 					CronSchedule: "@every 19h",
 				},
 			},
+			Unicode: &UnicodeConfig{
+				Enabled: true,
+			},
 			Entropy: &EntropyConfig{
 				Enabled:        false,
 				MinLabelLength: 8,

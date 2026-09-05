@@ -68,6 +68,17 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "unicode": {
+          "additionalProperties": true,
+          "description": "Configuration for the optional Unicode / IDN domain blocker.",
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable Unicode / IDN domain blocking.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
@@ -191,6 +202,17 @@
                 "type": "object"
               },
               "type": "array"
+            },
+            "unicode": {
+              "additionalProperties": true,
+              "description": "Configuration for the optional Unicode / IDN domain blocker.",
+              "properties": {
+                "enabled": {
+                  "description": "Whether to enable Unicode / IDN domain blocking.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
             }
           },
           "type": "object"
@@ -999,6 +1021,17 @@
         }
       },
       "type": "object"
+    },
+    "UnicodeConfig": {
+      "additionalProperties": true,
+      "description": "Configuration for the optional Unicode / IDN domain blocker.",
+      "properties": {
+        "enabled": {
+          "description": "Whether to enable Unicode / IDN domain blocking.",
+          "type": "boolean"
+        }
+      },
+      "type": "object"
     }
   },
   "properties": {
@@ -1068,6 +1101,17 @@
             "type": "object"
           },
           "type": "array"
+        },
+        "unicode": {
+          "additionalProperties": true,
+          "description": "Configuration for the optional Unicode / IDN domain blocker.",
+          "properties": {
+            "enabled": {
+              "description": "Whether to enable Unicode / IDN domain blocking.",
+              "type": "boolean"
+            }
+          },
+          "type": "object"
         }
       },
       "type": "object"
