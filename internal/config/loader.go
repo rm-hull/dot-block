@@ -150,7 +150,7 @@ func DefaultConfig() *Config {
 				},
 			},
 			Entropy: &EntropyConfig{
-				Enabled:        true,
+				Enabled:        false,
 				MinLabelLength: 8,
 				HexThreshold:   3.8,
 				AlnumThreshold: 4.2,

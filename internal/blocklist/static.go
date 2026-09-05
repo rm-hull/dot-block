@@ -53,6 +53,10 @@ func NewStaticBlockList(source *config.BlocklistSource, fpRate float64, logger *
 		mutex:     &sync.RWMutex{},
 	}
 
+	if source.Disable {
+		blocklist.disabledUntil = new(time.Now().Add(100 * 365 * 24 * time.Hour)) // effectively disabled indefinitely
+		blocklist.logger.Warn("Blocklist disabled in configuration", "name", blocklist.Name())
+	}
 	return blocklist
 }
 
