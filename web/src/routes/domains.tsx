@@ -53,14 +53,15 @@ function DomainsPage() {
           <Table.Body>
             <For
               each={domains?.metrics
+                ?.toSorted((a, b) => b.value - a.value)
+                ?.map((item, index) => ({ ...item, rank: index + 1 }))
                 ?.filter((item) =>
                   item.labels?.["hostname"].toLowerCase().includes(trimmedFilterText)
-                )
-                .toSorted((a, b) => b.value - a.value)}
+                )}
             >
               {(item, index) => (
                 <Table.Row key={index}>
-                  <Table.Cell>{index + 1}</Table.Cell>
+                  <Table.Cell>{item.rank}</Table.Cell>
                   <Table.Cell>
                     <DomainLink
                       fqdn={item.labels?.["hostname"] ?? ""}
