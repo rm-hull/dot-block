@@ -1,6 +1,6 @@
 # Title: dot-block custom blocklist
 # Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
-# Last modified: 30 Aug 2026 07:30 UTC
+# Last modified: 06 Sep 2026 15:27 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -119,3 +119,4 @@ amp-endpoint3.com
 gb.rdx2.lgtvsdp.com
 cdn.ketchjs.com
 aroundsadly.com
+crta.dailymail.com
