@@ -25,6 +25,10 @@ func ReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 		}
 	}
 
+	if a.Value.Kind() == slog.KindDuration {
+		return slog.String(a.Key, a.Value.Duration().String())
+	}
+
 	if a.Value.Kind() != slog.KindAny {
 		return a
 	}
