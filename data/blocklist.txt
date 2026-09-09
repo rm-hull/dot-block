@@ -1,6 +1,6 @@
 # Title: dot-block custom blocklist
 # Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
-# Last modified: 08 Sep 2026 07:59 UTC
+# Last modified: 09 Sep 2026 17:28 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -121,3 +121,4 @@ idsync.dailymail.com
 cdn.ketchjs.com
 aroundsadly.com
 crta.dailymail.com
+EIC.netflixvoice.lgtvcommon.com
