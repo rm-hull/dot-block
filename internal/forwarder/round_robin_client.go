@@ -162,7 +162,7 @@ func (r *RoundRobinClient) recordFailure(server *upstreamServer, duration time.D
 	r.metrics.UpstreamFailures.WithLabelValues(server.config, reason).Inc()
 	r.metrics.UpstreamLatency.WithLabelValues(server.config).Observe(duration.Seconds())
 	r.metrics.UpstreamEMA.WithLabelValues(server.config).Set(time.Duration(newLat).Seconds())
-	r.logger.Warn("upstream failure", "upstream", server.config, "reason", reason, "error", err)
+	r.logger.Warn("upstream failure", "upstream", server.addr, "reason", reason, "error", err, "duration", duration)
 }
 
 func getFailureReason(err error) string {
