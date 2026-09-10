@@ -30,10 +30,10 @@ type RoundRobinClient struct {
 
 func resolveUpstream(logger *slog.Logger, upstream string) (string, error) {
 	addr := upstream
-	host, port, err := net.SplitHostPort(addr)
+	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr
-		port = "53"
+		port := "53"
 		addr = net.JoinHostPort(host, port)
 	}
 
