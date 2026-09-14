@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789368333592,
+  "lastUpdate": 1789369182982,
   "repoUrl": "https://github.com/rm-hull/dot-block",
   "entries": {
     "dot-block benchmark": [
@@ -48536,6 +48536,342 @@ window.BENCHMARK_DATA = {
             "value": 56,
             "unit": "allocs/op",
             "extra": "14620 times\n4 procs"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "22042e14094a1de9d534e90d437720f4ff14c804",
+          "message": "chore(deps): Bump the react group across 1 directory with 4 updates (#354)\n\nBumps the react group with 4 updates in the /web directory: [react](https://github.com/react/react/tree/HEAD/packages/react), [@types/react](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/react), [react-dom](https://github.com/react/react/tree/HEAD/packages/react-dom) and [@types/react-dom](https://github.com/DefinitelyTyped/DefinitelyTyped/tree/HEAD/types/react-dom).\n\n\nUpdates `react` from 19.2.8 to 19.3.0\n- [Release notes](https://github.com/react/react/releases)\n- [Changelog](https://github.com/react/react/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/react/react/commits/v19.3.0/packages/react)\n\nUpdates `@types/react` from 19.2.18 to 19.3.0\n- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)\n- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/react)\n\nUpdates `react-dom` from 19.2.8 to 19.3.0\n- [Release notes](https://github.com/react/react/releases)\n- [Changelog](https://github.com/react/react/blob/main/CHANGELOG.md)\n- [Commits](https://github.com/react/react/commits/v19.3.0/packages/react-dom)\n\nUpdates `@types/react-dom` from 19.2.7 to 19.3.0\n- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)\n- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/react-dom)\n\nUpdates `@types/react` from 19.2.18 to 19.3.0\n- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)\n- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/react)\n\nUpdates `@types/react-dom` from 19.2.7 to 19.3.0\n- [Release notes](https://github.com/DefinitelyTyped/DefinitelyTyped/releases)\n- [Commits](https://github.com/DefinitelyTyped/DefinitelyTyped/commits/HEAD/types/react-dom)\n\n---\nupdated-dependencies:\n- dependency-name: \"@types/react\"\n  dependency-version: 19.3.0\n  dependency-type: direct:development\n  update-type: version-update:semver-minor\n  dependency-group: react\n- dependency-name: \"@types/react\"\n  dependency-version: 19.3.0\n  dependency-type: direct:development\n  update-type: version-update:semver-minor\n  dependency-group: react\n- dependency-name: \"@types/react-dom\"\n  dependency-version: 19.3.0\n  dependency-type: direct:development\n  update-type: version-update:semver-minor\n  dependency-group: react\n- dependency-name: \"@types/react-dom\"\n  dependency-version: 19.3.0\n  dependency-type: direct:development\n  update-type: version-update:semver-minor\n  dependency-group: react\n- dependency-name: react\n  dependency-version: 19.3.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: react\n- dependency-name: react-dom\n  dependency-version: 19.3.0\n  dependency-type: direct:production\n  update-type: version-update:semver-minor\n  dependency-group: react\n...\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-14T07:56:35+01:00",
+          "tree_id": "5a09116a3fe991a0a60245341dd8a98b4065ba58",
+          "url": "https://github.com/rm-hull/dot-block/commit/22042e14094a1de9d534e90d437720f4ff14c804"
+        },
+        "date": 1789369181788,
+        "tool": "go",
+        "benches": [
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHit",
+            "value": 5708,
+            "unit": "ns/op\t    2346 B/op\t      43 allocs/op",
+            "extra": "192645 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHit - ns/op",
+            "value": 5708,
+            "unit": "ns/op",
+            "extra": "192645 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHit - B/op",
+            "value": 2346,
+            "unit": "B/op",
+            "extra": "192645 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHit - allocs/op",
+            "value": 43,
+            "unit": "allocs/op",
+            "extra": "192645 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHitCNAME",
+            "value": 5783,
+            "unit": "ns/op\t    2434 B/op\t      44 allocs/op",
+            "extra": "204876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHitCNAME - ns/op",
+            "value": 5783,
+            "unit": "ns/op",
+            "extra": "204876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHitCNAME - B/op",
+            "value": 2434,
+            "unit": "B/op",
+            "extra": "204876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheHitCNAME - allocs/op",
+            "value": 44,
+            "unit": "allocs/op",
+            "extra": "204876 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheMiss",
+            "value": 125396,
+            "unit": "ns/op\t    6826 B/op\t     116 allocs/op",
+            "extra": "8114 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheMiss - ns/op",
+            "value": 125396,
+            "unit": "ns/op",
+            "extra": "8114 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheMiss - B/op",
+            "value": 6826,
+            "unit": "B/op",
+            "extra": "8114 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/CacheMiss - allocs/op",
+            "value": 116,
+            "unit": "allocs/op",
+            "extra": "8114 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/Blocked",
+            "value": 5185,
+            "unit": "ns/op\t    2378 B/op\t      45 allocs/op",
+            "extra": "227101 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/Blocked - ns/op",
+            "value": 5185,
+            "unit": "ns/op",
+            "extra": "227101 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/Blocked - B/op",
+            "value": 2378,
+            "unit": "B/op",
+            "extra": "227101 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/Blocked - allocs/op",
+            "value": 45,
+            "unit": "allocs/op",
+            "extra": "227101 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/BlockedWithEDE",
+            "value": 5583,
+            "unit": "ns/op\t    2490 B/op\t      49 allocs/op",
+            "extra": "203343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/BlockedWithEDE - ns/op",
+            "value": 5583,
+            "unit": "ns/op",
+            "extra": "203343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/BlockedWithEDE - B/op",
+            "value": 2490,
+            "unit": "B/op",
+            "extra": "203343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/BlockedWithEDE - allocs/op",
+            "value": 49,
+            "unit": "allocs/op",
+            "extra": "203343 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/DNSSD",
+            "value": 5897,
+            "unit": "ns/op\t    2161 B/op\t      37 allocs/op",
+            "extra": "218071 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/DNSSD - ns/op",
+            "value": 5897,
+            "unit": "ns/op",
+            "extra": "218071 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/DNSSD - B/op",
+            "value": 2161,
+            "unit": "B/op",
+            "extra": "218071 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/DNSSD - allocs/op",
+            "value": 37,
+            "unit": "allocs/op",
+            "extra": "218071 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ReservedTLD",
+            "value": 4811,
+            "unit": "ns/op\t    2137 B/op\t      36 allocs/op",
+            "extra": "251288 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ReservedTLD - ns/op",
+            "value": 4811,
+            "unit": "ns/op",
+            "extra": "251288 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ReservedTLD - B/op",
+            "value": 2137,
+            "unit": "B/op",
+            "extra": "251288 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ReservedTLD - allocs/op",
+            "value": 36,
+            "unit": "allocs/op",
+            "extra": "251288 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/MultipleQuestions",
+            "value": 127518,
+            "unit": "ns/op\t    7629 B/op\t     133 allocs/op",
+            "extra": "9238 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/MultipleQuestions - ns/op",
+            "value": 127518,
+            "unit": "ns/op",
+            "extra": "9238 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/MultipleQuestions - B/op",
+            "value": 7629,
+            "unit": "B/op",
+            "extra": "9238 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/MultipleQuestions - allocs/op",
+            "value": 133,
+            "unit": "allocs/op",
+            "extra": "9238 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ECS",
+            "value": 6748,
+            "unit": "ns/op\t    3759 B/op\t      62 allocs/op",
+            "extra": "169749 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ECS - ns/op",
+            "value": 6748,
+            "unit": "ns/op",
+            "extra": "169749 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ECS - B/op",
+            "value": 3759,
+            "unit": "B/op",
+            "extra": "169749 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcher/ECS - allocs/op",
+            "value": 62,
+            "unit": "allocs/op",
+            "extra": "169749 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcherConcurrent",
+            "value": 3224,
+            "unit": "ns/op\t    2321 B/op\t      42 allocs/op",
+            "extra": "364725 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcherConcurrent - ns/op",
+            "value": 3224,
+            "unit": "ns/op",
+            "extra": "364725 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcherConcurrent - B/op",
+            "value": 2321,
+            "unit": "B/op",
+            "extra": "364725 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSDispatcherConcurrent - allocs/op",
+            "value": 42,
+            "unit": "allocs/op",
+            "extra": "364725 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Get",
+            "value": 154.3,
+            "unit": "ns/op\t      88 B/op\t       3 allocs/op",
+            "extra": "7759347 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Get - ns/op",
+            "value": 154.3,
+            "unit": "ns/op",
+            "extra": "7759347 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Get - B/op",
+            "value": 88,
+            "unit": "B/op",
+            "extra": "7759347 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Get - allocs/op",
+            "value": 3,
+            "unit": "allocs/op",
+            "extra": "7759347 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Set",
+            "value": 512.8,
+            "unit": "ns/op\t     141 B/op\t       4 allocs/op",
+            "extra": "2325698 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Set - ns/op",
+            "value": 512.8,
+            "unit": "ns/op",
+            "extra": "2325698 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Set - B/op",
+            "value": 141,
+            "unit": "B/op",
+            "extra": "2325698 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkDNSCache/Set - allocs/op",
+            "value": 4,
+            "unit": "allocs/op",
+            "extra": "2325698 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkRoundRobinClient",
+            "value": 100226,
+            "unit": "ns/op\t    3386 B/op\t      56 allocs/op",
+            "extra": "12015 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkRoundRobinClient - ns/op",
+            "value": 100226,
+            "unit": "ns/op",
+            "extra": "12015 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkRoundRobinClient - B/op",
+            "value": 3386,
+            "unit": "B/op",
+            "extra": "12015 times\n4 procs"
+          },
+          {
+            "name": "BenchmarkRoundRobinClient - allocs/op",
+            "value": 56,
+            "unit": "allocs/op",
+            "extra": "12015 times\n4 procs"
           }
         ]
       }
