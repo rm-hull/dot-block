@@ -18,17 +18,24 @@ import {
   useRemoveCustomDomains,
 } from "@/hooks/useCustomDomains";
 
-function CustomDomainRow({
-  domain,
-  onDelete,
-}: {
+interface CustomDomainRowProps {
+  rank: number;
   domain: string;
+  filterText?: string;
   onDelete: (domain: string) => void;
-}) {
+}
+
+function CustomDomainRow({
+  rank,
+  domain,
+  filterText,
+  onDelete,
+}: CustomDomainRowProps) {
   return (
     <Table.Row>
+      <Table.Cell>{rank}</Table.Cell>
       <Table.Cell>
-        <DomainLink fqdn={domain} />
+        <DomainLink fqdn={domain} highlight={filterText} />
       </Table.Cell>
       <Table.Cell textAlign="right">
         <AlertDialog
@@ -120,7 +127,11 @@ function NewDomainRow({
   );
 }
 
-export function CustomDomainsTable() {
+interface CustomDomainsTableProps {
+  filterText: string;
+}
+
+export function CustomDomainsTable({ filterText }: CustomDomainsTableProps) {
   const { data: domains, isLoading, error } = useCustomDomains();
   const removeMutation = useRemoveCustomDomains();
   const addMutation = useAddCustomDomains();
@@ -154,6 +165,7 @@ export function CustomDomainsTable() {
       <Table.Root size="sm">
         <Table.Header>
           <Table.Row>
+            <Table.ColumnHeader width={65}>#</Table.ColumnHeader>
             <Table.ColumnHeader>Domain</Table.ColumnHeader>
             <Table.ColumnHeader width="100px" textAlign="right">
               <Button size="2xs" onClick={handleAddButtonClick}>
@@ -182,8 +194,10 @@ export function CustomDomainsTable() {
           ) : (
             domainList
               .toSorted()
-              .map((domain) => (
-                <CustomDomainRow key={domain} domain={domain} onDelete={handleDelete} />
+              .map((domain, index) => ({ rank: index + 1, domain }))
+              .filter(({ domain }) => domain.toLowerCase().includes(filterText.toLowerCase()))
+              .map(({ rank, domain }) => (
+                <CustomDomainRow key={domain} rank={rank} domain={domain} onDelete={handleDelete} filterText={filterText} />
               ))
           )}
 
