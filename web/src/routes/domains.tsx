@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Badge, Container, For, HStack, SegmentGroup, Table, Text } from "@chakra-ui/react";
+import { CustomDomainsTable } from "@/components/CustomDomainsTable";
 import { DomainLink } from "@/components/DomainLink";
 import { DomainsPortalToolbar } from "@/components/DomainsPortalToolbar";
 import { Loading } from "@/components/Loading";
 import { toaster } from "@/components/ui/toaster";
 import { useMetrics } from "@/hooks/useMetrics";
+
+const segmentItems = ["Allowed", "Blocked", "Custom"] as const;
 
 // eslint-disable-next-line react-refresh/only-export-components
 function DomainsPage() {
@@ -26,15 +29,35 @@ function DomainsPage() {
     });
     return null;
   }
+
   const domains = value === "Allowed" ? data?.dns_top_domains : data?.dns_top_blocked_domains;
   const trimmedFilterText = filterText.trim().toLowerCase();
+
+  if (value === "Custom") {
+    return (
+      <Container>
+        <DomainsPortalToolbar filterText={filterText} onFilterTextChange={setFilterText} />
+        <HStack py={2}>
+          <SegmentGroup.Root size="xs" value={value} onValueChange={(e) => setValue(e.value)}>
+            <SegmentGroup.Indicator />
+            <SegmentGroup.Items items={[...segmentItems]} />
+          </SegmentGroup.Root>
+          <Text color="fg.muted" fontSize="sm">
+            Manage your own custom blocked domains.
+          </Text>
+        </HStack>
+        <CustomDomainsTable />
+      </Container>
+    );
+  }
+
   return (
     <Container>
       <DomainsPortalToolbar filterText={filterText} onFilterTextChange={setFilterText} />
       <HStack py={2}>
         <SegmentGroup.Root size="xs" value={value} onValueChange={(e) => setValue(e.value)}>
           <SegmentGroup.Indicator />
-          <SegmentGroup.Items items={["Allowed", "Blocked"]} />
+          <SegmentGroup.Items items={[...segmentItems]} />
         </SegmentGroup.Root>
         <Text color="fg.muted" fontSize="sm">
           {domains?.help}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { CloseButton, Drawer, Highlight, Link, Portal, Tabs } from "@chakra-ui/react";
+import { Button, CloseButton, Drawer, Highlight, Link, Portal, Tabs } from "@chakra-ui/react";
+import { useAddCustomDomains } from "@/hooks/useCustomDomains";
 import { DnsResult } from "./DnsResult";
 import { DomainAnalysis } from "./DomainAnalysis";
 import { UrlScan } from "./UrlScan";
@@ -12,6 +13,7 @@ interface DomainLinkProps {
 export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
   const [open, setOpen] = useState(false);
   const [selectedFqdn, setSelectedFqdn] = useState(fqdn);
+  const { mutate, isPending } = useAddCustomDomains();
 
   useEffect(() => {
     if (open) {
@@ -33,7 +35,21 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
         <Drawer.Positioner>
           <Drawer.Content>
             <Drawer.Header position="sticky" top={0} bg="bg" zIndex={2}>
-              <Drawer.Title>{selectedFqdn}</Drawer.Title>
+              <Drawer.Title display="flex" alignItems="center" gap={2}>
+                {selectedFqdn}
+                <Button
+                  focusRing="none"
+                  variant="plain"
+                  size="xs"
+                  color="blue.fg"
+                  opacity={0.8}
+                  _hover={{ opacity: 1, textDecoration: "underline" }}
+                  onClick={() => mutate([selectedFqdn])}
+                  loading={isPending}
+                >
+                  add to custom blocklist
+                </Button>
+              </Drawer.Title>
               <Drawer.CloseTrigger asChild>
                 <CloseButton size="sm" />
               </Drawer.CloseTrigger>
