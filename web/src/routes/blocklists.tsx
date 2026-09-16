@@ -49,7 +49,7 @@ function BlocklistsPage() {
     <Container>
       <GlobalKillSwitch
         active={
-          data?.blocklists?.every((blocklist) => blocklist.disabled_until === undefined) ?? false
+          data?.blocklists?.some((blocklist) => blocklist.disabled_until === undefined) ?? false
         }
       />
       <Table.Root size="sm" stickyHeader interactive>
