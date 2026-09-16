@@ -427,7 +427,7 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.Blocklist, error)
 	// Capacity accounts for one slot for the optional entropy blocklist, which
 	// is appended after every static source so that static blocklists are
 	// always evaluated first and entropy analysis runs only as a last resort.
-	blockLists := make([]blocklist.Blocklist, 0, len(app.Config.Blocklist.Sources)+1)
+	blockLists := make([]blocklist.Blocklist, 0, len(app.Config.Blocklist.Sources)+2)
 	for _, source := range app.Config.Blocklist.Sources {
 		blockList := blocklist.NewStaticBlockList(&source, 0.0001, app.Logger)
 		blockLists = append(blockLists, blockList)
@@ -444,6 +444,8 @@ func (app *App) NewBlockLists(crontab *cron.Cron) ([]blocklist.Blocklist, error)
 
 		go singleUpdater.Run()
 	}
+
+	blockLists = append(blockLists, blocklist.NewCustomBlocklist(app.Logger))
 
 	// Append heuristic blocklists after all static ones, so that they act as
 	// last-resort detectors only evaluated when no static blocklist matches.

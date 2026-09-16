@@ -7,7 +7,7 @@ DoT Block is a high-performance, caching, and filtering DNS-over-TLS (DoT) serve
 - **DNS-over-TLS:** Encrypts your DNS queries to keep them private.
 - **DNS-over-HTTPS (DoH) endpoint:** An HTTP DoH handler is available at `/dns-query` that accepts GET requests with a `?dns=<base64url>` query parameter or POST requests with the raw DNS wire format in the request body (RFC 8484). Supports `Accept: application/dns-message` and `Accept: application/dns-json` for a simplified JSON API using `name`/`type` query parameters.
 - **Regular DNS:** Supports standard UDP and TCP DNS queries (optional, disabled by default).
-- **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists.
+- **Ad & Tracker Blocking:** Blocks a wide range of unwanted domains using customizable blocklists, including a dynamic custom blocklist that can be managed via the admin API or web UI.
 - **High Performance:** Built with Go for speed and efficiency.
 - **Intelligent Caching:** Caches DNS responses to speed up subsequent lookups with configurable TTL flooring.
 - **Easy to Deploy:** Can be run as a standalone binary or as a Docker container.
@@ -205,7 +205,11 @@ If both are present, `X-API-Key` is validated first.
 
 - `POST /api/blocklist/reload`: Triggers an asynchronous reload of all configured blocklists.
 - `GET /api/blocklist/status`: Returns the current status of all blocklists, including metadata, record counts, and enabled status.
+- `GET /api/blocklist/custom`: Returns the set of custom blocked domains.
+- `POST /api/blocklist/custom`: Adds domains to the custom blocked set. Requires a JSON payload: `{"domains": ["example.com", "..."]}`.
+- `DELETE /api/blocklist/custom`: Removes domains from the custom blocked set. Requires a JSON payload: `{"domains": ["example.com", "..."]}`.
 - `POST /api/blocklist/disable`: Temporarily disables one or all blocklists. Requires a JSON payload: `{"name": "...", "duration": "1h"}`. The `duration` field accepts both Go duration format (e.g. `1h`, `30m`, `90s`) and ISO 8601 duration format (e.g. `PT1H`, `PT30M`, `P1D`).
+
 - `POST /api/blocklist/reenable`: Re-enables all blocklists.
 - `POST /api/blocklist/check`: Checks whether provided domains are blocked against any of the enabled blocklists. Accepts a JSON array of strings or a newline-separated list of domains in the request body.
 - `GET /api/whoami`: Returns information about the currently authenticated user.

@@ -56,6 +56,34 @@ Content-Type: application/json
 GET http://admin.localhost:8080/api/blocklist/status
 
 
+### Get Custom Blocklist
+GET http://admin.localhost:8080/api/blocklist/custom
+Accept: application/json
+
+
+### Add Custom Domains
+POST http://admin.localhost:8080/api/blocklist/custom
+Content-Type: application/json
+
+{
+  "domains": [
+    "bad-tracker.example.com",
+    "ads.example.org"
+  ]
+}
+
+
+### Remove Custom Domains
+DELETE http://admin.localhost:8080/api/blocklist/custom
+Content-Type: application/json
+
+{
+  "domains": [
+    "ads.example.org"
+  ]
+}
+
+
 ### ASN Lookup
 GET http://admin.localhost:8080/api/asn/24.123.12.0
 X-API-Key: test-key

@@ -294,3 +294,82 @@ func TestBlocklistHandler_Disable_ISO8601(t *testing.T) {
 		})
 	}
 }
+
+func TestBlocklistHandler_CustomDomains_PostAndGet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	customBL := blocklist.NewCustomBlocklist(logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{customBL}, logger)
+
+	// POST domains
+	w := httptest.NewRecorder()
+	payload := `{"domains": ["example.com", "foo.bar"]}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/custom", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CustomDomains(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Contains(t, w.Body.String(), "example.com")
+
+	// GET domains
+	w2 := httptest.NewRecorder()
+	c2, _ := gin.CreateTestContext(w2)
+	c2.Request = httptest.NewRequest("GET", "/custom", nil)
+	h.CustomDomains(c2)
+
+	assert.Equal(t, http.StatusOK, w2.Code)
+	assert.Contains(t, w2.Body.String(), "example.com")
+}
+
+func TestBlocklistHandler_CustomDomains_Delete(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	customBL := blocklist.NewCustomBlocklist(logger)
+	customBL.Add([]string{"example.com", "foo.bar"})
+	h := NewBlocklistHandler([]blocklist.Blocklist{customBL}, logger)
+
+	w := httptest.NewRecorder()
+	payload := `{"domains": ["example.com"]}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("DELETE", "/custom", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CustomDomains(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.NotContains(t, w.Body.String(), "example.com")
+	assert.Contains(t, w.Body.String(), "foo.bar")
+}
+
+func TestBlocklistHandler_CustomDomains_InvalidDomain(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	customBL := blocklist.NewCustomBlocklist(logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{customBL}, logger)
+
+	w := httptest.NewRecorder()
+	payload := `{"domains": [""]}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/custom", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CustomDomains(c)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Invalid domain")
+}
+
+func TestBlocklistHandler_CustomDomains_NoCustomBlocklist(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+	h := NewBlocklistHandler([]blocklist.Blocklist{}, logger)
+
+	w := httptest.NewRecorder()
+	payload := `{"domains": ["example.com"]}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/custom", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CustomDomains(c)
+
+	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
+	assert.Contains(t, w.Body.String(), "Custom blocklist not configured")
+}

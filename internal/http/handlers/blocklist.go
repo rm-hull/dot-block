@@ -126,6 +126,62 @@ func (h *BlocklistHandler) Status(message string) gin.HandlerFunc {
 	}
 }
 
+func (h *BlocklistHandler) CustomDomains(c *gin.Context) {
+	var customBL *blocklist.CustomBlocklist
+	for _, bl := range h.blocklists {
+		if cbl, ok := bl.(*blocklist.CustomBlocklist); ok {
+			customBL = cbl
+			break
+		}
+	}
+
+	if customBL == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Custom blocklist not configured"})
+		return
+	}
+
+	if c.Request.Method == http.MethodGet {
+		c.JSON(http.StatusOK, gin.H{
+			"domains": customBL.Domains(),
+		})
+		return
+	}
+
+	var payload struct {
+		Domains []string `json:"domains"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON payload: expected {\"domains\": [\"...\"]}"})
+		return
+	}
+
+	for i, domain := range payload.Domains {
+		domain = strings.TrimSuffix(domain, ".")
+		if _, ok := dns.IsDomainName(domain); !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid domain: " + domain})
+			return
+		}
+		payload.Domains[i] = domain
+	}
+
+	switch c.Request.Method {
+	case http.MethodPost:
+		customBL.Add(payload.Domains)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Domains added successfully",
+			"domains": customBL.Domains(),
+		})
+	case http.MethodDelete:
+		customBL.Remove(payload.Domains)
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Domains removed successfully",
+			"domains": customBL.Domains(),
+		})
+	default:
+		c.AbortWithStatus(http.StatusMethodNotAllowed)
+	}
+}
+
 func (h *BlocklistHandler) Check(c *gin.Context) {
 	var domains []string
 
