@@ -6,7 +6,7 @@ require (
 	github.com/Depado/ginprom v1.8.3
 	github.com/adrg/xdg v0.5.3
 	github.com/alecthomas/jsonschema v0.0.0-20220216202328-9eeeec9d044b
-	github.com/axiomhq/hyperloglog v0.2.6
+	github.com/axiomhq/hyperloglog v0.3.0
 	github.com/bits-and-blooms/bloom/v3 v3.7.1
 	github.com/caddyserver/certmagic v0.25.4
 	github.com/channelmeter/iso8601duration v0.0.0-20150204201828-8da3af7a2a61
