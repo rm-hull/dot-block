@@ -38,7 +38,7 @@ func APIKeyAuth(apiKeys map[string]string) Authenticator {
 		for user, key := range apiKeys {
 			if key == apiKey {
 				c.Set("user", user)
-				sloggin.AddCustomAttributes(c, slog.String("user-name", user))
+				sloggin.AddCustomAttributes(c, slog.String("request.user-name", user))
 				return true
 			}
 		}
@@ -62,7 +62,7 @@ func ProxyAuth(devMode bool) Authenticator {
 
 		c.Set("user", user)
 		c.Set("email", c.GetHeader("X-Auth-Request-Email"))
-		sloggin.AddCustomAttributes(c, slog.String("user-name", user))
+		sloggin.AddCustomAttributes(c, slog.String("request.user-name", user))
 		return true
 	}
 }
