@@ -178,9 +178,11 @@ dig @127.0.0.1 -p 8853 www.google.com A +tcp
 openssl s_client -connect dot.your-domain.com:853 -alpn dot -servername dot.your-domain.com
 ```
 
-### Management API
+#### Management API
 
 The server provides several HTTP endpoints for monitoring and management on the configured HTTP port (default 80).
+
+All management API endpoints are protected by the `X-API-Key` header, which must be set to one of the keys defined in `server.api_keys`.
 
 #### Public endpoints
 
@@ -192,16 +194,9 @@ The server provides several HTTP endpoints for monitoring and management on the 
 
 If `metrics_auth` is configured, the `/metrics` endpoint is protected by basic authentication.
 
-#### Admin endpoints
+#### Admin API endpoints
 
-While the public endpoints are available on the main domain, the management APIs are hosted on the admin subdomain (e.g., `admin.dot.your-domain.com`). Admin API requests must authenticate using one of two methods:
-
-- `X-API-Key` header with a value defined in `server.api_keys`
-- Proxy auth headers: `X-Auth-Request-User` and optional `X-Auth-Request-Email`
-
-These proxy auth headers are typically populated by a reverse proxy such as Traefik and an OAuth2/auth proxy plugin.
-
-If both are present, `X-API-Key` is validated first.
+The admin APIs are hosted on the same domain as the public endpoints. Requests must authenticate using the `X-API-Key` header with a value defined in `server.api_keys` in the configuration.
 
 - `POST /api/blocklist/reload`: Triggers an asynchronous reload of all configured blocklists.
 - `GET /api/blocklist/status`: Returns the current status of all blocklists, including metadata, record counts, and enabled status.
@@ -229,21 +224,21 @@ If both are present, `X-API-Key` is validated first.
     - Stream only blocked events:
 
         ```bash
-        curl -N -H "Accept: text/event-stream" "http://admin.localhost:8080/api/events?blocked=true"
+        curl -N -H "Accept: text/event-stream" -H "X-API-Key: <your-key>" "http://localhost:8080/api/events?blocked=true"
         ```
 
     - Stream events for multiple domains (suffix match):
 
         ```bash
-        curl -N -H "Accept: text/event-stream" "http://admin.localhost:8080/api/events?domain=example.com&domain=other.com"
+        curl -N -H "Accept: text/event-stream" -H "X-API-Key: <your-key>" "http://localhost:8080/api/events?domain=example.com&domain=other.com"
         ```
 
 ### Testing the Event Stream
 
-You can stream live DNS requests using `curl`:
+You can stream live DNS requests using `curl` with your API key:
 
 ```bash
-curl -N -H "Accept: text/event-stream" http://admin.localhost:8080/api/events
+curl -N -H "Accept: text/event-stream" -H "X-API-Key: <your-key>" http://localhost:8080/api/events
 ```
 
 ### iOS / iPadOS Configuration
