@@ -395,6 +395,7 @@ func (app *App) startHttpServer(
 		versionInfoHandler,
 		rateLimiter,
 		dohHandler,
+		app.Logger,
 	)
 
 	return r, nil

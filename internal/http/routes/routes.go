@@ -2,6 +2,7 @@ package routes
 
 import (
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -103,6 +104,7 @@ func NewAPIGroup(
 	versionInfoHandler *handlers.VersionInfoHandler,
 	rateLimiter *limiter.Limiter,
 	dohHandler gin.HandlerFunc,
+	logger *slog.Logger,
 ) *gin.RouterGroup {
 
 	api := r.Group("/api")
@@ -126,7 +128,7 @@ func NewAPIGroup(
 	api.POST("/blocklist/custom", blocklistHandler.CustomDomains)
 	api.DELETE("/blocklist/custom", blocklistHandler.CustomDomains)
 	api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
-	api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster))
+	api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster, logger))
 
 	api.GET("/version-info", versionInfoHandler.Info)
 	api.GET("/banned-ips", bannedIPsHandler(rateLimiter))

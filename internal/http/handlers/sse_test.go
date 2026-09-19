@@ -29,7 +29,7 @@ func TestSSEHandler_QueryFiltersBlockedEvents(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 
-	handler := SSEHandler(broadcaster)
+	handler := SSEHandler(broadcaster, logger)
 
 	reqCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -88,7 +88,7 @@ func TestSSEHandler_InvalidQueryParamReturnsBadRequest(t *testing.T) {
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = req
 
-	handler := SSEHandler(broadcaster)
+	handler := SSEHandler(broadcaster, logger)
 
 	handler(ctx)
 
@@ -111,7 +111,7 @@ func TestSSEHandler_DomainFiltersMatchMultiple(t *testing.T) {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 
-	handler := SSEHandler(broadcaster)
+	handler := SSEHandler(broadcaster, logger)
 
 	reqCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()

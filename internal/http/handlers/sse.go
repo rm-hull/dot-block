@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log/slog"
 	"net/http"
 	"slices"
 	"strings"
@@ -50,7 +51,7 @@ func (q *SSEQueryParams) Matches(event sse.Event) bool {
 	return true
 }
 
-func SSEHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
+func SSEHandler(broadcaster *sse.Broadcaster, logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if broadcaster == nil {
 			c.AbortWithStatus(http.StatusServiceUnavailable)
@@ -62,6 +63,29 @@ func SSEHandler(broadcaster *sse.Broadcaster) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "invalid query parameters", "details": err.Error()})
 			return
 		}
+
+		username := ""
+		if user, exists := c.Get("user"); exists && user != nil {
+			if s, ok := user.(string); ok {
+				username = s
+			}
+		}
+		params := map[string]string{}
+		for _, p := range c.Params {
+			params[p.Key] = p.Value
+		}
+
+		logger.Info("SSE connection established",
+			slog.String("user-name", username),
+			slog.GroupAttrs("request",
+				slog.String("host", c.Request.URL.Host),
+				slog.String("path", c.Request.URL.Path),
+				slog.String("user-agent", c.Request.UserAgent()),
+				slog.String("query", c.Request.URL.RawQuery),
+				slog.String("route", c.FullPath()),
+				slog.String("ip", c.ClientIP()),
+				slog.String("referer", c.Request.Referer()),
+				slog.Any("params", params)))
 
 		subscriber := broadcaster.Subscribe()
 		defer broadcaster.Unsubscribe(subscriber)
