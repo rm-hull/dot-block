@@ -15,21 +15,24 @@ GET http://localhost:8080/.mobileconfig
 
 
 ### Reload blocklist
-POST http://admin.localhost:8080/api/blocklist/reload
+POST http://localhost:8080/api/blocklist/reload
+X-API-Key: test_123456
 User-Agent: test-client
 
 {"name": "dot-block"}
 
 
 ### Check blocklist (JSON)
-POST http://admin.localhost:8080/api/blocklist/check
+POST http://localhost:8080/api/blocklist/check
+X-API-Key: test_123456
 Content-Type: application/json
 
 ["google.com", "www.ex.co", "ads.net"]
 
 
 ### Check blocklist (Plain text)
-POST http://admin.localhost:8080/api/blocklist/check
+POST http://localhost:8080/api/blocklist/check
+X-API-Key: test_123456
 Content-Type: text/plain
 
 google.com
@@ -39,30 +42,36 @@ track.wargaming-aff.com
 
 
 ### Disable blocklist
-POST http://admin.localhost:8080/api/blocklist/disable
+POST http://localhost:8080/api/blocklist/disable
+X-API-Key: test_123456
 Content-Type: application/json
 
 {"name": "dot-block", "duration": "PT5M"}
 
 
 ### Re-enable blocklist
-POST http://admin.localhost:8080/api/blocklist/reenable
+POST http://localhost:8080/api/blocklist/reenable
+X-API-Key: test_123456
 Content-Type: application/json
 
 {"name": "dot-block"}
 
 
 ### Blocklist status
-GET http://admin.localhost:8080/api/blocklist/status
+GET http://localhost:8080/api/blocklist/status
+X-API-Key: test_123456
+Accept: application/json
 
 
 ### Get Custom Blocklist
-GET http://admin.localhost:8080/api/blocklist/custom
+GET http://localhost:8080/api/blocklist/custom
+X-API-Key: test_123456
 Accept: application/json
 
 
 ### Add Custom Domains
-POST http://admin.localhost:8080/api/blocklist/custom
+POST http://localhost:8080/api/blocklist/custom
+X-API-Key: test_123456
 Content-Type: application/json
 
 {
@@ -74,7 +83,8 @@ Content-Type: application/json
 
 
 ### Remove Custom Domains
-DELETE http://admin.localhost:8080/api/blocklist/custom
+DELETE http://localhost:8080/api/blocklist/custom
+X-API-Key: test_123456
 Content-Type: application/json
 
 {
@@ -85,8 +95,8 @@ Content-Type: application/json
 
 
 ### ASN Lookup
-GET http://admin.localhost:8080/api/asn/24.123.12.0
-X-API-Key: test-key
+GET http://localhost:8080/api/asn/24.123.12.0
+X-API-Key: test_123456
 Accept: application/json
 
 
@@ -132,37 +142,42 @@ Accept: application/dns-json
 
 
 ### Admin UI
-GET http://admin.localhost:8080/
+GET http://localhost:8080/
 Accept: text/html
 
 
 ### Who Am I
-GET http://admin.localhost:8080/api/whoami
+GET http://admin.localhost:8080/whoami
 Accept: application/json
 
 
 ### Version Info
-GET http://admin.localhost:8080/api/version-info
+GET http://localhost:8080/api/version-info
+X-API-Key: test_123456
 Accept: application/json
 
 
 ### Banned IPs
-GET http://admin.localhost:8080/api/banned-ips
-X-API-Key: test-key
+GET http://localhost:8080/api/banned-ips
+X-API-Key: test_123456
 Accept: application/json
 
 
 ### CORS preflight
-OPTIONS http://admin.localhost:8080/api/whoami
+OPTIONS http://localhost:8080/api/banned-ips
 Origin: http://example.com
 Access-Control-Request-Method: GET
 Access-Control-Request-Headers: Authorization, Content-Type
 
 
 ### DNS Events Stream (SSE)
-GET http://admin.localhost:8080/api/events
+GET http://localhost:8080/api/events
+X-API-Key: test_123456
 Accept: text/event-stream
 
 
 ### JSON Metrics
-GET http://admin.localhost:8080/api/metrics
+GET http://localhost:8080/api/metrics
+X-API-Key: test_123456
+Accept: application/json
+

@@ -11,7 +11,7 @@ server:
     allowed_hosts:
       - localhost
   api_keys:
-    test-key: "test API key for development"
+    dev: "test_123456"
 
 blocklist:
   unicode:

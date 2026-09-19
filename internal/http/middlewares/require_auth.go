@@ -33,13 +33,14 @@ func APIKeyAuth(apiKeys map[string]string) Authenticator {
 			return false
 		}
 
-		description, ok := apiKeys[apiKey]
-		if !ok {
-			return false
+		for user, key := range apiKeys {
+			if key == apiKey {
+				c.Set("user", user)
+				return true
+			}
 		}
 
-		c.Set("user", description)
-		return true
+		return false
 	}
 }
 

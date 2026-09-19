@@ -47,6 +47,56 @@ func NewAdminGroup(
 	adminHost string,
 	devMode bool,
 	apiKeys map[string]string,
+	// blocklistHandler *handlers.BlocklistHandler,
+	// broadcaster *sse.Broadcaster,
+	// geoIp geoblock.GeoIpLookup,
+	// versionInfoHandler *handlers.VersionInfoHandler,
+	// rateLimiter *limiter.Limiter,
+	// dohHandler gin.HandlerFunc,
+) *gin.RouterGroup {
+
+	// --- Admin: SPA pinned to the admin host, auth on top ---
+	admin := r.Group("/")
+	admin.Use(middlewares.RequireHost(adminHost))
+	admin.GET("/whoami", middlewares.RequireAnyAuth(middlewares.ProxyAuth(devMode)), whoAmIHandler(apiKeys))
+
+	distFS := web.DistFS()
+	httpFS := http.FS(distFS)
+	fileServer := http.FileServer(httpFS)
+
+	r.NoRoute(func(c *gin.Context) {
+
+		host := c.Request.Host
+		if i := strings.IndexByte(host, ':'); i != -1 {
+			host = host[:i]
+		}
+		if !strings.EqualFold(host, adminHost) {
+			c.AbortWithStatus(http.StatusNotFound)
+			return
+		}
+
+		path := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if path != "" {
+			if strings.HasPrefix(path, "api/") {
+				c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
+				return
+			}
+			if _, err := fs.Stat(distFS, path); err == nil {
+				fileServer.ServeHTTP(c.Writer, c.Request)
+				return
+			}
+		}
+
+		c.FileFromFS("/", httpFS)
+	})
+
+	return admin
+}
+
+func NewAPIGroup(
+	r *gin.Engine,
+	devMode bool,
+	apiKeys map[string]string,
 	blocklistHandler *handlers.BlocklistHandler,
 	broadcaster *sse.Broadcaster,
 	geoIp geoblock.GeoIpLookup,
@@ -55,71 +105,35 @@ func NewAdminGroup(
 	dohHandler gin.HandlerFunc,
 ) *gin.RouterGroup {
 
-	// --- Admin: SPA + API, pinned to the admin host, auth on top ---
-	admin := r.Group("/")
-	admin.Use(middlewares.RequireHost(adminHost))
-	{
-		api := admin.Group("/api")
-		api.Use(cors.New(cors.Config{
-			AllowOrigins:     []string{"*"},
-			AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-			AllowHeaders:     []string{"Authorization", "Content-Type", "X-API-Key"},
-			ExposeHeaders:    []string{"Content-Length"},
-			AllowCredentials: true,
-			MaxAge:           12 * time.Hour,
-		}))
-		api.Use(middlewares.RequireAnyAuth(middlewares.APIKeyAuth(apiKeys), middlewares.ProxyAuth(devMode)))
-		{
-			api.OPTIONS("/*path", corsPreflightHandler)
-			api.POST("/blocklist/check", blocklistHandler.Check)
-			api.POST("/blocklist/reload", blocklistHandler.Reload)
-			api.POST("/blocklist/disable", blocklistHandler.Disable)
-			api.POST("/blocklist/reenable", blocklistHandler.Reenable)
-			api.GET("/blocklist/status", blocklistHandler.Status(""))
-			api.GET("/blocklist/custom", blocklistHandler.CustomDomains)
-			api.POST("/blocklist/custom", blocklistHandler.CustomDomains)
-			api.DELETE("/blocklist/custom", blocklistHandler.CustomDomains)
-			api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
-			api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster))
-			api.GET("/whoami", whoAmIHandler)
-			api.GET("/version-info", versionInfoHandler.Info)
-			api.GET("/banned-ips", bannedIPsHandler(rateLimiter))
-			api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
-			api.GET("/dns-query", dohHandler)
-		}
+	api := r.Group("/api")
+	api.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
+		AllowHeaders:     []string{"Authorization", "Content-Type", "X-API-Key"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+	api.Use(middlewares.RequireAnyAuth(middlewares.APIKeyAuth(apiKeys)))
 
-		distFS := web.DistFS()
-		httpFS := http.FS(distFS)
-		fileServer := http.FileServer(httpFS)
+	api.OPTIONS("/*path", corsPreflightHandler)
+	api.POST("/blocklist/check", blocklistHandler.Check)
+	api.POST("/blocklist/reload", blocklistHandler.Reload)
+	api.POST("/blocklist/disable", blocklistHandler.Disable)
+	api.POST("/blocklist/reenable", blocklistHandler.Reenable)
+	api.GET("/blocklist/status", blocklistHandler.Status(""))
+	api.GET("/blocklist/custom", blocklistHandler.CustomDomains)
+	api.POST("/blocklist/custom", blocklistHandler.CustomDomains)
+	api.DELETE("/blocklist/custom", blocklistHandler.CustomDomains)
+	api.GET("/asn/:ip", cachecontrol.NewWithOptions(cachecontrol.WithMaxAge(cachecontrol.Duration(24*time.Hour))), asnLookupHandler(geoIp))
+	api.GET("/events", cachecontrol.New(cachecontrol.NoCachePreset), handlers.SSEHandler(broadcaster))
 
-		r.NoRoute(func(c *gin.Context) {
+	api.GET("/version-info", versionInfoHandler.Info)
+	api.GET("/banned-ips", bannedIPsHandler(rateLimiter))
+	api.GET("/metrics", handlers.MetricsJSON(prometheus.DefaultGatherer.(*prometheus.Registry)))
+	api.GET("/dns-query", dohHandler)
 
-			host := c.Request.Host
-			if i := strings.IndexByte(host, ':'); i != -1 {
-				host = host[:i]
-			}
-			if !strings.EqualFold(host, adminHost) {
-				c.AbortWithStatus(http.StatusNotFound)
-				return
-			}
-
-			path := strings.TrimPrefix(c.Request.URL.Path, "/")
-			if path != "" {
-				if strings.HasPrefix(path, "api/") {
-					c.AbortWithStatusJSON(http.StatusNotFound, gin.H{"error": "API endpoint not found"})
-					return
-				}
-				if _, err := fs.Stat(distFS, path); err == nil {
-					fileServer.ServeHTTP(c.Writer, c.Request)
-					return
-				}
-			}
-
-			c.FileFromFS("/", httpFS)
-		})
-	}
-
-	return admin
+	return api
 }
 
 func corsPreflightHandler(c *gin.Context) {
@@ -146,13 +160,23 @@ func bannedIPsHandler(rateLimiter *limiter.Limiter) gin.HandlerFunc {
 	}
 }
 
-func whoAmIHandler(c *gin.Context) {
-	user, _ := c.Get("user")
-	email, _ := c.Get("email")
-	c.JSON(http.StatusOK, gin.H{
-		"user":  user,
-		"email": email,
-	})
+func whoAmIHandler(apiKeys map[string]string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		user, _ := c.Get("user")
+		email, _ := c.Get("email")
+
+		apiKey, found := apiKeys[user.(string)]
+		if !found {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "API key not found for user"})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"user":    user,
+			"email":   email,
+			"api_key": apiKey,
+		})
+	}
 }
 
 func asnLookupHandler(geoIp geoblock.GeoIpLookup) gin.HandlerFunc {

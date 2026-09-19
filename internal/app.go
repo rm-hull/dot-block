@@ -384,6 +384,11 @@ func (app *App) startHttpServer(
 		"admin."+serverName,
 		app.Config.Server.DevMode,
 		app.Config.Server.ApiKeys,
+	)
+
+	routes.NewAPIGroup(r,
+		app.Config.Server.DevMode,
+		app.Config.Server.ApiKeys,
 		handlers.NewBlocklistHandler(blocklists, app.Logger),
 		dispatcher.GetBroadcaster(),
 		geoIpLookup,
