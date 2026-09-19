@@ -1,20 +1,20 @@
 import React, { useRef } from "react";
 import { CatchBoundary, Outlet, createRootRoute } from "@tanstack/react-router";
 import { ErrorFallback } from "@rm-hull/chakra-error-fallback";
+import { Loading } from "@/components/Loading";
 import { Navbar, NavbarToolbarContext } from "@/components/Navbar";
 import { Provider } from "@/components/ui/provider";
 import { Toaster } from "@/components/ui/toaster";
-import { Loading } from "@/components/Loading";
 import { useAuth } from "@/hooks/useAuth";
 
 // eslint-disable-next-line react-refresh/only-export-components
 const TanStackRouterDevtools = import.meta.env.PROD
   ? () => null
   : React.lazy(() =>
-    import("@tanstack/react-router-devtools").then((res) => ({
-      default: res.TanStackRouterDevtools,
-    }))
-  );
+      import("@tanstack/react-router-devtools").then((res) => ({
+        default: res.TanStackRouterDevtools,
+      }))
+    );
 
 export const Route = createRootRoute({
   component: () => {

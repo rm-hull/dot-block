@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Button,
   EmptyState,
+  For,
   HStack,
   IconButton,
   Input,
@@ -17,6 +18,8 @@ import {
   useCustomDomains,
   useRemoveCustomDomains,
 } from "@/hooks/useCustomDomains";
+import { Loading } from "./Loading";
+import { toaster } from "./ui/toaster";
 
 interface CustomDomainRowProps {
   rank: number;
@@ -25,12 +28,7 @@ interface CustomDomainRowProps {
   onDelete: (domain: string) => void;
 }
 
-function CustomDomainRow({
-  rank,
-  domain,
-  filterText,
-  onDelete,
-}: CustomDomainRowProps) {
+function CustomDomainRow({ rank, domain, filterText, onDelete }: CustomDomainRowProps) {
   return (
     <Table.Row>
       <Table.Cell>{rank}</Table.Cell>
@@ -98,7 +96,7 @@ function NewDomainRow({
 
   return (
     <Table.Row>
-      <Table.Cell>
+      <Table.Cell colSpan={2}>
         <Input
           ref={inputRef}
           value={value}
@@ -132,7 +130,7 @@ interface CustomDomainsTableProps {
 }
 
 export function CustomDomainsTable({ filterText }: CustomDomainsTableProps) {
-  const { data: domains, isLoading, error } = useCustomDomains();
+  const { data, isLoading, error } = useCustomDomains();
   const removeMutation = useRemoveCustomDomains();
   const addMutation = useAddCustomDomains();
   const [addingNew, setAddingNew] = useState(false);
@@ -151,14 +149,20 @@ export function CustomDomainsTable({ filterText }: CustomDomainsTableProps) {
   };
 
   if (isLoading) {
-    return <Text>Loading custom domains...</Text>;
+    return <Loading />;
   }
 
   if (error) {
-    return <Text color="red.500">Error loading custom domains:{(error as Error)?.message}</Text>;
+    toaster.create({
+      id: "custom-domains",
+      title: "Error loading custom domains",
+      description: error.message,
+      type: "error",
+    });
+    return null;
   }
 
-  const domainList = domains ?? [];
+  const domains = data ?? [];
 
   return (
     <Table.ScrollArea height="calc(100vh - 160px)">
@@ -178,28 +182,33 @@ export function CustomDomainsTable({ filterText }: CustomDomainsTableProps) {
           </Table.Row>
         </Table.Header>
         <Table.Body>
-          {domainList.length === 0 ? (
-            <Table.Row>
-              <Table.Cell colSpan={2}>
-                <EmptyState.Root>
-                  <EmptyState.Content>
-                    <EmptyState.Title>No custom domains</EmptyState.Title>
-                    <EmptyState.Description>
-                      Add domains to the custom blocklist using the "Add" button above.
-                    </EmptyState.Description>
-                  </EmptyState.Content>
-                </EmptyState.Root>
-              </Table.Cell>
-            </Table.Row>
-          ) : (
-            domainList
-              .toSorted()
-              .map((domain, index) => ({ rank: index + 1, domain }))
-              .filter(({ domain }) => domain.toLowerCase().includes(filterText.toLowerCase()))
-              .map(({ rank, domain }) => (
-                <CustomDomainRow key={domain} rank={rank} domain={domain} onDelete={handleDelete} filterText={filterText} />
-              ))
-          )}
+          <For
+            each={domains.toSorted().map((domain, index) => ({ rank: index + 1, domain }))}
+            fallback={
+              <Table.Row>
+                <Table.Cell colSpan={3}>
+                  <EmptyState.Root>
+                    <EmptyState.Content>
+                      <EmptyState.Title>No custom domains</EmptyState.Title>
+                      <EmptyState.Description>
+                        Add domains to the custom blocklist using the "Add" button above.
+                      </EmptyState.Description>
+                    </EmptyState.Content>
+                  </EmptyState.Root>
+                </Table.Cell>
+              </Table.Row>
+            }
+          >
+            {({ rank, domain }) => (
+              <CustomDomainRow
+                key={domain}
+                rank={rank}
+                domain={domain}
+                onDelete={handleDelete}
+                filterText={filterText}
+              />
+            )}
+          </For>
 
           {addingNew && <NewDomainRow onAdd={handleAddNew} onCancel={() => setAddingNew(false)} />}
         </Table.Body>

@@ -12,11 +12,10 @@ const pickPalette = (name: string) => {
 };
 
 interface UserAvatarProps {
-  user: User
+  user: User;
 }
 
 export function UserAvatar({ user }: UserAvatarProps) {
-
   return (
     <Tooltip content={user.email}>
       <Avatar.Root size="sm" colorPalette={pickPalette(user.user)} cursor="pointer">

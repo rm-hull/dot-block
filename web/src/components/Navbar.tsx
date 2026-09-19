@@ -1,15 +1,15 @@
 import { createContext, useContext } from "react";
 import { Box, Flex, HStack, Span } from "@chakra-ui/react";
 import { RouterLink } from "@/components/ui/router-link";
-import { UserAvatar } from "./UserAvatar";
 import type { User } from "@/service/auth";
+import { UserAvatar } from "./UserAvatar";
 
 export const NavbarToolbarContext = createContext<React.RefObject<HTMLDivElement | null> | null>(
   null
 );
 
 interface NavbarProps {
-  user: User
+  user: User;
 }
 
 export function Navbar({ user }: NavbarProps) {

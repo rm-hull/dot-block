@@ -46,7 +46,7 @@ function DomainsPage() {
             Manage your own custom blocked domains.
           </Text>
         </HStack>
-        <CustomDomainsTable filterText={trimmedFilterText}/>
+        <CustomDomainsTable filterText={trimmedFilterText} />
       </Container>
     );
   }
