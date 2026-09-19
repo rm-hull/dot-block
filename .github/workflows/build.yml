@@ -14,8 +14,8 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/setup@v2
+        working-directory: web
         with:
-          working-directory: web
           cache: true
 
       - name: Install web dependencies
