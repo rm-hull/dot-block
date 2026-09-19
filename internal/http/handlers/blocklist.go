@@ -164,13 +164,30 @@ func (h *BlocklistHandler) CustomDomains(c *gin.Context) {
 		payload.Domains[i] = domain
 	}
 
+	// Filter out domains that already exist in another blocklist
+	filteredDomains := make([]string, 0, len(payload.Domains))
+	var skipped []string
+	for _, domain := range payload.Domains {
+		if h.existsInOtherBlocklists(domain, customBL) {
+			skipped = append(skipped, domain)
+		} else {
+			filteredDomains = append(filteredDomains, domain)
+		}
+	}
+
+	if len(filteredDomains) > 0 {
+		customBL.Add(filteredDomains)
+	}
+
+	response := gin.H{
+		"added":   filteredDomains,
+		"skipped": skipped,
+		"domains": customBL.Domains(),
+	}
 	switch c.Request.Method {
 	case http.MethodPost:
-		customBL.Add(payload.Domains)
-		c.JSON(http.StatusOK, gin.H{
-			"message": "Domains added successfully",
-			"domains": customBL.Domains(),
-		})
+		response["message"] = fmt.Sprintf("Domains added successfully (%d added, %d skipped)", len(filteredDomains), len(skipped))
+		c.JSON(http.StatusOK, response)
 	case http.MethodDelete:
 		customBL.Remove(payload.Domains)
 		c.JSON(http.StatusOK, gin.H{
@@ -246,6 +263,23 @@ func (h *BlocklistHandler) isBlocked(fqdn string) (bool, blocklist.Blocklist, er
 		}
 	}
 	return false, nil, nil
+}
+
+// existsInOtherBlocklists checks whether the given domain is already blocked
+// by any blocklist other than the provided custom blocklist. This prevents
+// adding duplicate entries to the custom blocklist when the domain is already
+// covered by another (e.g. static) blocklist.
+func (h *BlocklistHandler) existsInOtherBlocklists(fqdn string, customBL *blocklist.CustomBlocklist) bool {
+	for _, bl := range h.blocklists {
+		// Skip the custom blocklist itself
+		if cbl, ok := bl.(*blocklist.CustomBlocklist); ok && cbl == customBL {
+			continue
+		}
+		if isBlocked, err := bl.IsBlocked(fqdn); err == nil && isBlocked {
+			return true
+		}
+	}
+	return false
 }
 
 // parseDuration parses a duration string that may be in Go duration format

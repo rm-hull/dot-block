@@ -373,3 +373,46 @@ func TestBlocklistHandler_CustomDomains_NoCustomBlocklist(t *testing.T) {
 	assert.Equal(t, http.StatusServiceUnavailable, w.Code)
 	assert.Contains(t, w.Body.String(), "Custom blocklist not configured")
 }
+
+func TestBlocklistHandler_CustomDomains_SkipsExistingInOtherBlocklists(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	logger := slog.Default()
+
+	// Create a static blocklist and load a domain into it
+	source := &config.BlocklistSource{Name: "static-test", URL: "http://example.com/list.txt", Enabled: true}
+	staticBL := blocklist.NewStaticBlockList(source, 0.001, logger)
+	staticBL.Load([]string{"already-blocked.com"})
+
+	// Create a custom blocklist
+	customBL := blocklist.NewCustomBlocklist(logger)
+	h := NewBlocklistHandler([]blocklist.Blocklist{customBL, staticBL}, logger)
+
+	// POST domains: one that exists in the static blocklist, one that doesn't
+	w := httptest.NewRecorder()
+	payload := `{"domains": ["already-blocked.com", "new-domain.com"]}`
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/custom", strings.NewReader(payload))
+	c.Request.Header.Set("Content-Type", "application/json")
+	h.CustomDomains(c)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Verify the response indicates which domains were skipped
+	var resp map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &resp)
+	assert.NoError(t, err)
+
+	skipped, _ := resp["skipped"].([]interface{})
+	assert.Len(t, skipped, 1)
+	assert.Equal(t, "already-blocked.com", skipped[0])
+
+	added, _ := resp["added"].([]interface{})
+	assert.Len(t, added, 1)
+	assert.Equal(t, "new-domain.com", added[0])
+
+	// Verify that "already-blocked.com" was NOT added to the custom blocklist
+	domains := customBL.Domains()
+	for _, d := range domains {
+		assert.NotEqual(t, "already-blocked.com", d)
+	}
+}
