@@ -1,6 +1,7 @@
 import { Avatar } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useAvatar } from "@/hooks/useAvatar";
+import { useAuth } from "@/hooks/useAuth";
+import type { User } from "@/service/auth";
 
 const colorPalette = ["red", "blue", "green", "yellow", "purple", "orange"];
 
@@ -10,17 +11,17 @@ const pickPalette = (name: string) => {
   return colorPalette[index];
 };
 
-export function UserAvatar() {
-  const { data, isLoading, error } = useAvatar();
-  if (isLoading || error || !data) {
-    return null;
-  }
+interface UserAvatarProps {
+  user: User
+}
+
+export function UserAvatar({ user }: UserAvatarProps) {
 
   return (
-    <Tooltip content={data.email}>
-      <Avatar.Root size="sm" colorPalette={pickPalette(data.user)} cursor="pointer">
-        <Avatar.Fallback name={data.user} />
-        <Avatar.Image src={`https://www.gravatar.com/avatar/${data.emailHash}`} />
+    <Tooltip content={user.email}>
+      <Avatar.Root size="sm" colorPalette={pickPalette(user.user)} cursor="pointer">
+        <Avatar.Fallback name={user.user} />
+        <Avatar.Image src={`https://www.gravatar.com/avatar/${user.emailHash}`} />
       </Avatar.Root>
     </Tooltip>
   );

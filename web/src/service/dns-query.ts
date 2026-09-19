@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/service/auth";
+
 export interface DnsQuestion {
   name: string;
   type: number;
@@ -24,8 +26,8 @@ export interface DnsQueryResponse {
 }
 
 export async function fetchDnsQuery(fqdn: string): Promise<DnsQueryResponse> {
-  const url = `/api/dns-query?name=${fqdn}&type=A`;
-  const response = await fetch(url, {
+  const path = `/api/dns-query?name=${fqdn}&type=A`;
+  const response = await fetchWithAuth(path, {
     headers: {
       Accept: "application/dns-json",
     },

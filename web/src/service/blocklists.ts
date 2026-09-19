@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/service/auth";
+
 export interface BlocklistStatus {
   message?: string;
   errors?: string[];
@@ -22,7 +24,7 @@ export interface Blocklist {
 export type Action = "reload" | "disable" | "reenable";
 
 export async function fetchBlocklists(): Promise<BlocklistStatus> {
-  const response = await fetch("/api/blocklist/status");
+  const response = await fetchWithAuth("/api/blocklist/status");
   if (!response.ok) {
     throw new Error("Failed to fetch blocklist status");
   }
@@ -34,7 +36,7 @@ export async function blocklistAction(
   name?: string,
   payload?: Record<string, unknown>
 ): Promise<BlocklistStatus> {
-  const response = await fetch(`/api/blocklist/${action}`, {
+  const response = await fetchWithAuth(`/api/blocklist/${action}`, {
     method: "POST",
     body: JSON.stringify({ ...payload, name }),
   });

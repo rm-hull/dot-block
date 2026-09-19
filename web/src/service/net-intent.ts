@@ -1,7 +1,9 @@
 import type { DomainAssessment } from "@/types/net-intent/domain-analysis";
 import type { ErrorResponse, UrlScanResult } from "@/types/net-intent/url-scan";
 
-const BASE_URL = "https://api.hz-nbg1.destructuring-bind.org/v1/net-intent";
+const BASE_URL =
+  import.meta.env.VITE_NET_INTENT_BASE_URL ||
+  "https://api.hz-nbg1.destructuring-bind.org/v1/net-intent";
 
 export async function fetchDomainAnalysis(fqdn: string): Promise<DomainAssessment> {
   const response = await fetch(`${BASE_URL}/analyze?domain=${fqdn}`);

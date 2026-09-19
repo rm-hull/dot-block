@@ -1,3 +1,5 @@
+import { fetchWithAuth } from "@/service/auth";
+
 type MetricType = "COUNTER" | "GAUGE" | "HISTOGRAM" | "SUMMARY";
 
 interface BaseMetricItem {
@@ -38,7 +40,7 @@ export type MetricsResponse = Record<string, MetricFamily> & {
 };
 
 export async function fetchMetrics(): Promise<MetricsResponse> {
-  const response = await fetch("/api/metrics");
+  const response = await fetchWithAuth("/api/metrics");
   if (!response.ok) {
     throw new Error("Failed to fetch metrics");
   }

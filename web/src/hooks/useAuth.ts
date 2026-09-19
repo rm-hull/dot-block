@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchWhoAmI } from "@/service/whoami";
+import { fetchWhoAmI } from "@/service/auth";
 
-export function useAvatar() {
+export function useAuth() {
   return useQuery({
-    queryKey: ["whoami"],
+    queryKey: ["auth"],
     queryFn: fetchWhoAmI,
     retry: false,
   });

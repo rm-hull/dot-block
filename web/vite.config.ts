@@ -1,17 +1,13 @@
-import { execSync } from "child_process";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
-import { defineConfig } from "vite";
-import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
+import { execSync } from "child_process";
+import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig(() => {
-  process.env.VITE_GIT_COMMIT_DATE = execSync("git log -1 --format=%cI")
-    .toString()
-    .trimEnd();
-  process.env.VITE_GIT_COMMIT_HASH = execSync("git describe --always --dirty")
-    .toString()
-    .trimEnd();
+  process.env.VITE_GIT_COMMIT_DATE = execSync("git log -1 --format=%cI").toString().trimEnd();
+  process.env.VITE_GIT_COMMIT_HASH = execSync("git describe --always --dirty").toString().trimEnd();
 
   return {
     plugins: [
@@ -25,7 +21,8 @@ export default defineConfig(() => {
     },
     server: {
       proxy: {
-        "/api": "http://admin.localhost:8080",
+        "/whoami": "http://admin.localhost:8080",
+        "/api": "http://localhost:8080",
       },
     },
     resolve: {

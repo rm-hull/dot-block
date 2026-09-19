@@ -1,10 +1,12 @@
+import { fetchWithAuth } from "@/service/auth";
+
 export interface CustomDomainsResponse {
   domains: string[];
   message?: string;
 }
 
 export async function fetchCustomDomains(): Promise<string[]> {
-  const response = await fetch("/api/blocklist/custom");
+  const response = await fetchWithAuth("/api/blocklist/custom");
   if (!response.ok) {
     throw new Error("Failed to fetch custom domains");
   }
@@ -13,7 +15,7 @@ export async function fetchCustomDomains(): Promise<string[]> {
 }
 
 export async function addCustomDomains(domains: string[]): Promise<CustomDomainsResponse> {
-  const response = await fetch("/api/blocklist/custom", {
+  const response = await fetchWithAuth("/api/blocklist/custom", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ domains }),
@@ -26,7 +28,7 @@ export async function addCustomDomains(domains: string[]): Promise<CustomDomains
 }
 
 export async function removeCustomDomains(domains: string[]): Promise<CustomDomainsResponse> {
-  const response = await fetch("/api/blocklist/custom", {
+  const response = await fetchWithAuth("/api/blocklist/custom", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ domains }),
