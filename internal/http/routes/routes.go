@@ -110,8 +110,8 @@ func NewAPIGroup(
 	api := r.Group("/api")
 	api.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodOptions},
-		AllowHeaders:     []string{"Authorization", "Content-Type", "X-API-Key"},
+		AllowMethods:     []string{http.MethodGet, http.MethodPost, http.MethodDelete, http.MethodOptions},
+		AllowHeaders:     []string{"Content-Type", "X-API-Key"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 		MaxAge:           12 * time.Hour,
