@@ -31,16 +31,10 @@ jobs:
           go-version: "1.27"
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v6.1.0
+        uses: pnpm/setup@v2
         with:
-          package_json_file: web/package.json
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: "24"
-          cache: "pnpm"
-          cache-dependency-path: web/pnpm-lock.yaml
+          working-directory: web
+          cache: true
 
       - name: Configure Git
         run: |
