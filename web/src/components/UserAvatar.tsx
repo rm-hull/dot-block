@@ -1,6 +1,5 @@
 import { Avatar } from "@chakra-ui/react";
 import { Tooltip } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
 import type { User } from "@/service/auth";
 
 const colorPalette = ["red", "blue", "green", "yellow", "purple", "orange"];
