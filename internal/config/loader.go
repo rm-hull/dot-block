@@ -91,6 +91,12 @@ func DefaultConfig() *Config {
 					Enabled:      true,
 				},
 				{
+					Name:         "yeti-dabble",
+					URL:          "https://raw.githubusercontent.com/rm-hull/yeti-dabble/refs/heads/main/blocklist.txt",
+					CronSchedule: "@every 7h",
+					Enabled:      true,
+				},
+				{
 					Name:         "adaway",
 					Title:        "AdAway default blocklist",
 					Description:  "Blocking mobile ad providers and some analytics providers",
