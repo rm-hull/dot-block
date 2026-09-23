@@ -31,7 +31,7 @@ jobs:
           go-version: "1.27"
 
       - name: Install pnpm
-        uses: pnpm/setup@v2.1.0
+        uses: pnpm/setup@v3.0.0
         with:
           cache: true
           working-directory: web
