@@ -17,7 +17,7 @@ require (
 	github.com/getsentry/sentry-go v0.49.0
 	github.com/getsentry/sentry-go/gin v0.49.0
 	github.com/gin-contrib/cors v1.7.8
-	github.com/gin-contrib/pprof v1.5.5
+	github.com/gin-contrib/pprof v1.5.6
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-pkgz/expirable-cache/v3 v3.1.1
 	github.com/google/uuid v1.6.0
