@@ -268,8 +268,8 @@ github.com/rabbitmq/amqp091-go v1.15.0 h1:LEQL4/yp48/Wigt6A6XOu18RQRo8ZHtB5I/KZJ
 github.com/rabbitmq/amqp091-go v1.15.0/go.mod h1:Hy4jKW5kQART1u+JkDTF9YYOQUHXqMuhrgxOEeS7G4o=
 github.com/redis/go-redis/v9 v9.22.0 h1:laDvpYXTJtZLloinw1fA5Kqd6HAEH2XKxOkG/PDq2F0=
 github.com/redis/go-redis/v9 v9.22.0/go.mod h1:y2g0Wj8rQvuK0ELM+oxSudcLtC09JScs98I/X9gRWY4=
-github.com/rm-hull/godx v0.2.5 h1:JFrGYrWnFPvZb0KCuaYcnQgApeQyrIJ1MGjz7zdLFkE=
-github.com/rm-hull/godx v0.2.5/go.mod h1:0oi3DNXdF57yIsc2OBijWoHg8Fg2lQq4lBzyjRxF7j8=
+github.com/rm-hull/godx v0.2.6 h1:F5o9BEZgt5LUisa60fHBfR1K6bOmdUWv2Oy9l8fzxe0=
+github.com/rm-hull/godx v0.2.6/go.mod h1:0oi3DNXdF57yIsc2OBijWoHg8Fg2lQq4lBzyjRxF7j8=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
