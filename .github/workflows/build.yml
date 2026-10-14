@@ -17,7 +17,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install pnpm
-        uses: pnpm/setup@v3.0.0
+        uses: pnpm/setup@v3.1.1
         with:
           cache: true
           working-directory: web
