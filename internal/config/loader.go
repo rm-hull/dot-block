@@ -150,7 +150,7 @@ func DefaultConfig() *Config {
 					Description:  "A project from abuse.ch with the goal of sharing malicious URLs.",
 					URL:          "https://urlhaus.abuse.ch/downloads/hostfile/",
 					CronSchedule: "@every 10h",
-					Enabled:      true,
+					Enabled:      false, // Reporting 410 "Gone"
 				},
 				{
 					Name:         "open-phish",
