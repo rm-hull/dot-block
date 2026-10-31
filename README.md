@@ -57,6 +57,27 @@ services:
 - `net.ipv4.ip_local_port_range`: Expands the ephemeral port range to allow more concurrent outgoing UDP requests.
 - `net.core.rmem_max` & `net.core.wmem_max`: Increases the maximum OS receive and send buffer sizes for UDP to prevent packet drops during traffic spikes.
 
+#### Docker Healthcheck
+
+The binary includes a `healthcheck` subcommand designed for use with Docker's `HEALTHCHECK` instruction in distroless or minimal images. It sends an HTTP GET request to the `/healthz` endpoint and exits with code 0 on success or 1 on failure.
+
+**Example `docker-compose.yml` snippet:**
+
+```yaml
+services:
+    dot-block:
+        image: your-username/dot-block:latest
+        # ... other configuration ...
+        healthcheck:
+            test: ["dot-block", "healthcheck", "--url", "http://localhost:80/healthz"]
+            interval: 30s
+            timeout: 5s
+            retries: 3
+            start_period: 10s
+```
+
+The `--url` flag defaults to `http://localhost:80/healthz`, so you can simplify the test to `["dot-block", "healthcheck"]` if using the default HTTP port.
+
 ### Advanced Setup: Local DNSSEC with Unbound
 
 By default, DoT Block forwards queries to public resolvers. While these typically perform DNSSEC validation, you can implement **local DNSSEC validation** by using [Unbound](https://nlnetlabs.nl/projects/unbound/about/) as your upstream resolver. This removes the need to trust a third-party provider for validation.

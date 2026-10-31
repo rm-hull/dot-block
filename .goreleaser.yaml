@@ -12,26 +12,28 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     main: .
     binary: dot-block
 
-dockers:
-  - image_templates:
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:{{ .Version }}"
-      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}:latest"
-    dockerfile: Dockerfile.goreleaser
-    use: buildx
-    goos: linux
-    goarch: amd64
-    build_flag_templates:
-      - "--platform=linux/amd64"
-      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
-      - "--label=org.opencontainers.image.description=High-performance caching and filtering DNS-over-TLS/HTTPS server"
-      - "--label=org.opencontainers.image.version={{ .Version }}"
-      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.created={{ .Date }}"
-      - "--label=org.opencontainers.image.source=https://github.com/{{ .Env.IMAGE_NAME }}"
-      - "--label=org.opencontainers.image.url=https://github.com/{{ .Env.IMAGE_NAME }}"
+dockers_v2:
+  - dockerfile: Dockerfile.goreleaser
+    images:
+      - "{{ .Env.REGISTRY }}/{{ .Env.IMAGE_NAME }}"
+    tags:
+      - "{{ .Version }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.description": "High-performance caching and filtering DNS-over-TLS/HTTPS server"
+      "org.opencontainers.image.version": "{{ .Version }}"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.source": "https://github.com/{{ .Env.IMAGE_NAME }}"
+      "org.opencontainers.image.url": "https://github.com/{{ .Env.IMAGE_NAME }}"
 
 release:
   github:
@@ -46,14 +48,14 @@ changelog:
     - title: Features
       regexp: '^.*?feat(\(.+\))??!?:.+$'
       order: 100
-    - title: 'Bug fixes'
+    - title: "Bug fixes"
       regexp: '^.*?fix(\(.+\))??!?:.+$'
       order: 200
     - title: Others
       order: 999
   filters:
     exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - '^ci:'
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"

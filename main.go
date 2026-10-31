@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/earthboundkid/versioninfo/v2"
 	"github.com/rm-hull/dot-block/internal"
@@ -75,6 +77,31 @@ func main() {
 
 	rootCmd.Flags().StringVar(&configPath, "config", "", "Path to config.yaml file (optional, searches default locations if not provided)")
 	rootCmd.Flags().BoolVarP(&showVersion, "version", "v", false, "Print version and exit")
+
+	healthcheckCmd := &cobra.Command{
+		Use:   "healthcheck",
+		Short: "Check if the DoT Block server is healthy",
+		Long:  "Sends an HTTP GET request to the /healthz endpoint and returns exit code 0 if the server responds with HTTP 200, or 1 otherwise.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			url, _ := cmd.Flags().GetString("url")
+			client := &http.Client{Timeout: 2 * time.Second}
+			resp, err := client.Get(url)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Healthcheck failed: %v\n", err)
+				os.Exit(1)
+			}
+			defer func() { _ = resp.Body.Close() }()
+			if resp.StatusCode != http.StatusOK {
+				fmt.Fprintf(os.Stderr, "Healthcheck failed: status code %d\n", resp.StatusCode)
+				os.Exit(1)
+			}
+			fmt.Println("OK")
+			return nil
+		},
+	}
+	healthcheckCmd.Flags().String("url", "http://localhost:80/healthz", "Healthcheck URL")
+
+	rootCmd.AddCommand(healthcheckCmd)
 
 	if err := rootCmd.Execute(); err != nil {
 		app.Logger.Error("Failed to execute command", "error", err)
