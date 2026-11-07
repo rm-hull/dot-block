@@ -165,7 +165,15 @@ func DefaultConfig() *Config {
 					Title:        "DNS HTTPS Blocklist W/ 100% pihole compatibility and 90% unbound OPNSENSE",
 					Description:  "Prevent program and malware to bypass DNS filter by using popular DoH services. This list has been created for security purpose ONLY. DoH by concept is a great idea, but is already being abused. To be more efficient, you should also consider blocking DoH providers IP adresses. Did I miss a domain? Let me know! https://github.com/Bryantdl7/pihole-blocklists/issues",
 					URL:          "https://raw.githubusercontent.com/Bryantdl7/pihole-blocklists/main/dns-https-block.txt",
-					CronSchedule: "@every 5h",
+					CronSchedule: "@every 19h",
+					Enabled:      true,
+				},
+				{
+					Name:         "doh-dibdot",
+					Title:        "Dirk Brenken's DoH Blocklist",
+					Description:  "This repo contains the domain names and the IPv4/IPv6 addresses of public DoH server. The main domain list doh-domains_overall.txt is manually updated on a regular basis (usually once a month). All other output files in this repo are derived from that file and generated automatically with the help of the script doh-lookup.sh",
+					URL:          "https://raw.githubusercontent.com/dibdot/DoH-IP-blocklists/refs/heads/master/doh-domains.txt",
+					CronSchedule: "@every 3h",
 					Enabled:      true,
 				},
 				{
