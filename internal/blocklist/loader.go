@@ -64,6 +64,14 @@ func stream(r io.Reader, handler ScannerFunc) (map[string]string, error) {
 			}
 		}
 
+		// Strip adblock-style markers: || prefix and ^ suffix (with optional trailing options like $thirdparty)
+		if after, ok := bytes.CutPrefix(line, []byte("||")); ok {
+			line = after
+		}
+		if idx := bytes.IndexByte(line, '^'); idx >= 0 {
+			line = line[:idx]
+		}
+
 		if host, err := hostnameFromURL(string(line)); err == nil {
 			line = []byte(host)
 		}

@@ -61,6 +61,74 @@ func TestLoader_Stream(t *testing.T) {
 	assert.Contains(t, hosts, "malicious.net")
 }
 
+func TestLoader_AdblockMarkers(t *testing.T) {
+	tests := []struct {
+		name     string
+		content  string
+		expected []string
+	}{
+		{
+			name:     "basic adblock markers",
+			content:  "||dns.mullvad.net^\navastdns.com\n",
+			expected: []string{"dns.mullvad.net", "avastdns.com"},
+		},
+		{
+			name:     "only prefix marker",
+			content:  "||example.com^\n",
+			expected: []string{"example.com"},
+		},
+		{
+			name:     "only suffix marker",
+			content:  "example.com^\n",
+			expected: []string{"example.com"},
+		},
+		{
+			name:     "only prefix marker without suffix",
+			content:  "||example.com\n",
+			expected: []string{"example.com"},
+		},
+		{
+			name:     "subdomain with markers",
+			content:  "||sub.domain.example.com^\n",
+			expected: []string{"sub.domain.example.com"},
+		},
+		{
+			name:     "mixed formats",
+			content:  "||avastdns.com^\n0.0.0.0 nextdns.io\n||safedns.com^\nmalicious.net\n",
+			expected: []string{"avastdns.com", "nextdns.io", "safedns.com", "malicious.net"},
+		},
+		{
+			name:     "marker with trailing options",
+			content:  "||example.com^$thirdparty\n",
+			expected: []string{"example.com"},
+		},
+		{
+			name:     "marker with whitespace",
+			content:  "  ||example.com^  \n",
+			expected: []string{"example.com"},
+		},
+		{
+			name:     "comment lines ignored",
+			content:  "# wildcard pihole specific domains\n||avastdns.com^\n# help wanted\n||nextdns.io^\n",
+			expected: []string{"avastdns.com", "nextdns.io"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpFile := setupTempFile(t, tt.content)
+			var hosts []string
+			scannerFunc := func(host []byte) bool {
+				hosts = append(hosts, string(host))
+				return false
+			}
+			_, err := stream(tmpFile, scannerFunc)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expected, hosts)
+		})
+	}
+}
+
 func TestHostnameFromURL(t *testing.T) {
 	tests := []struct {
 		name     string
