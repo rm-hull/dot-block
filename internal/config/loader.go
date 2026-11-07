@@ -161,6 +161,14 @@ func DefaultConfig() *Config {
 					Enabled:      true,
 				},
 				{
+					Name:         "doh-bryantdl7",
+					Title:        "DNS HTTPS Blocklist W/ 100% pihole compatibility and 90% unbound OPNSENSE",
+					Description:  "Prevent program and malware to bypass DNS filter by using popular DoH services. This list has been created for security purpose ONLY. DoH by concept is a great idea, but is already being abused. To be more efficient, you should also consider blocking DoH providers IP adresses. Did I miss a domain? Let me know! https://github.com/Bryantdl7/pihole-blocklists/issues",
+					URL:          "https://raw.githubusercontent.com/Bryantdl7/pihole-blocklists/main/dns-https-block.txt",
+					CronSchedule: "@every 5h",
+					Enabled:      true,
+				},
+				{
 					Name:         "hagezi-pro.plus",
 					URL:          "https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/wildcard/pro.plus-onlydomains.txt",
 					CronSchedule: "@every 19h",
