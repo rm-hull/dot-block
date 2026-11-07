@@ -1,3 +1,3 @@
 # Attribution
 
-**dot-block** uses the IP2Location LITE database for [IP geolocation](https://lite.ip2location.com).
+**dot-block** uses the ~~IP2Location LITE~~ [MaxMind GeoLite2](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data/) database for IP geolocation.
