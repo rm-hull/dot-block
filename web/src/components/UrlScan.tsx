@@ -9,9 +9,10 @@ import { Magnifier } from "./Magnifier";
 
 interface UrlScanProps {
   fqdn: string;
+  onError?: (error: Error) => void;
 }
 
-export function UrlScan({ fqdn }: UrlScanProps) {
+export function UrlScan({ fqdn, onError }: UrlScanProps) {
   const { data, isLoading, error } = useUrlScan(fqdn);
 
   if (data === undefined && isLoading) {
@@ -19,11 +20,12 @@ export function UrlScan({ fqdn }: UrlScanProps) {
   }
 
   if (error) {
+    onError?.(error);
     toaster.create({
       id: "url-scan",
       title: `Error loading URL scan results for: ${fqdn}`,
       description: error.message,
-      type: "error",
+      type: error.message === "Failed to fetch url scan" ? "warning" : "error",
     });
     return null;
   }

@@ -12,6 +12,7 @@ interface DomainLinkProps {
 
 export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
   const [open, setOpen] = useState(false);
+  const [disableTab, setDisableTab] = useState<Record<string, boolean>>({});
   const [selectedFqdn, setSelectedFqdn] = useState(fqdn);
   const { mutate, isPending } = useAddCustomDomains();
 
@@ -57,18 +58,33 @@ export function DomainLink({ fqdn, highlight }: DomainLinkProps) {
             <Drawer.Body pt={0}>
               <Tabs.Root defaultValue="analysis">
                 <Tabs.List position="sticky" top={0} bg="bg" zIndex={1}>
-                  <Tabs.Trigger value="analysis">Threat Analysis</Tabs.Trigger>
-                  <Tabs.Trigger value="urlscan">URL Scan</Tabs.Trigger>
-                  <Tabs.Trigger value="dns">DNS Results</Tabs.Trigger>
+                  <Tabs.Trigger value="analysis" disabled={disableTab.analysis}>
+                    Threat Analysis
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="urlscan" disabled={disableTab.urlScan}>
+                    URL Scan
+                  </Tabs.Trigger>
+                  <Tabs.Trigger value="dns" disabled={disableTab.dns}>
+                    DNS Results
+                  </Tabs.Trigger>
                 </Tabs.List>
                 <Tabs.Content value="analysis">
-                  <DomainAnalysis fqdn={selectedFqdn} />
+                  <DomainAnalysis
+                    fqdn={selectedFqdn}
+                    onError={() => setDisableTab((prev) => ({ ...prev, analysis: true }))}
+                  />
                 </Tabs.Content>
                 <Tabs.Content value="urlscan">
-                  <UrlScan fqdn={selectedFqdn} />
+                  <UrlScan
+                    fqdn={selectedFqdn}
+                    onError={() => setDisableTab((prev) => ({ ...prev, urlScan: true }))}
+                  />
                 </Tabs.Content>
                 <Tabs.Content value="dns">
-                  <DnsResult fqdn={selectedFqdn} />
+                  <DnsResult
+                    fqdn={selectedFqdn}
+                    onError={() => setDisableTab((prev) => ({ ...prev, dns: true }))}
+                  />
                 </Tabs.Content>
               </Tabs.Root>
             </Drawer.Body>

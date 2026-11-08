@@ -9,6 +9,7 @@ import { toaster } from "./ui/toaster";
 
 interface DnsResultProps {
   fqdn: string;
+  onError?: (error: Error) => void;
 }
 
 interface RecordSectionProps {
@@ -128,7 +129,7 @@ function DnsResponse({ response }: DnsResponseProps) {
   );
 }
 
-export function DnsResult({ fqdn }: DnsResultProps) {
+export function DnsResult({ fqdn, onError }: DnsResultProps) {
   const { data, isLoading, error } = useDnsQuery(fqdn);
 
   if (data === undefined && isLoading) {
@@ -136,6 +137,7 @@ export function DnsResult({ fqdn }: DnsResultProps) {
   }
 
   if (error) {
+    onError?.(error);
     toaster.create({
       id: "domain-analysis",
       title: `Error loading DNS results for: ${fqdn}`,

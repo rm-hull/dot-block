@@ -36,9 +36,10 @@ function riskColor(value: number | undefined) {
 
 interface DomainAnalysisProps {
   fqdn: string;
+  onError?: (error: Error) => void;
 }
 
-export function DomainAnalysis({ fqdn }: DomainAnalysisProps) {
+export function DomainAnalysis({ fqdn, onError }: DomainAnalysisProps) {
   const { data, isLoading, error } = useDomainAnalysis(fqdn);
 
   if (data === undefined && isLoading) {
@@ -46,6 +47,7 @@ export function DomainAnalysis({ fqdn }: DomainAnalysisProps) {
   }
 
   if (error) {
+    onError?.(error);
     toaster.create({
       id: "domain-analysis",
       title: `Error loading domain analysis for: ${fqdn}`,
