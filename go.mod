@@ -16,8 +16,8 @@ require (
 	github.com/earthboundkid/versioninfo/v2 v2.24.1
 	github.com/getsentry/sentry-go v0.50.0
 	github.com/getsentry/sentry-go/gin v0.50.0
-	github.com/gin-contrib/cors v1.7.10
-	github.com/gin-contrib/pprof v1.5.7
+	github.com/gin-contrib/cors v1.7.11
+	github.com/gin-contrib/pprof v1.5.8
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-pkgz/expirable-cache/v3 v3.1.1
 	github.com/google/uuid v1.6.0
@@ -64,7 +64,7 @@ require (
 	github.com/cockroachdb/redact v1.1.8 // indirect
 	github.com/dgryski/go-metro v0.0.0-20261008173524-5059e0b1da03 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.16 // indirect
-	github.com/gin-contrib/sse v1.2.0 // indirect
+	github.com/gin-contrib/sse v1.2.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-playground/locales v0.14.2 // indirect
