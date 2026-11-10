@@ -1,6 +1,6 @@
 # Title: dot-block custom blocklist
 # Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
-# Last modified: 08 Nov 2026 00:00 UTC
+# Last modified: 10 Nov 2026 19:33 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -125,3 +125,6 @@ EIC.netflixvoice.lgtvcommon.com
 
 0353655954175547.hostedstatus.com
 4277980205320394.hostedstatus.com
+
+s.update.ttdcdn.org
+bid-openpath.ttdcdn.org
