@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Generate token
         id: generate_token
-        uses: actions/create-github-app-token@v3
+        uses: actions/create-github-app-token@v3.3.0
         with:
           client-id: ${{ vars.GEMINI_PR_AGENT_CLIENT_ID }}
           private-key: ${{ secrets.GEMINI_PR_AGENT_PRIVATE_KEY }}
@@ -30,7 +30,7 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
       - name: Checkout PR Branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@v7.0.1
         with:
           token: ${{ steps.generate_token.outputs.token }}
           ref: ${{ steps.pr_data.outputs.head_ref }}
@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Gemini CLI Iteration
         id: gemini_agent
-        uses: google-github-actions/run-gemini-cli@v0
+        uses: google-github-actions/run-gemini-cli@v0.1.22
         env:
           GEMINI_CLI_TRUST_WORKSPACE: true
         with:
