@@ -1,6 +1,6 @@
 # Title: dot-block custom blocklist
 # Description: internally curated blocklist, maintained at github.com/rm-hull/dot-block
-# Last modified: 16 Nov 2026 17:42 UTC
+# Last modified: 16 Nov 2026 17:45 UTC
 # Notes: raise an issue/create a PR to add/remove entries from this blocklist
 #
 07c225f3.online
@@ -133,3 +133,4 @@ cobwebsapp.com
 cwtapp.com
 cwsystem.com
 awesomeoval.me
+valnetinc.com
