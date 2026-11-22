@@ -119,3 +119,27 @@ blocklist,ERROR,example.com
 	assert.True(t, nf.ShouldSuppress("blocklist", "ERROR", "test.example.com"))
 	assert.False(t, nf.ShouldSuppress("upstream", "REFUSED", "test.google.com"))
 }
+
+func TestNoiseFilter_Load_withoutHeader(t *testing.T) {
+	csvData := `upstream,REFUSED,akadns.net
+upstream,REFUSED,akamaiedge.net
+blocklist,ERROR,example.com
+`
+	reader := strings.NewReader(csvData)
+	nf := NewNoiseFilter()
+	err := nf.Load(reader)
+	assert.NoError(t, err)
+
+	assert.True(t, nf.ShouldSuppress("upstream", "REFUSED", "test.akadns.net"))
+	assert.True(t, nf.ShouldSuppress("upstream", "REFUSED", "test.akamaiedge.net"))
+	assert.True(t, nf.ShouldSuppress("blocklist", "ERROR", "test.example.com"))
+	assert.False(t, nf.ShouldSuppress("upstream", "REFUSED", "test.google.com"))
+}
+
+func TestNoiseFilter_Load_emptyFile(t *testing.T) {
+	reader := strings.NewReader("")
+	nf := NewNoiseFilter()
+	err := nf.Load(reader)
+	assert.NoError(t, err)
+	assert.False(t, nf.ShouldSuppress("upstream", "REFUSED", "test.akadns.net"))
+}

@@ -34,15 +34,6 @@ func (nf *NoiseFilter) Reset() {
 func (nf *NoiseFilter) Load(reader io.Reader) error {
 	csvReader := csv.NewReader(reader)
 
-	// Detect and skip header
-	_, err := csvReader.Read()
-	if err != nil {
-		if err == io.EOF {
-			return nil
-		}
-		return fmt.Errorf("failed to read CSV: %w", err)
-	}
-
 	nf.mu.Lock()
 	defer nf.mu.Unlock()
 
@@ -52,11 +43,16 @@ func (nf *NoiseFilter) Load(reader io.Reader) error {
 			break
 		}
 		if err != nil {
-			return fmt.Errorf("failed to read CSV record: %w", err)
+			return fmt.Errorf("failed to read CSV: %w", err)
 		}
 
 		if len(record) < 3 {
 			continue // Skip malformed lines
+		}
+
+		// Skip header row if it matches the expected format
+		if record[0] == "category" && record[1] == "rcode" && record[2] == "domain_suffix" {
+			continue
 		}
 
 		nf.appendTriplet(record)
