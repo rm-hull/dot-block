@@ -258,6 +258,9 @@ func (app *App) RunServer(ctx context.Context) error {
 			app.Logger.Info("Starting DoT server (plain TCP) in DEV mode", "port", app.Config.Server.DotPort)
 		} else {
 			app.Logger.Info("Starting DNS-over-TLS server", "port", app.Config.Server.DotPort)
+			if magic == nil {
+				return errors.New("DoT requires Let's Encrypt to be enabled for TLS certificates")
+			}
 			proxyListener, err := app.newProxyListener(listener)
 			if err != nil {
 				return err
