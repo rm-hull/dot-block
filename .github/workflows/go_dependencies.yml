@@ -23,7 +23,7 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
 
-      - uses: actions/setup-go@v7.0.0
+      - uses: actions/setup-go@v7.1.0
         with:
           go-version: stable
           cache: true
